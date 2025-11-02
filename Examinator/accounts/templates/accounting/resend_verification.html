@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Resend Verification{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    /* Custom dark theme styling */
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #1f2937; /* A dark gray background */
+        color: #e5e7eb; /* Light gray text for readability */
+    }
+    .card-container {
+        background-color: #374151; /* A lighter gray for the card */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .input-field {
+        background-color: #111827; /* A darker shade for input fields */
+        border-color: #4b5563; /* A subtle border color */
+        color: #e5e7eb;
+    }
+    .input-field:focus {
+        border-color: #2dd4bf; /* Teal focus ring */
+        box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.4);
+        outline: none;
+    }
+    .submit-button {
+        background-color: #2dd4bf; /* Vibrant teal for the button */
+        color: #1f2937;
+    }
+    .submit-button:hover {
+        background-color: #14b8a6; /* A slightly darker teal on hover */
+    }
+    .title-text {
+        color: #2dd4bf; /* Teal color for the title */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-md px-6 py-8 rounded-xl card-container">
+        <div class="text-center">
+            <h2 class="text-3xl font-bold mb-6 title-text">Resend Verification Email</h2>
+            <p class="text-gray-400 mb-6">Enter your email address to receive a new verification link.</p>
+        </div>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <input type="email" name="email" required placeholder="Enter your email" 
+                       class="w-full p-3 rounded-lg border input-field focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+            </div>
+            <div class="text-center">
+                <button type="submit" class="w-full py-3 px-4 rounded-lg font-semibold submit-button transition duration-200 hover:scale-105">
+                    Send New Link
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

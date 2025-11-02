@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-8">
+  <div class="bg-white dark:bg-gray-800 shadow-xl rounded-2xl overflow-hidden">
+    
+    <div class="p-6 bg-blue-600 dark:bg-blue-700 text-white flex items-center justify-between">
+      <h2 class="text-2xl font-extrabold tracking-tight">
+        {% if is_editing %} ✏️ Edit: {{ node.name }} {% else %} ➕ Add Child Node {% endif %}
+      </h2>
+    </div>
+
+    <div class="p-6 sm:p-8">
+      <form method="post" novalidate class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- ======================================================= -->
+        <!-- FIELD: Name (Floating Label Style) -->
+        <!-- ======================================================= -->
+        <div class="group relative z-0 w-full mb-6">
+          <input type="text" 
+                 name="name" 
+                 id="id_name" 
+                 required 
+                 value="{{ initial_data.name|default:'' }}"
+                 class="block py-2.5 px-0 w-full text-sm text-gray-900 dark:text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" 
+                 placeholder=" " >
+          
+          <label for="id_name" class="absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 z-10 origin-[0] peer-focus:start-0 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 rtl:peer-focus:translate-x-full rtl:peer-focus:left-auto">
+            Name
+          </label>
+          {% if errors.name %}
+            <p class="mt-1 text-xs text-red-500">{{ errors.name }}</p>
+          {% endif %}
+        </div>
+
+        <!-- ======================================================= -->
+        <!-- FIELD: Node Type -->
+        <!-- ======================================================= -->
+        <div>
+          <label for="id_node_type" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Node Type</label>
+          
+          {% if is_editing or parent_node %}
+            <!-- Editing (is_editing=True) or Creating a Child (parent_node exists) -->
+            <!-- Display read-only value -->
+            <p class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                {{ initial_data.node_type|default_if_none:'N/A' }}
+            </p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Node type is determined by its parent and cannot be changed.</p>
+            
+            <!-- Hidden input to ensure the value is still sent in the POST request -->
+            <input type="hidden" name="node_type" value="{{ initial_data.node_type|default:'' }}">
+            
+          {% else %}
+            <!-- Creating a Root Node -->
+            <select name="node_type" id="id_node_type" 
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+              <option value="">--- Select Node Type ---</option>
+              {% for val, label in node_type_choices %}
+                  <option value="{{ val }}" 
+                          {% if initial_data.node_type == val %}selected{% endif %}>
+                      {{ label }}
+                  </option>
+              {% endfor %}
+            </select>
+          {% endif %}
+          
+          {% if errors.node_type %}
+            <p class="mt-1 text-xs text-red-500">{{ errors.node_type }}</p>
+          {% endif %}
+        </div>
+        
+        <!-- ======================================================= -->
+        <!-- FIELD: Parent Node -->
+        <!-- ======================================================= -->
+        <div>
+          <label for="id_parent" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Parent Node</label>
+          
+          {% if is_editing %}
+            <!-- Editing Existing Node -->
+            <p class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                {% if node.parent %}{{ node.parent.name }} ({{ node.parent.node_type }}){% else %}Root Node (No Parent){% endif %}
+            </p>
+            <!-- Hidden field is necessary to pass the parent ID back if reparenting is allowed, but based on your
+                 logic, we'll keep it hidden for consistency. -->
+            <input type="hidden" name="parent" value="{{ initial_data.parent|default:'' }}">
+          
+          {% elif parent_node %}
+            <!-- Creating a Child Node (Parent is fixed) -->
+            <p class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                {{ parent_node.name }} ({{ parent_node.node_type }})
+            </p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Parent field cannot be changed when creating a new child node.</p>
+            <!-- Hidden input for the fixed parent ID -->
+            <input type="hidden" name="parent" value="{{ parent_node.pk }}">
+            
+          {% else %}
+            <!-- Creating a Root Node (Parent selection is required if not root) -->
+            <!-- If you allow reparenting or selecting any parent, this would be a full select field -->
+            <p class="text-gray-500 italic p-2.5">This will be a root node.</p>
+            <input type="hidden" name="parent" value="">
+          {% endif %}
+
+          {% if errors.parent %}
+            <p class="mt-1 text-xs text-red-500">{{ errors.parent }}</p>
+          {% endif %}
+        </div>
+        
+        <!-- ======================================================= -->
+        <!-- FIELD: Order (Floating Label Style) -->
+        <!-- ======================================================= -->
+        <div class="group relative z-0 w-full mb-6">
+          <input type="number" step="1" 
+                 name="order" 
+                 id="id_order" 
+                 value="{{ initial_data.order|default:'' }}"
+                 class="block py-2.5 px-0 w-full text-sm text-gray-900 dark:text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" 
+                 placeholder=" ">
+          
+          <label for="id_order" class="absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 z-10 origin-[0] peer-focus:start-0 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 rtl:peer-focus:translate-x-full rtl:peer-focus:left-auto">
+            Order
+          </label>
+          {% if errors.order %}
+            <p class="mt-1 text-xs text-red-500">{{ errors.order }}</p>
+          {% endif %}
+        </div>
+
+        <!-- ======================================================= -->
+        <!-- FIELD: Metadata (JSON Textarea) -->
+        <!-- ======================================================= -->
+        <div>
+          <label for="id_metadata" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Metadata (JSON)</label>
+          <textarea name="metadata" 
+                    id="id_metadata" 
+                    class="block w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 resize-none" 
+                    rows="4" 
+                    placeholder='{"key": "value"}'>{{ initial_data.metadata|default:'' }}</textarea>
+                    
+          <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Example: <code class="bg-gray-100 dark:bg-gray-700 p-1 rounded">{"difficulty": "easy", "duration": 30}</code>
+          </p>
+          {% if errors.metadata %}
+            <p class="mt-1 text-xs text-red-500">{{ errors.metadata }}</p>
+          {% endif %}
+        </div>
+        
+        ---
+        
+        <!-- General Errors -->
+        {% if errors.general %}
+        <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg" role="alert">
+            {{ errors.general }}
+        </div>
+        {% endif %}
+
+        <div class="flex justify-between items-center pt-4">
+          <a href="{% url 'curritree:curriculum_list' %}" class="px-5 py-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 transition-colors">
+            <i class="fa-solid fa-arrow-left mr-2"></i> Cancel
+          </a>
+          <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-800 transition-colors">
+            <i class="fa-solid fa-save mr-2"></i> Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

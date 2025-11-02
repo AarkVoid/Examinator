@@ -1,0 +1,1200 @@
+{% extends 'base.html' %}
+{% block title %}EduPlatform - Quizzes by Subject{% endblock %}
+{% load static %}
+{% load custom_filters %} 
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-light: #6366f1;
+  --primary-dark: #4338ca;
+  --secondary: #10b981;
+  --secondary-dark: #059669;
+  --accent: #8b5cf6;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --bg-light: #f9fafb;
+  --bg-card: #ffffff;
+  --border-light: #e5e7eb;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-primary);
+  background-image: url("{% static 'img/1280.jpg' %}");
+}
+
+/* Layout */
+.main-container {
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+
+
+
+
+/* Class Sections */
+.class-section {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e6edff 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid var(--primary-light);
+  background-color: rgba(255, 255, 255, 0.77);
+}
+
+.class-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  position: relative;
+  padding-bottom: 0.75rem;
+  color: var(--primary-dark);
+}
+
+.class-title:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-light), var(--accent));
+  border-radius: 3px;
+}
+
+/* Subject Sections */
+.subject-section {
+  background: var(--bg-card);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.subject-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.subject-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.subject-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: relative;
+  padding-left: 1rem;
+}
+
+.subject-title:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, var(--primary-light), var(--accent));
+  border-radius: 2px;
+}
+
+.subject-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-success {
+  background-color: var(--secondary);
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: var(--secondary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-icon {
+  margin-right: 0.5rem;
+}
+
+/* Quizzes Grid */
+.quizzes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  padding-top: 1rem;
+}
+
+.quiz-card {
+  background: var(--bg-card);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-light);
+}
+
+.quiz-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-light);
+}
+
+.quiz-header {
+  margin-bottom: 1rem;
+}
+
+.quiz-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.quiz-subject {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background-color: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  display: inline-block;
+}
+
+.quiz-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 1rem 0;
+  flex-grow: 1;
+}
+
+.quiz-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.quiz-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.quiz-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-action-primary {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+.quiz-action-primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.quiz-action-success {
+  background-color: var(--secondary);
+  color: white;
+}
+
+.quiz-action-success:hover {
+  background-color: var(--secondary-dark);
+}
+
+.quiz-action-accent {
+  background-color: var(--accent);
+  color: white;
+}
+
+.quiz-action-accent:hover {
+  background-color: #7c3aed;
+}
+
+.quiz-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.quiz-author {
+  display: flex;
+  align-items: center;
+}
+
+.quiz-author-icon {
+  margin-right: 0.25rem;
+  color: var(--primary-light);
+}
+
+/* Selection Controls */
+.selection-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.select-card {
+  background: var(--bg-card);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.select-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.custom-select {
+  width: 100%;
+  padding: 0.3rem;
+  border: 1px solid var(--border-light);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background-color: var(--bg-card);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  appearance: none;
+  transition: all 0.2s;
+}
+
+.custom-select:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.add-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--primary-light);
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.add-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  color: var(--border-light);
+  margin-bottom: 1rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+  background-color: rgba(255, 255, 255, 0.53);
+  
+}
+
+/* Utility Classes */
+.hidden {
+  display: none;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.quiz-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+
+.quiz-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(85, 82, 82);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+  cursor: default;
+  position: relative;
+}
+
+.quiz-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.tag-close {
+  margin-left: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.tag-close:hover {
+  opacity: 1;
+}
+
+/* Color variations */
+.quiz-tag[data-category="math"] {
+  background-color: #4e79a7;
+}
+
+.quiz-tag[data-category="science"] {
+  background-color: #e15759;
+}
+
+.quiz-tag[data-category="history"] {
+  background-color: #76b7b2;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .quiz-tags-container {
+    gap: 6px;
+  }
+  
+  .quiz-tag {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .main-container {
+    padding: 0 1rem;
+  }
+  
+  .subject-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .subject-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+}
+
+
+
+/* --- New/Modified Styles for Tag Filters --- */
+
+.subject-tag-filter {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.form-check-scroll-container {
+  overflow-x: auto;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.form-check.d-inline-block {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.form-check-input.tag-filter-checkbox {
+  display: none; /* hide default checkbox */
+}
+
+.form-check-label {
+  display: inline-block;
+  padding: 6px 14px;
+  background-color: #f1f3f5;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+}
+
+.form-check-input.tag-filter-checkbox:checked + .form-check-label {
+  background-color: #0d6efd;
+  color: #fff;
+  border-color: #0d6efd;
+}
+
+.form-check-label:hover {
+  background-color: #dee2e6;
+}
+
+.filter-mode-switch {
+  margin-top: 16px;
+}
+
+.filter-mode-switch .form-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.filter-mode-switch .form-select {
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  max-width: 300px;
+  box-shadow: none;
+  transition: border-color 0.2s;
+}
+
+.filter-mode-switch .form-select:focus {
+  border-color: #0d6efd;
+  outline: none;
+}
+
+
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+  <!-- Profile Card Column -->
+
+  <!-- Main Content Column -->
+  <div>
+    {% if request.user|has_access:"main_admin,teacher,admin" %}
+      <!-- Selection Controls for Teachers/Admins -->
+      <div class="selection-container">
+        <!-- Country Selection -->
+        <div class="select-card">
+          <h3 class="select-title">Select Country</h3>
+          <select id="country-select" class="custom-select" {% if not request.user|has_access:"main_admin" and not request.user|is_institute_global:"Global"   %}disabled {% endif %} >
+            <option value="">Select a country</option>
+            {% for country in countries %}
+              <option value="{{ country.id }}" {% if not request.user|has_access:"main_admin" %} {% if country.id == request.user.profile.board.location.country.id %} selected {% endif %} {% endif %}>{{ country.name }}</option>
+            {% endfor %}
+          </select>
+          <a id="add-country-link" href="/location/country/add/" class="add-link">
+            <i class="fas fa-plus-circle"></i> Add New Country
+          </a>
+        </div>
+
+        <!-- State Selection (Initially Hidden) -->
+        <div id="state-section" class="select-card {% if request.user|has_access:"main_admin" or request.user|is_institute_global:"Global" %} hidden {% endif %}">
+          <h3 class="select-title">Select State</h3>
+          {% if request.user|has_access:"main_admin" or request.user|is_institute_global:"Global" %}
+            <select id="state-select" class="custom-select">
+              <option value="">Select a country first</option>
+            </select>
+          {% else %}
+            <select id="state-select" class="custom-select"  disabled>
+              <option value="">Select a State</option>
+              {% for state in states %}
+                <option value="{{ state.id }}" {% if state.id == request.user.profile.board.location.id %} selected {% endif %} >{{ state.name }} </option>
+              {% endfor %}
+            </select>
+          {% endif %}
+          <a id="add-state-link" href="/location/state/add/" class="add-link">
+            <i class="fas fa-plus-circle"></i> Add New State
+          </a>
+        </div>
+
+        <!-- Board Selection (Initially Hidden) -->
+        <div id="board-section" class="select-card {% if request.user|has_access:"main_admin" or request.user|is_institute_global:"Global" %} hidden {% endif %}">
+          <h3 class="select-title">Select Board</h3>
+          {% if request.user|has_access:"main_admin" or request.user|is_institute_global:"Global" %}
+            <select id="board-select" class="custom-select" >
+              <option value="">Select a state first</option>
+            </select>
+          {% else %}
+            <select id="board-select" class="custom-select" disabled >
+              <option value="">Select a Baord</option>
+              {% for board in boards %}
+                <option value="{{ board.id }}" {% if board.id == request.user.profile.board.id %} selected {% endif %} >{{ board.name }}</option>
+              {% endfor %}
+            </select>
+          {% endif %}
+          <a id="add-board-link" href="/location/board/add/" class="add-link">
+            <i class="fas fa-plus-circle"></i> Add New Board
+          </a>
+        </div>
+
+        <!-- Class Selection (Initially Hidden) -->
+        <div id="class-section" class="select-card {% if request.user|has_access:"main_admin" or request.user|is_institute_global:"Global" %} hidden {% endif %}">
+          <h3 class="select-title">Select Class</h3>
+          {% if request.user|has_access:"main_admin" or request.user|is_institute_global:"Global" %}
+            <select id="class-select" class="custom-select">
+              <option value="">Select a board first</option>
+            </select>
+          {% else %}
+            <select id="class-select" class="custom-select" >
+              <option value="" selected > -----  </option>
+              {% for studentclass in classes %}
+                <option value="{{ studentclass.id }}">{{ studentclass.name }}</option>
+              {% endfor %}
+            </select>
+          {% endif %}
+          <a id="add-class-link" href="/location/class/add/" class="add-link">
+            <i class="fas fa-plus-circle"></i> Add New Class
+          </a>
+        </div>
+      </div>
+
+      <!-- Quizzes Container -->
+    <div id="QuizeContainer" class="animate-fadeIn"></div>
+
+    {% else %}
+      <div id="QuizeContainer" class="animate-fadeIn">
+      <!-- Student View -->
+          {% for class_name, subjects_list in organized_data.items %}
+            <div class="class-section animate-fadeIn">
+              <h1 class="class-title">{{ class_name }}</h1>
+              
+              {% for subject_data in subjects_list %}
+                <div class="subject-section">
+                  <div class="subject-header">
+                    {# CORRECTED: Access subject name directly from subject_data #}
+                    <h2 class="subject-title">{{ subject_data.subject }}</h2> 
+                    <div class="subject-actions">
+                      {% if subject_data.quizzes %}
+                        {# CORRECTED: Access subject ID directly from subject_data #}
+                        <button class="btn btn-primary toggle-quizzes-btn" data-target="#quizzes-{{ subject_data.id }}">
+                          <i class="fas fa-eye "></i>Show Quizzes
+                        </button>
+                      {% endif %}
+                      {# Only show "Add Quiz" for teacher/admin roles #}
+                      {% if request.user.role == 'teacher' or request.user.role == 'admin' %}
+                        {# CORRECTED: Access subject ID directly from subject_data #}
+                        <a href="{% url 'add_quiz' %}?subject_id={{ subject_data.id }}" class="btn btn-success">
+                          <i class="fas fa-plus "></i>Add Quiz
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {# NEW: Tag filtering section (similar to quiz_list.html) #}
+                  <div class="subject-tag-filter mb-3">
+                      {# CORRECTED: Use subject_data.id #}
+                      <div class="form-check-scroll-container" style="white-space: nowrap; overflow-x: auto;">
+                        <label class="form-label fw-bold d-block">Filter quizzes by tags:</label>
+                        {% if subject_data.available_tags %}
+                        {% for tag in subject_data.available_tags %}
+                          <div class="form-check d-inline-block me-2">
+                            <input class="form-check-input tag-filter-checkbox" type="checkbox" 
+                                name="tag_ids" 
+                                id="tag-{{subject_data.id}}-{{tag.id}}" 
+                                value="{{tag.name}}" 
+                                data-subject-id="{{subject_data.id}}">
+                            <label class="form-check-label" for="tag-{{subject_data.id}}-{{tag.id}}">
+                              {{tag.name}}
+                            </label>
+                          </div>
+                        {% endfor %}
+                        {% else %}
+                            <div class="tag-checkboxes-group d-flex flex-wrap gap-2">
+                                <span class="text-muted">Loading tags...</span>
+                            </div>
+                        {% endif %}
+                      </div>
+                      <div class="filter-mode-switch mb-2">
+                        <label for="filter-mode-{{ subject_data.id }}" class="form-label fw-bold">Filter Mode:</label>
+                        <select class="form-select filter-mode-select" data-subject-id="{{ subject_data.id }}" id="filter-mode-{{ subject_data.id }}">
+                          <option value="AND" selected>Match All Selected Tags</option>
+                          <option value="OR">Match Any Selected Tag</option>
+                        </select>
+                      </div>
+                  </div>
+
+                  {% if subject_data.quizzes %}
+                    {# CORRECTED: Use subject_data.id #}
+                    <div class="quizzes-grid hidden" id="quizzes-{{ subject_data.id }}">
+                      {% for quiz in subject_data.quizzes %}
+                        <div class="quiz-card" >
+                          <div class="quiz-header">
+                            <h3 class="quiz-title">{{ quiz.test_name }}</h3>
+                            {# CORRECTED: Access subject name directly from quiz #}
+                            <span class="quiz-subject">{{ quiz.subject }}</span> 
+                          </div>
+                          
+                          {# CORRECTED: Iterate over quiz.tags (which is a list of tag names from the view) #}
+                          <div class="quiz-tags-container">
+                              {% if quiz.tags %}
+                                  {% for tag_name in quiz.tags %}
+                                      <span class="quiz-tag" id="{{ tag_name }}">{{ tag_name }}</span>
+                                  {% endfor %}
+                              {% else %}
+                                  <span class="text-muted">No tags</span>
+                              {% endif %}
+                          </div>
+                          
+                          <p class="quiz-description">
+                            {{ quiz.description|truncatewords:20 }}
+                          </p>
+                          <div class="quiz-actions">
+                            <a href="{% url 'quiz_detail' quiz.id %}" class="quiz-action quiz-action-primary">
+                              <i class="fas fa-info-circle"></i> View Details
+                            </a>
+                            {# Ensure 'quiz_result' URL is correct for your app #}
+                            <a href="{% url 'quiz_result' quiz.id %}" class="quiz-action quiz-action-success">
+                              <i class="fas fa-poll-h"></i> See Results {# Changed icon for results #}
+                            </a>
+                            {# Ensure 'select_game_view' URL is correct for your app #}
+                            <a href="{% url 'select_game_view' quiz.id %}" class="quiz-action quiz-action-accent">
+                              <i class="fas fa-gamepad"></i> Play Game
+                            </a>
+                          </div>
+                          <div class="quiz-footer">
+                            <span class="quiz-author">
+                              <i class="fas fa-user quiz-author-icon"></i> {{ quiz.user }} {# Assuming quiz.user is already username #}
+                            </span>
+                            <span>{{ quiz.institution }}</span> {# Assuming quiz.institution is already institution name #}
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="empty-state">
+                      <div class="empty-icon">
+                        <i class="fas fa-book-open"></i>
+                      </div>
+                      <p>No quizzes available for this subject yet.</p>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% empty %}
+            <div class="empty-state">
+              <div class="empty-icon">
+                <i class="fas fa-book"></i>
+              </div>
+              <h3>No Classes Available</h3>
+              <p>You don't have any classes assigned yet, or no quizzes match your criteria.</p>
+            </div>
+          {% endfor %}
+      </div>
+    {% endif %}
+      
+  </div>
+</div>
+{% endblock %}
+
+{% block Script %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+  const selectedTagsPerSubject = {};
+  const filterModePerSubject = {};
+  const sectionsToRender = [];
+  // Initialize toggle buttons
+  function initToggleButtons() {
+    // Remove previous click handlers to prevent multiple bindings
+    $('.toggle-quizzes-btn').off('click').on('click', function() {
+      const $button = $(this);
+      const target = $button.data('target');
+      const $quizzesGrid = $(target);
+      
+      // Check if the grid is currently visible
+      if ($quizzesGrid.is(':visible')) {
+        // If visible, slide it up and then add the 'hidden' class
+        $quizzesGrid.slideUp(200, function() {
+          $(this).addClass('hidden'); // Add 'hidden' class AFTER slideUp completes
+          $button.html('<i class="fas fa-eye"></i>Show Quizzes');
+        });
+      } else {
+        // If hidden, remove 'hidden' class, hide instantly (to prepare for slideDown), then slide down
+        $quizzesGrid.removeClass('hidden').hide().slideDown(200, function() {
+          $button.html('<i class="fas fa-eye-slash"></i>Hide Quizzes');
+        });
+      }
+    });
+  }
+  
+  // Initialize tooltips
+  function initTooltips() {
+    $('[data-tooltip]').each(function() {
+      const tooltipText = $(this).data('tooltip');
+      $(this).append(`<span class="tooltip">${tooltipText}</span>`);
+    });
+  }
+  
+  // Populate select dropdown
+  function populateSelect(selectElement, data, placeholder) {
+    const $select = $(selectElement);
+    $select.empty().append(`<option value="">${placeholder}</option>`);
+    
+    if (data && data.length) {
+      $.each(data, function(i, item) {
+        $select.append($('<option>', {
+          value: item.id,
+          text: item.name
+        }));
+      });
+    } else {
+      $select.append($('<option>', {
+        value: "",
+        text: placeholder,
+        disabled: true,
+        selected: true
+      }));
+    }
+  }
+
+
+  function populateSubjectTags(subjectId, tagsContainerId, availableTags, selectedTags) {
+      // CORRECTED: document.getElementById expects a string ID directly.
+      // tagsContainerId is already a string like "subject-tags-container-X".
+      const tagsContainer = document.getElementById(tagsContainerId); 
+
+      // Ensure the container exists before trying to manipulate it
+      if (!tagsContainer) {
+          console.error(`Error: Tag container with ID '${tagsContainerId}' not found.`);
+          return;
+      }
+      
+      tagsContainer.innerHTML = ''; // Clear existing checkboxes
+      console.log("tagsContainerId :", tagsContainerId, "availableTags :", availableTags);
+
+      if (!availableTags || availableTags.length === 0) {
+          tagsContainer.innerHTML = '<span class="text-muted">No tags available for this subject.</span>';
+          return;
+      }
+
+      // IMPROVEMENT: Build the HTML string first, then set innerHTML once for better performance.
+      let tagsHtml = '';
+      availableTags.forEach(tag => {
+          // Ensure selectedTags are compared as strings if tag.id is a number
+          const isChecked = selectedTags.includes(String(tag.id)); 
+          console.log(`Tag ID: ${tag.id}, Name: ${tag.name}, Is Checked: ${isChecked}, Selected Tags:`, selectedTags);
+          
+          tagsHtml += `
+              <div class="form-check form-check-inline">
+                <input class="form-check-input tag-filter-checkbox" type="checkbox" 
+                      name="tag_ids" 
+                      id="tag-${subjectId}-${tag.id}" 
+                      value="${tag.name}" 
+                      data-subject-id="${subjectId}"
+                      ${isChecked ? 'checked' : ''}>
+                <label class="form-check-label" for="tag-${subjectId}-${tag.id}">
+                  ${tag.name}
+                </label>
+              </div>`;
+      });
+      
+      tagsContainer.innerHTML = tagsHtml; // Set innerHTML once
+  }
+  
+  // Truncate text with ellipsis
+  function truncateText(text, limit) {
+    return text.length > limit ? text.substring(0, limit) + '...' : text;
+  }
+
+  function getTagColor(tag) {
+    const colors = [
+      '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', 
+      '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
+      '#9c755f', '#bab0ac'
+    ];
+    const hash = Array.from(tag).reduce((acc, char) => 
+      char.charCodeAt(0) + acc, 0);
+    return colors[hash % colors.length];
+  }
+  
+  // Render quizzes list
+  function renderQuizzesList(data) {
+    let html = '';
+    const organizedData = data.organized_data || {};
+    
+    if (!Object.keys(organizedData).length) {
+      html = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <i class="fas fa-book-open"></i>
+          </div>
+          <h3>No Quizzes Found</h3>
+          <p>There are no quizzes available for the selected criteria.</p>
+        </div>
+      `;
+    } else {
+      for (const [className, subjects] of Object.entries(organizedData)) {
+        html += `
+          <div class="class-section animate-fadeIn">
+            <h1 class="class-title">${className}</h1>
+        `;
+        
+        subjects.forEach(subject => {
+          const subjectTagsContainerId = `subject-tags-container-${subject.id}`; 
+          html += `
+                  <div class="subject-section">
+                    <div class="subject-header">
+                      <h2 class="subject-title">${subject.subject}</h2>
+                      <div class="subject-actions">
+                        ${subject.quizzes.length ? `
+                          <button class="btn btn-primary toggle-quizzes-btn" data-target="#quizzes-${subject.id}">
+                            <i class="fas fa-eye "></i>Show Quizzes
+                          </button>
+                        ` : ''}
+                      </div>
+                    </div>
+
+                    <div class="form-check-scroll-container" style="white-space: nowrap; overflow-x: auto;>
+                      <label class="form-label fw-bold d-block">Filter quizzes by tags:</label>
+                      <div id="${subjectTagsContainerId}" class="tag-checkboxes-group d-flex flex-wrap gap-2">
+                          <span class="text-muted">Loading tags...</span>
+                      </div>
+                    </div>
+
+                    <div class="filter-mode-switch mb-2">
+                      <label for="filter-mode-${ subject.id }" class="form-label fw-bold">Filter Mode:</label>
+                      <select class="form-select filter-mode-select" data-subject-id="${ subject.id }" id="filter-mode-${ subject.id }">
+                        <option value="AND" selected>All tags must match (AND)</option>
+                        <option value="OR">Any tag can match (OR)</option>
+                      </select>
+                    </div>
+
+                    
+          `;
+          
+          if (subject.quizzes.length) {
+            const addQUrl = "{% url 'add_question_to_quiz' 0 %}";
+            const playUrl = "{% url 'select_game_view' 0 %}";
+            const detailsUrl = "{% url 'quiz_detail' 0 %}";
+            html += `
+              <div class="quizzes-grid hidden" id="quizzes-${subject.id}">
+                ${subject.quizzes.map(quiz => `
+                  <div class="quiz-card">
+                    <div class="quiz-header">
+                      <h3 class="quiz-title">${truncateText(quiz.test_name, 30)}</h3>
+                      <span class="quiz-subject">${quiz.subject}</span>
+                    </div>
+
+                    <div class="quiz-tags-container">
+                            ${quiz.tags.map(tag => `
+                              <span class="quiz-tag" id="${tag}" style="background-color: ${getTagColor(tag)}">
+                                ${tag}
+                              </span>
+                            `).join('')}
+                    </div>
+
+                    <p class="quiz-description">
+                      ${truncateText(quiz.description || 'No description provided', 100)}
+                    </p>
+                    <div class="quiz-actions">
+                      <a href="${playUrl.replace('0', quiz.id)}" class="quiz-action quiz-action-accent">
+                        <i class="fas fa-gamepad"></i> Play Game
+                      </a>
+                    </div>
+                    <div class="quiz-footer">
+                      <span class="quiz-author">
+                        <i class="fas fa-user quiz-author-icon"></i> ${quiz.user}
+                      </span>
+                      <span>${quiz.institution}</span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            html += `
+              <div class="empty-state">
+                <div class="empty-icon">
+                  <i class="fas fa-book-open"></i>
+                </div>
+                <p>No quizzes available for this subject yet.</p>
+              </div>
+            `;
+          }
+          
+          html += `</div>`; // Close subject-section
+          
+          sectionsToRender.push({
+              subjectId: subject.id,
+              subjectTagsContainerId: subjectTagsContainerId,
+              availableTags: subject.available_tags || [],
+              selectedTags: selectedTagsPerSubject[subject.id] || [],
+              html: html
+          });
+
+
+        });
+        
+        html += `</div>`; // Close class-section
+      }
+    }
+    
+    $('#QuizeContainer').html(html);
+
+    sectionsToRender.forEach(section => {
+      populateSubjectTags(
+          section.subjectId,
+          section.subjectTagsContainerId,
+          section.availableTags,
+          section.selectedTags
+      );
+    });
+    initToggleButtons();
+    initTooltips();
+  }
+  
+  // Country selection handler
+  $('#country-select').on('change', function() {
+    const countryId = $(this).val();
+    $('#add-state-link').attr('href', `/location/state/add/?country_id=${countryId}`);
+    
+    // Reset downstream selects
+    populateSelect('#state-select', [], 'Loading states...');
+    populateSelect('#board-select', [], 'Select a state first');
+    populateSelect('#class-select', [], 'Select a board first');
+    
+    $('#state-section, #board-section, #class-section').addClass('hidden');
+    
+    if (countryId) {
+      $('#state-section').removeClass('hidden');
+      
+      $.get('/location/get-states/', { country_id: countryId })
+        .done(data => {
+          populateSelect(
+            '#state-select', 
+            data.states || [], 
+            data.states?.length ? 'Select a state' : 'No states found'
+          );
+        })
+        .fail(() => {
+          populateSelect('#state-select', [], 'Error loading states');
+        });
+    }
+  });
+  
+  // State selection handler
+  $('#state-select').on('change', function() {
+    const stateId = $(this).val();
+    $('#add-board-link').attr('href', `/location/board/add/?state_id=${stateId}`);
+    
+    // Reset downstream selects
+    populateSelect('#board-select', [], 'Loading boards...');
+    populateSelect('#class-select', [], 'Select a board first');
+    
+    $('#board-section, #class-section').addClass('hidden');
+    
+    if (stateId) {
+      $('#board-section').removeClass('hidden');
+      
+      $.get('/education/get-boards/', { state_id: stateId })
+        .done(data => {
+          populateSelect(
+            '#board-select', 
+            data.boards || [], 
+            data.boards?.length ? 'Select a board' : 'No boards found'
+          );
+        })
+        .fail(() => {
+          populateSelect('#board-select', [], 'Error loading boards');
+        });
+    }
+  });
+  
+  // Board selection handler
+  $('#board-select').on('change', function() {
+    const boardId = $(this).val();
+    $('#add-class-link').attr('href', `/location/class/add/?board_id=${boardId}`);
+    
+    // Reset downstream selects
+    populateSelect('#class-select', [], 'Loading classes...');
+    $('#class-section').addClass('hidden');
+    
+    if (boardId) {
+      $('#class-section').removeClass('hidden');
+      
+      $.get('/education/get-classes/', { board_id: boardId })
+        .done(data => {
+          populateSelect(
+            '#class-select', 
+            data.classes || [], 
+            data.classes?.length ? 'Select a class' : 'No classes found'
+          );
+        })
+        .fail(() => {
+          populateSelect('#class-select', [], 'Error loading classes');
+        });
+    }
+  });
+  
+  // Class selection handler
+  $('#class-select').on('change', function() {
+    const classId = $(this).val();
+    
+    if (classId) {
+      $.get('/get-quizzes-json/', { class_id: classId })
+        .done(renderQuizzesList)
+        .fail(() => {
+          $('#QuizeContainer').html(`
+            <div class="empty-state">
+              <div class="empty-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+              </div>
+              <h3>Error Loading Quizzes</h3>
+              <p>Failed to load quizzes. Please try again.</p>
+            </div>
+          `);
+        });
+    } else {
+      $('#QuizeContainer').empty();
+    }
+  });
+
+  
+
+  $('#QuizeContainer')
+    .off('change', '.tag-filter-checkbox')
+    .on('change', '.tag-filter-checkbox', function () {
+      const $checkbox = $(this);
+      const subjectId = $checkbox.data('subject-id');
+      const tagId = String($checkbox.val());
+
+      if (!selectedTagsPerSubject[subjectId]) {
+          selectedTagsPerSubject[subjectId] = [];
+      }
+
+      if ($checkbox.is(':checked')) {
+          if (!selectedTagsPerSubject[subjectId].includes(tagId)) {
+              selectedTagsPerSubject[subjectId].push(tagId);
+          }
+      } else {
+          selectedTagsPerSubject[subjectId] = selectedTagsPerSubject[subjectId].filter(id => id !== tagId);
+      }
+
+      applyTagFilter(subjectId);
+    })
+    .off('change', '.filter-mode-select')
+    .on('change', '.filter-mode-select', function () {
+      const subjectId = $(this).data('subject-id');
+      const mode = $(this).val(); // "AND" or "OR"
+      filterModePerSubject[subjectId] = mode;
+      applyTagFilter(subjectId);
+    });
+
+  function applyTagFilter(subjectId) {
+      const selectedTags = selectedTagsPerSubject[subjectId] || [];
+      const mode = filterModePerSubject[subjectId] || 'AND';
+      const $quizCards = $(`#quizzes-${subjectId} .quiz-card`);
+
+      $quizCards.each(function () {
+          const $quiz = $(this);
+          const quizTags = $quiz.find('.quiz-tag').map(function () {
+              return $(this).attr('id');
+          }).get();
+
+          let shouldShow = true;
+
+          if (selectedTags.length > 0) {
+              if (mode === 'AND') {
+                  shouldShow = selectedTags.every(tag => quizTags.includes(tag));
+              } else if (mode === 'OR') {
+                  shouldShow = selectedTags.some(tag => quizTags.includes(tag));
+              }
+          }
+
+          $quiz.toggle(shouldShow);
+      });
+
+      console.log("Tags:", selectedTagsPerSubject, "Modes:", filterModePerSubject);
+  }
+  
+  // Initialize components
+  initToggleButtons();
+  initTooltips();
+});
+</script>
+{% endblock %}

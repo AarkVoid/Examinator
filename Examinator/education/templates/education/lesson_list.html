@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% load static %}
+
+
+{% block title %}Lessons{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    {# Display messages from Django's messages framework - usually handled in base.html but good to be explicit #}
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle mr-2"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-times-circle mr-2"></i>
+                    {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle mr-2"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 text-primary font-weight-bold">Available Lessons</h1>
+        {% if can_add_lesson %}
+            <button type="button" class="btn btn-primary btn-lg" data-toggle="collapse" data-target="#addLessonFormCollapse" aria-expanded="false" aria-controls="addLessonFormCollapse">
+                <i class="fas fa-plus mr-2"></i> Add New Lesson
+            </button>
+        {% endif %}
+    </div>
+
+    {# Add New Lesson Section - Collapsible for cleaner UI #}
+    {% if can_add_lesson %}
+    <div class="collapse mb-5 {% if form.errors %}show{% endif %}" id="addLessonFormCollapse">
+        <div class="card shadow-sm border-0 rounded-lg p-4 bg-light">
+            <h3 class="h4 card-title mb-4 text-center text-secondary">Create a New Lesson</h3>
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="font-weight-bold">{{ field.label }}</label>
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="form-check">
+                                {# Manual rendering for checkbox to apply Bootstrap classes #}
+                                <input type="checkbox" name="{{ field.name }}" id="{{ field.id_for_label }}" class="form-check-input" {% if field.value %}checked{% endif %}>
+                                <label class="form-check-label" for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                </label>
+                            </div>
+                        {% elif field.field.widget.attrs.class == 'form-control-file' %}
+                            {# Handle file inputs if any are used, though LessonForm might not have one #}
+                            {{ field.as_file }} {# This renders with input type="file" #}
+                            {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+                            {% for error in field.errors %}<p class="text-danger small mt-1">{{ error }}</p>{% endfor %}
+                        {% else %}
+                            {# Default rendering for text, number, select, textarea etc. #}
+                            {{ field }}
+                        {% endif %}
+                        
+                        {# Add the form-control class using JavaScript if the field is not a checkbox or file #}
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                var fieldElement = document.getElementById('{{ field.id_for_label }}');
+                                if (fieldElement && fieldElement.type !== 'checkbox' && fieldElement.type !== 'file') {
+                                    fieldElement.classList.add('form-control');
+                                }
+                            });
+                        </script>
+
+                        {% if field.help_text and field.field.widget.input_type != 'checkbox' %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+                        {% for error in field.errors %}<p class="text-danger small mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-success btn-block mt-4 py-2">
+                    <i class="fas fa-plus-circle mr-2"></i> Create Lesson
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Lesson List Section #}
+    <div class="row">
+        {% if page_obj %}
+            {% for lesson in page_obj %}
+            <div class="col-lg-6 col-md-12 mb-4">
+                <div class="card h-100 shadow-sm border-0 rounded-lg">
+                    <div class="card-body d-flex flex-column">
+                        <h4 class="card-title text-primary mb-2">
+                            <a href="{% url 'lesson_detail' lesson.id %}" class="text-decoration-none text-primary">{{ lesson.title }}</a>
+                        </h4>
+                        <p class="card-text text-muted small mb-3">
+                            <i class="fas fa-book-open mr-1"></i> Chapter: <strong>{{ lesson.chapter.title }}</strong>
+                            {% if lesson.chapter.board %} | <i class="fas fa-chalkboard-teacher mr-1"></i> Board: {{ lesson.chapter.board.name }} {% endif %}
+                            {% if lesson.chapter.student_class %} | <i class="fas fa-graduation-cap mr-1"></i> Class: {{ lesson.chapter.student_class.name }} {% endif %}
+                            <br>
+                            <i class="fas fa-user-circle mr-1"></i> Created by: {{ lesson.created_by.username }} on {{ lesson.created|date:"M d, Y" }}
+                            {% if not lesson.is_published %}<span class="badge badge-warning ml-2"><i class="fas fa-pencil-alt mr-1"></i> Draft</span>{% endif %}
+                        </p>
+                        <p class="card-text">{{ lesson.content|truncatechars:180 }}</p>
+                        
+                        <div class="mt-auto d-flex justify-content-between align-items-center">
+                            <a href="{% url 'lesson_detail' lesson.id %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye mr-1"></i> View Lesson
+                            </a>
+                            <div class="btn-group" role="group" aria-label="Lesson Actions">
+                                {% if user_role == 'admin' or user_role == 'teacher' %}
+                                    <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-outline-info btn-sm">
+                                        <i class="fas fa-edit mr-1"></i> Edit
+                                    </a>
+                                    <a href="{% url 'lesson_delete' lesson.id %}" class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash-alt mr-1"></i> Delete
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info text-center" role="alert">
+                    <i class="fas fa-info-circle mr-2"></i> No lessons available yet.
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    {# Pagination #}
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="Lesson Page Navigation" class="mt-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1" aria-label="First">
+                        <span aria-hidden="true">&laquo; First</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                        <span aria-hidden="true">Previous</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo; First</span></li>
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            {% comment %} Optionally show a range of pages around the current one {% endcomment %}
+            {% for i in page_obj.paginator.page_range %}
+                {% if page_obj.number == i %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                        <span aria-hidden="true">Next</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                        <span aria-hidden="true">Last &raquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                <li class="page-item disabled"><span class="page-link">Last &raquo;</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block Script %}
+{# Place your existing AJAX script here. It requires jQuery which your base.html includes. #}
+<script>
+// --- Manual Bootstrap Class Application for Form Fields ---
+// This script runs after the DOM is loaded and adds 'form-control' to appropriate inputs.
+document.addEventListener('DOMContentLoaded', function() {
+    var formElements = document.querySelectorAll('#addLessonFormCollapse .form-group input, #addLessonFormCollapse .form-group select, #addLessonFormCollapse .form-group textarea');
+    formElements.forEach(function(element) {
+        // Apply form-control to all inputs, selects, textareas, except checkboxes and file inputs
+        if (element.type !== 'checkbox' && element.type !== 'file') {
+            element.classList.add('form-control');
+        }
+    });
+});
+// --- End Manual Bootstrap Class Application ---
+
+
+// Your existing AJAX script for cascading dropdowns
+document.addEventListener('DOMContentLoaded', function () {
+  const boardSelect = document.getElementById('id_board');
+  const classSelect = document.getElementById('id_student_class');
+  const subjectSelect = document.getElementById('id_subject');
+  const chapterSelect = document.getElementById('id_chapter');
+
+  // Check if elements exist before attaching listeners
+  if (!boardSelect || !classSelect || !subjectSelect || !chapterSelect) {
+    console.warn('Dynamic dropdown fields (board, class, subject, chapter) not found on this page. AJAX functionality will not work.');
+    return; // Stop if we're not on the right page or elements are missing
+  }
+
+  boardSelect.addEventListener('change', function () {
+    const boardId = this.value;
+    classSelect.innerHTML = '<option value="">Loading...</option>';
+    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+    chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+
+    if (boardId) {
+      fetch(`/education/get-classes/?board_id=${boardId}`)
+        .then(res => res.json())
+        .then(data => {
+          classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+          data.classes.forEach(cls => {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            classSelect.appendChild(option);
+          });
+        });
+    }
+  });
+
+  classSelect.addEventListener('change', function () {
+    const classId = this.value;
+    subjectSelect.innerHTML = '<option value="">Loading...</option>';
+    chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+
+    if (classId) {
+      fetch(`/education/get-subjects/?class_id=${classId}`)
+        .then(res => res.json())
+        .then(data => {
+          subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+          data.subjects.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.id;
+            option.textContent = sub.name;
+            subjectSelect.appendChild(option);
+          });
+        });
+    }
+  });
+
+  subjectSelect.addEventListener('change', function () {
+    const subjectId = this.value;
+    chapterSelect.innerHTML = '<option value="">Loading...</option>';
+
+    if (subjectId) {
+      fetch(`/education/get-chapters/?subject_id=${subjectId}`)
+        .then(res => res.json())
+        .then(data => {
+          chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+          data.chapters.forEach(chap => {
+            const option = document.createElement('option');
+            option.value = chap.id;
+            option.textContent = chap.name;
+            chapterSelect.appendChild(option);
+          });
+        });
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Education Dashboard{% endblock %}
+
+
+
+{% block content %}
+<div class="main-container">
+  <div class="education-structure-section">
+    <h2 class="text-center text-primary-light font-bold text-3xl mb-8" style="color: #94ced2;">Education Structure</h2>
+
+    {# --- Filter Section --- #}
+    <div class="filter-card mb-6">
+        <h4 class="text-lg font-semibold mb-3" style="color: #94ced2;">Filter Boards</h4>
+        <form method="GET" action="{% url 'education_dashboard' %}" id="filter-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+                <label for="id_country_filter" class="block text-sm font-medium mb-1">Country:</label>
+                <select name="country" id="id_country_filter" class="form-select">
+                    <option value="">All Countries</option>
+                    {% for country in countries %}
+                        <option value="{{ country.id }}" {% if country.id|stringformat:"s" == selected_country %}selected{% endif %}>
+                            {{ country.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="id_state_filter" class="block text-sm font-medium mb-1">State:</label>
+                <select name="state" id="id_state_filter" class="form-select">
+                    <option value="">All States</option>
+                    {% for state in states %}
+                        <option value="{{ state.id }}" {% if state.id|stringformat:"s" == selected_state %}selected{% endif %}>
+                            {{ state.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center">
+                <button type="submit" class="btn btn-primary w-full md:w-auto">
+                    <i class="fas fa-filter mr-1"></i> Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+    {# --- End Filter Section --- #}
+
+    {% for board in boards %}
+    <div class="board-card">
+        <div class="card-header">
+            <h3 class="text-xl">{{ board.name }}</h3>
+            <div class="btn-group" role="group">
+                <a href="{% url 'board_edit' board.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-edit mr-1"></i> Edit
+                </a>
+                <a href="{% url 'board_delete' board.id %}" class="btn btn-sm btn-danger ml-2">
+                    <i class="fas fa-trash-alt mr-1"></i> Delete
+                </a>
+                <a href="{% url 'add_board' %}?state_id={{ board.location.id }}" class="btn btn-sm btn-success ml-2">
+                    <i class="fas fa-plus-circle mr-1"></i> Add Board 
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <a href="{% url 'add_class' %}?board_id={{ board.id }}" class="btn btn-sm btn-success mb-4">
+                <i class="fas fa-plus-circle mr-1"></i> Add Class to {{ board.name }}
+            </a>
+
+            <div>
+                {% for cls in board.classes.all %}
+                <div class="class-section">
+                    <div class="class-header">
+                        <h4>
+                            <a onclick="toggleVisibility('classContent-{{ cls.id }}', this.querySelector('.collapse-icon'))"
+                               href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="classContent-{{ cls.id }}">
+                                <i class="fas fa-chevron-right collapse-icon mr-2"></i> {{ cls.name }}
+                            </a>
+                        </h4>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'class_edit' cls.id %}" class="btn btn-sm btn-primary ml-2">
+                                <i class="fas fa-edit mr-1"></i> Edit
+                            </a>
+                            <a href="{% url 'class_delete' cls.id %}" class="btn btn-sm btn-danger ml-2">
+                                <i class="fas fa-trash-alt mr-1"></i> Delete
+                            </a>
+                        </div>
+                    </div>
+                    <div class="js-collapsible-content mt-3" id="classContent-{{ cls.id }}">
+                        <a href="{% url 'add_division' %}?student_class_id={{ cls.id }}" class="btn btn-sm btn-success mb-3">
+                            <i class="fas fa-plus-circle mr-1"></i> Add Division to {{ cls.name }}
+                        </a>
+                        <div>
+                            {% for division in cls.divisions.all %}
+                            <div class="division-section">
+                                <div class="division-header">
+                                    <h5>
+                                        <a onclick="toggleVisibility('divisionContent-{{ division.id }}', this.querySelector('.collapse-icon'))"
+                                            href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="divisionContent-{{ division.id }}">
+                                            <i class="fas fa-chevron-right collapse-icon mr-2"></i> Division: {{ division.name }}
+                                        </a>
+                                    </h5>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'division_edit' division.id %}" class="btn btn-sm btn-primary ml-2">
+                                            <i class="fas fa-edit mr-1"></i> Edit
+                                        </a>
+                                        <a href="{% url 'division_delete' division.id %}" class="btn btn-sm btn-danger ml-2">
+                                            <i class="fas fa-trash-alt mr-1"></i> Delete
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="js-collapsible-content mt-3" id="divisionContent-{{ division.id }}">
+                                    <p class="text-muted text-center py-2 empty-state-inner">
+                                        Content for Division {{ division.name }} goes here.
+                                    </p>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted text-center py-3 empty-state-inner">No divisions available for this class.</p>
+                            {% endfor %}
+                        </div>
+
+                        <a href="{% url 'add_subject' %}?class_id={{ cls.id }}" class="btn btn-sm btn-success mb-3">
+                            <i class="fas fa-plus-circle mr-1"></i> Add Subject to {{ cls.name }}
+                        </a>
+                        <div>
+                            {% for subject in cls.subjects.all %}
+                            <div class="subject-section">
+                                <div class="subject-header">
+                                    <h5>
+                                        <a onclick="toggleVisibility('subjectContent-{{ subject.id }}', this.querySelector('.collapse-icon'))"
+                                            href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="subjectContent-{{ subject.id }}">
+                                            <i class="fas fa-chevron-right collapse-icon mr-2"></i> {{ subject.name }}
+                                        </a>
+                                    </h5>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'subject_edit' subject.id %}" class="btn btn-sm btn-primary ml-2">
+                                            <i class="fas fa-edit mr-1"></i> Edit
+                                        </a>
+                                        <a href="{% url 'subject_delete' subject.id %}" class="btn btn-sm btn-danger ml-2">
+                                            <i class="fas fa-trash-alt mr-1"></i> Delete
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="js-collapsible-content mt-3" id="subjectContent-{{ subject.id }}">
+                                    <a href="{% url 'add_chapter' %}?subject_id={{ subject.id }}" class="btn btn-sm btn-success mb-3">
+                                        <i class="fas fa-plus-circle mr-1"></i> Add Chapter to {{ subject.name }}
+                                    </a>
+                                    <ul class="chapter-list">
+                                        {% for chapter in subject.chapters.all %}
+                                        <li class="list-group-item">
+                                            <span>{{ chapter.name }}</span>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'chapter_edit' chapter.id %}" class="btn btn-sm btn-primary ml-2">
+                                                    <i class="fas fa-edit mr-1"></i> Edit
+                                                </a>
+                                                <a href="{% url 'chapter_delete' chapter.id %}" class="btn btn-sm btn-danger ml-2">
+                                                    <i class="fas fa-trash-alt mr-1"></i> Delete
+                                                </a>
+                                            </div>
+                                        </li>
+                                        {% empty %}
+                                        <li class="list-group-item text-muted empty-state-inner">No chapters available.</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted text-center py-3 empty-state-inner">No subjects available for this class.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3 empty-state-inner">No classes available for this board.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info text-center empty-state" role="alert">
+        <i class="fas fa-info-circle mr-2 empty-icon"></i>
+        <h3>No boards have been added yet.</h3>
+        <p>It looks like your education structure is empty. Let's get started!</p>
+        <a href="{% url 'add_board' %}" class="btn btn-primary mt-3">
+            <i class="fas fa-plus-circle mr-1"></i> Add Your First Board
+        </a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block Script %}
+<script>
+    // Pure inline JavaScript for simple show/hide functionality
+    function toggleVisibility(contentId, iconElement) {
+        const content = document.getElementById(contentId);
+        if (content) {
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                if (iconElement) {
+                    iconElement.classList.add('rotated');
+                }
+                const trigger = iconElement ? iconElement.closest('a') : null;
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'true');
+                }
+            } else {
+                content.style.display = 'none';
+                if (iconElement) {
+                    iconElement.classList.remove('rotated');
+                }
+                const trigger = iconElement ? iconElement.closest('a') : null;
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+            }
+            console.log(`Toggled visibility for: ${contentId}. Current display: ${content.style.display}`);
+        } else {
+            console.error(`Content element with ID '${contentId}' not found.`);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.js-collapsible-content').forEach(element => {
+            element.style.display = 'none';
+        });
+        console.log("All '.js-collapsible-content' elements initially set to display: none.");
+
+        // --- JavaScript for Country-State Filtering ---
+        const countrySelect = document.getElementById('id_country_filter');
+        const stateSelect = document.getElementById('id_state_filter');
+        const selectedStateId = "{{ selected_state }}";
+
+        countrySelect.addEventListener('change', function() {
+            const countryId = this.value;
+            stateSelect.innerHTML = '<option value="">All States</option>';
+
+            if (countryId) {
+                fetch(`/location/get-states/?country_id=${countryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.states.forEach(state => {
+                            const option = document.createElement('option');
+                            option.value = state.id;
+                            option.textContent = state.name;
+                            if (state.id.toString() === selectedStateId) {
+                                option.selected = true;
+                            }
+                            stateSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching states:', error));
+            }
+        });
+        if (countrySelect.value) {
+            const event = new Event('change');
+            countrySelect.dispatchEvent(event);
+        }
+    });
+</script>
+{% endblock %}

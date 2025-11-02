@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load dict_filters %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}{{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="w-full">
+        
+        {# Main Header with Organization Name #}
+        <div class="flex items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
+            <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+                <i class="fa-solid fa-building-columns mr-3 text-blue-500"></i> {{ page_title }}
+            </h1>
+            <a href="{% url 'saas:organization_list' %}" class="px-5 py-2 text-base font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition duration-200 shadow-md">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Back to Organizations
+            </a>
+        </div>
+
+        {# Django Messages Block #}
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="p-4 rounded-xl text-sm font-medium shadow-md {% if message.tags == 'success' %}bg-green-100 dark:bg-green-900/50 border border-green-500 text-green-700 dark:text-green-300{% elif message.tags == 'error' %}bg-red-100 dark:bg-red-900/50 border border-red-500 text-red-700 dark:text-red-300{% else %}bg-blue-100 dark:bg-blue-900/50 border border-blue-500 text-blue-700 dark:text-blue-300{% endif %}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            {# LEFT COLUMN: Organization Details Form #}
+            <div class="lg:col-span-2 bg-white dark:bg-gray-800 shadow-2xl rounded-xl p-8 border border-gray-200 dark:border-gray-700">
+                <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-6 border-b border-gray-200 dark:border-gray-700 pb-3">
+                    <i class="fa-solid fa-circle-info mr-2"></i> Organization Details
+                </h2>
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="edit_org" value="true">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {% for field in org_form %}
+                            <div class="form-group 
+                                {% if field.name == 'supported_curriculum' or field.name == 'address' %}
+                                    md:col-span-2
+                                {% endif %}
+                            ">
+                                {% if field.field.widget.input_type == 'checkbox' %}
+                                    {# Checkbox fields #}
+                                    <div class="flex items-start p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 shadow-inner">
+                                        {{ field }}
+                                        <label for="{{ field.id_for_label }}" class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 cursor-pointer">
+                                            {{ field.label }}
+                                            {% if field.help_text %}<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text|safe }}</p>{% endif %}
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    {# Other fields #}
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                        {{ field.label }}
+                                        {% if field.field.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+                                    </label>
+                                    {{ field }}
+                                    {% if field.help_text %}<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text|safe }}</p>{% endif %}
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <p class="text-sm text-red-500 mt-1 font-medium">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="flex justify-end space-x-4 pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+                        <button type="submit" class="px-8 py-3 text-base font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition duration-200 shadow-lg shadow-blue-500/50">
+                            <i class="fa-solid fa-save mr-2"></i> Save Details
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            {# RIGHT COLUMN: License Management (Grant Form & List) #}
+            <div class="lg:col-span-1 space-y-8">
+
+                {# Add New License Link Button #}
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-2xl text-center">
+                    <h3 class="text-2xl font-bold text-green-600 dark:text-green-400 mb-5 border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <i class="fa-solid fa-square-plus mr-2"></i> Access Grant Management
+                    </h3>
+                    
+                    <p class="text-gray-600 dark:text-gray-300 mb-5">
+                        To add, edit, or delete license grants for this organization, use the dedicated management page.
+                    </p>
+                    
+                    {# 🎯 Link to the dedicated manage_licenses view. Ensure your URL pattern is correct. #}
+                    <a href="{% url 'saas:manage_licenses' org_id=organization.pk %}" 
+                       class="w-full inline-block px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition duration-200 mt-3 shadow-lg shadow-indigo-500/50">
+                        <i class="fa-solid fa-tags mr-2"></i> Manage Licenses
+                    </a>
+                </div>
+
+
+                {# Existing Licenses List (Now correctly nested) #}
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-2xl">
+                    <h3 class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-5 border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <i class="fa-solid fa-clipboard-list mr-2"></i> Current Access Grants
+                    </h3>
+                    
+                    
+                        <ul class="space-y-4">
+                            {% for grant in grants %}
+                                
+                                {% comment %} 
+                                    Assuming the custom tag 'is_active' handles expiry logic
+                                    Now includes M2M loop for curriculum_node.
+                                {% endcomment %}
+                                {% with is_active=grant|is_active %}
+                                
+                                <li class="p-4 rounded-xl border border-dashed {% if is_active %}bg-green-50 dark:bg-green-900/30 border-green-500{% else %}bg-red-50 dark:bg-red-900/30 border-red-500{% endif %} shadow-md">
+                                    
+                                    {# M2M Node List #}
+                                    <div class="mb-2">
+                                        <p class="font-bold text-sm {% if is_active %}text-green-700 dark:text-green-300{% else %}text-red-700 dark:text-red-300{% endif %}">
+                                            Licensed Curriculum(s):
+                                        </p>
+                                        <ul class="space-y-0.5 mt-1">
+                                            {% for node in grant.curriculum_node.all %}
+                                                <li class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                                                    <i class="fa-solid fa-circle-right text-xs mr-2 {% if is_active %}text-green-500{% else %}text-red-500{% endif %}"></i>
+                                                    <span class="font-medium">{{ node.name }}</span> ({{ node.node_type|capfirst }})
+                                                </li>
+                                            {% empty %}
+                                                <li class="text-gray-500 italic">No nodes assigned.</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    
+                                    {# Expiry Info and New QP Limit #}
+                                    <div class="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2 space-y-1">
+                                        
+                                        {# 🆕 Max Question Papers Field #}
+                                        <p class="text-xs text-purple-600 dark:text-purple-300 font-semibold">
+                                            <i class="fa-solid fa-file-invoice mr-1"></i> Max QPs: **{{ grant.max_question_papers }}**
+                                        </p>
+
+                                        {% if grant.valid_until %}
+                                            <p class="text-xs {% if is_active %}text-green-600 dark:text-green-300{% else %}text-red-600 dark:text-red-300{% endif %} font-semibold">
+                                                Expires: {{ grant.valid_until|date:"M d, Y" }}
+                                                {% if not is_active %}<span class="font-bold ml-1">(EXPIRED)</span>{% endif %}
+                                            </p>
+                                        {% else %}
+                                            <p class="text-xs text-blue-600 dark:text-blue-300 font-semibold">
+                                                <i class="fa-solid fa-infinity mr-1"></i> Valid: Permanent
+                                            </p>
+                                        {% endif %}
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            Purchased: {{ grant.purchased_on|date:"M d, Y" }}
+                                        </p>
+                                    </div>
+                                </li>
+                                {% endwith %}
+                                
+                            {% endfor %}
+                        </ul>
+                   
+                </div>
+                
+                {# NEW SECTION: All Granted Permissions Summary #}
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-2xl">
+                    <h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-5 border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <i class="fa-solid fa-lock-open mr-2"></i> Total Licensed Permissions
+                    </h3>
+                    
+                    {% if all_permissions_by_model %}
+                        <div class="grid grid-cols-1 gap-4">
+                        {% for model, perms in all_permissions_by_model.items %}
+                            <div class="model-card bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-inner">
+                                <div class="flex justify-between items-center mb-3 pb-2 border-b border-dashed border-gray-300 dark:border-gray-600">
+                                    {# Clean up model name for display #}
+                                    {% with clean_model_name=model|capfirst|cut:"_"|cut:"profile"|cut:"user"|cut:"organization" %}
+                                        <h4 class="text-xl font-bold text-indigo-700 dark:text-indigo-300">
+                                            {{ clean_model_name|default:model|capfirst }}
+                                        </h4>
+                                    {% endwith %}
+                                    <span class="text-sm bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300 px-3 py-1 rounded-full font-medium">
+                                        {{ perms|length }}
+                                    </span>
+                                </div>
+                                
+                                <ul class="space-y-1">
+                                    {% for perm in perms %}
+                                    <li class="text-sm text-gray-700 dark:text-gray-200 flex items-center">
+                                        <i class="fa-solid fa-check text-xs text-green-500 mr-2"></i>
+                                        {{ perm.name }} 
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">({{ perm.content_type.app_label }})</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fa-solid fa-ban text-5xl text-gray-500 dark:text-gray-600 mb-3"></i>
+                            <p class="text-gray-500 dark:text-gray-400 text-sm italic">
+                                No permissions have been granted to this organization across all licenses.
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+                {# END NEW SECTION #}
+
+            </div>
+            
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

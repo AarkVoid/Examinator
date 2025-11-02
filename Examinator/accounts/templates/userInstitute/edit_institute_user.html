@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    /* --- Dark Theme Palette --- */
+    :root {
+        --bg-dark: #2a2b49; /* Gray-900 */
+        --bg-card: #111223; /* Gray-800 */
+        --text-light: #e5e7eb; /* Gray-200 */
+        --text-secondary: #d1d5db; /* Gray-300 */
+        --border-color: #4b5563; /* Gray-600 */
+        --primary-teal: #2dd4bf; /* Teal-400 */
+        --primary-yellow: #fcd34d; /* Amber-300 */
+        --primary-teal-hover: #14b8a6; /* Teal-500 */
+        --primary-yellow-hover: #d97706; /* Amber-700 */
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--bg-dark);
+    }
+
+    .card-body{
+        background-color: var(--bg-card);
+    }
+
+    /* Custom styling for form elements managed by crispy forms */
+    .form-group label {
+        font-weight: 500;
+        color: var(--text-light);
+    }
+    .form-control, .form-select {
+        border-radius: 0.5rem; /* rounded-lg */
+        border-color: var(--border-color);
+        background-color: #111827; /* Gray-900 darker */
+        color: var(--text-light);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-teal);
+        box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.4);
+    }
+    .helptext {
+        font-size: 0.875rem; /* text-sm */
+        color: var(--text-secondary);
+    }
+    .card-header, .form-check-label {
+        color: var(--text-light);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 md:py-12">
+    <div class="flex justify-center">
+        <div class="w-full lg:w-2/3 ">
+            <div class="card-body rounded-xl shadow-lg overflow-hidden">
+                
+                <div class="bg-teal-600 text-white text-center py-6">
+                    <h2 class="text-3xl font-bold">{{ page_title }}</h2>
+                </div>
+
+                <div class="p-6 md:p-8">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="bg-{{ message.tags }}-100 border border-{{ message.tags }}-400 text-{{ message.tags }}-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+
+                        {# --- User Details Section --- #}
+                        <h4 class="text-xl font-semibold text-teal-400 mb-4">User Account Details</h4>
+                        {{ user_form|crispy }}
+                        
+                        <hr class="my-6 border-gray-700">
+
+                        {# --- Profile Details Section --- #}
+                        <h4 class="text-xl font-semibold text-teal-400 mb-4">User Profile Details</h4>
+                        
+                        {# Display current profile picture if exists #}
+                        <div class="mb-6 flex flex-col items-center">
+                            <label class="text-gray-300 font-medium mb-2 block">Current Profile Picture:</label>
+                            {% if user_to_edit.profile.pic %}
+                                <img src="{{ user_to_edit.profile.pic.url }}" alt="Profile Pic" class="w-32 h-32 rounded-full object-cover border-4 border-teal-500 shadow-md">
+                            {% else %}
+                                <img src="{% static 'img/default-profile.png' %}" alt="Default Profile Pic" class="w-32 h-32 rounded-full object-cover border-4 border-gray-700 shadow-md">
+                            {% endif %}
+                        </div>
+                        
+                        {{ profile_form|crispy }}
+
+                        {# Optional: Inherited Permissions Section #}
+                        {% if inherited_perm_ids %}
+                        <div class="mt-8">
+                            <label class="block text-gray-300 font-medium mb-2">Permissions Inherited from Groups:</label>
+                            <ul class="space-y-2">
+                                {% for perm_id in inherited_perm_ids %}
+                                    <li class="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                                        <span class="text-sm text-gray-200">Permission ID: {{ perm_id }}</span>
+                                        <span class="px-2 py-1 text-xs font-semibold text-teal-300 bg-teal-800 rounded-full">Inherited</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                            <a href="{% url 'edit_permissions_by_institute_admin' user_to_edit.id %}" class="flex items-center justify-center space-x-2 px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 transition duration-200">
+                                <i class="fas fa-user-shield"></i>
+                                <span>Manage Groups</span>
+                            </a>
+                            <button type="submit" class="flex items-center justify-center space-x-2 px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 transition duration-200 md:col-span-1">
+                                <i class="fas fa-save"></i>
+                                <span>Save Changes</span>
+                            </button>
+                            <a href="{% url 'manage_institute_users' %}" class="flex items-center justify-center space-x-2 px-6 py-3 border border-gray-700 text-base font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 transition duration-200 md:col-span-1">
+                                <i class="fas fa-times"></i>
+                                <span>Cancel</span>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block Script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get references to the select elements for cascading dropdowns
+        const countrySelect = document.getElementById('id_country');
+        const stateSelect = document.getElementById('id_state');
+        const citySelect = document.getElementById('id_city');
+        const pincodeSelect = document.getElementById('id_pincode');
+        const boardSelect = document.getElementById('id_board');
+        const classFieldSelect = document.getElementById('id_class_field');
+        const divisionSelect = document.getElementById('id_division');
+
+        // Store initial values for pre-selection on page load
+        // Ensure these values are correctly rendered by Django if they exist
+        const initialCountry = "{{ profile_form.instance.country.id|default:'' }}";
+        const initialState = "{{ profile_form.instance.state.id|default:'' }}";
+        const initialCity = "{{ profile_form.instance.city.id|default:'' }}";
+        const initialPincode = "{{ profile_form.instance.pincode.id|default:'' }}";
+        const initialBoard = "{{ profile_form.instance.board.id|default:'' }}";
+        const initialClassField = "{{ profile_form.instance.class_field.id|default:'' }}";
+        const initialDivision = "{{ profile_form.instance.division.id|default:'' }}";
+
+        // Helper function to reset and populate a select field
+        function populateSelect(selectElement, data, selectedValue, defaultText) {
+            selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = item.name || item.pincode; // Use name or pincode
+                if (item.id.toString() === selectedValue) {
+                    option.selected = true;
+                }
+                selectElement.appendChild(option);
+            });
+        }
+
+        // Helper to reset a select and its dependents
+        function resetSelect(selectElement, defaultText) {
+            selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+            selectElement.value = ""; // Explicitly set value to empty
+        }
+
+        function resetDependentSelects(selectElement, dependents) {
+            resetSelect(selectElement, selectElement.dataset.defaultText || 'Select');
+            dependents.forEach(dep => resetSelect(dep, dep.dataset.defaultText || 'Select'));
+        }
+
+        // Store default texts for reset (ensure these are set in HTML if dynamically created)
+        if (countrySelect) countrySelect.dataset.defaultText = 'Select Country';
+        if (stateSelect) stateSelect.dataset.defaultText = 'Select State';
+        if (citySelect) citySelect.dataset.defaultText = 'Select City';
+        if (pincodeSelect) pincodeSelect.dataset.defaultText = 'Select Pincode';
+        if (boardSelect) boardSelect.dataset.defaultText = 'Select Board';
+        if (classFieldSelect) classFieldSelect.dataset.defaultText = 'Select Class';
+        if (divisionSelect) divisionSelect.dataset.defaultText = 'Select Division';
+
+
+        // --- Event Listeners for Cascading Dropdowns ---
+
+        // Country -> State
+        if (countrySelect) {
+            countrySelect.addEventListener('change', function() {
+                const countryId = this.value;
+                resetDependentSelects(stateSelect, [citySelect, pincodeSelect]);
+
+                if (countryId) {
+                    fetch(`/location/get-states/?country_id=${countryId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            populateSelect(stateSelect, data.states, initialState, 'Select State');
+                            if (initialState && stateSelect.value === initialState && this.value === initialCountry) {
+                                stateSelect.dispatchEvent(new Event('change'));
+                            }
+                        })
+                        .catch(error => console.error('Error fetching states:', error));
+                }
+            });
+        }
+
+        // State -> City
+        if (stateSelect) {
+            stateSelect.addEventListener('change', function() {
+                const stateId = this.value;
+                resetDependentSelects(citySelect, [pincodeSelect]);
+
+                if (stateId) {
+                    fetch(`/location/get-cities/?state_id=${stateId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            populateSelect(citySelect, data.cities, initialCity, 'Select City');
+                            if (initialCity && citySelect.value === initialCity && this.value === initialState) {
+                                citySelect.dispatchEvent(new Event('change'));
+                            }
+                        })
+                        .catch(error => console.error('Error fetching cities:', error));
+
+                    fetch(`/education/get-boards/?state_id=${stateId}`) // Ensure this URL is correct
+                        .then(response => response.json())
+                        .then(data => {
+                            populateSelect(boardSelect, data.boards, initialBoard, 'Select board');
+                            if (initialBoard && boardSelect.value === initialBoard) {
+                                boardSelect.dispatchEvent(new Event('change'));
+                            }
+                        })
+                        .catch(error => console.error('Error fetching cities:', error));
+                }
+            });
+        }
+
+        // City -> Pincode
+        if (citySelect) {
+            citySelect.addEventListener('change', function() {
+                const cityId = this.value;
+                resetSelect(pincodeSelect, 'Select Pincode');
+
+                if (cityId) {
+                    fetch(`/location/get-pincodes/?city_id=${cityId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            populateSelect(pincodeSelect, data.pincodes, initialPincode, 'Select Pincode');
+                        })
+                        .catch(error => console.error('Error fetching pincodes:', error));
+                }
+            });
+        }
+
+        // Board -> Class
+        if (boardSelect) {
+            boardSelect.addEventListener('change', function() {
+                const boardId = this.value;
+                resetDependentSelects(classFieldSelect, [divisionSelect]);
+
+                if (boardId) {
+                    fetch(`/education/get-classes/?board_id=${boardId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            populateSelect(classFieldSelect, data.classes, initialClassField, 'Select Class');
+                            if (initialClassField && classFieldSelect.value === initialClassField && this.value === initialBoard) {
+                                classFieldSelect.dispatchEvent(new Event('change'));
+                            }
+                        })
+                        .catch(error => console.error('Error fetching classes:', error));
+                }
+            });
+        }
+
+        // Class -> Division
+        if (classFieldSelect) {
+            classFieldSelect.addEventListener('change', function() {
+                const classId = this.value;
+                resetSelect(divisionSelect, 'Select Division');
+
+                if (classId) {
+                    fetch(`/education/get-divisions/?class_id=${classId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            populateSelect(divisionSelect, data.divisions, initialDivision, 'Select Division');
+                        })
+                        .catch(error => console.error('Error fetching divisions:', error));
+                }
+            });
+        }
+
+
+        // --- Initial Load Triggers for existing data ---
+        // Only trigger if a value is actually present to avoid unnecessary fetches
+        if (initialCountry && countrySelect && countrySelect.value === initialCountry) {
+            countrySelect.dispatchEvent(new Event('change'));
+        }
+        if (initialState && stateSelect && stateSelect.value === initialState && initialCountry && countrySelect && countrySelect.value === initialCountry) {
+            stateSelect.dispatchEvent(new Event('change'));
+        }
+        if (initialCity && citySelect && citySelect.value === initialCity && initialState && stateSelect && stateSelect.value === initialState) {
+            citySelect.dispatchEvent(new Event('change'));
+        }
+
+        if (initialBoard && boardSelect && boardSelect.value === initialBoard) {
+            boardSelect.dispatchEvent(new Event('change'));
+        }
+        if (initialClassField && classFieldSelect && classFieldSelect.value === initialClassField && initialBoard && boardSelect && boardSelect.value === initialBoard) {
+            classFieldSelect.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

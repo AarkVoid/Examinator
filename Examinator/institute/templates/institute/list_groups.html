@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {{ page_title }} | EduGame
+{% endblock %}
+
+{% block head %}
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Google Fonts for a clean, professional look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Customize Tailwind theme for a sleek dark mode */
+        :root {
+            --primary: #4A72EC;
+            --primary-light: #6C8DFF;
+            --bg-dark: #1F2937;
+            --card-bg: #2D3748;
+            --text-light: #E5E7EB;
+            --text-muted: #9CA3AF;
+            --border: #4B5563;
+        }
+
+        .bg-custom-dark {
+            background-color: var(--bg-dark);
+        }
+        .bg-card {
+            background-color: var(--card-bg);
+        }
+        .text-light {
+            color: var(--text-light);
+        }
+        .text-muted {
+            color: var(--text-muted);
+        }
+        .border-custom {
+            border-color: var(--border);
+        }
+
+        .shadow-custom {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Custom styles for the modal */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            animation: fadeIn 0.3s forwards;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            margin: 15% auto;
+            padding: 2.5rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header, .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .close-btn {
+            color: var(--text-muted);
+            font-size: 2rem;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+        .close-btn:hover, .close-btn:focus {
+            color: var(--text-light);
+            cursor: pointer;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-custom-dark text-light p-4 md:p-8 flex justify-center">
+    <div class="w-full max-w-7xl">
+        <!-- Header Section with Title and Create Button -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-gray-700">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-light mb-4 md:mb-0">
+                {{ page_title }}
+            </h1>
+            <a href="{% url 'create-institution-group' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition duration-300 transform hover:-translate-y-1 shadow-lg">
+                <i class="fas fa-plus-circle"></i> Create New Group
+            </a>
+        </div>
+
+        <!-- Django Messages -->
+        {% if messages %}
+            <div class="my-4">
+                {% for message in messages %}
+                    <div class="p-4 rounded-lg text-sm text-center
+                        {% if 'success' in message.tags %} bg-green-700 text-green-100 {% else %} bg-red-700 text-red-100 {% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Main Content Card -->
+        <div class="bg-card rounded-xl p-6 md:p-8 shadow-custom">
+            <!-- Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full table-auto text-left">
+                    <thead>
+                        <tr class="text-xs md:text-sm text-gray-400 uppercase tracking-wider border-b border-gray-700">
+                            <th class="py-3 px-4 font-semibold">Group Name</th>
+                            <th class="py-3 px-4 font-semibold">Board Names</th>
+                            <th class="py-3 px-4 font-semibold hidden md:table-cell">Description</th>
+                            <th class="py-3 px-4 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group in groups %}
+                        <tr class="border-b border-gray-800 hover:bg-gray-700 transition duration-150">
+                            <td class="py-4 px-4 font-medium text-white">{{ group.name }}</td>
+                            <td class="py-4 px-4 text-sm text-gray-400 hidden md:table-cell"> {% for bod in group.board.all %} {{ bod.name }}, {% endfor %}</td>
+                            <td class="py-4 px-4 text-sm text-gray-400 hidden md:table-cell">{{ group.description|truncatechars:100 }}</td>
+                            <td class="py-4 px-4 text-right whitespace-nowrap">
+                                <a href="{% url 'edit-institution-group' pk=group.pk %}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 transform hover:-translate-y-0.5 shadow-md mr-2">
+                                    <i class="fas fa-edit"></i> <span class="hidden sm:inline">Edit</span>
+                                </a>
+                                <a href="{% url 'manage_institution_group' group_id=group.pk %}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 transform hover:-translate-y-0.5 shadow-md mr-2">
+                                    <i class="fas fa-edit"></i> <span class="hidden sm:inline">View Institute In group</span>
+                                </a>
+                                <button class="delete-btn inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-300 transform hover:-translate-y-0.5 shadow-md"
+                                        data-url="{% url 'delete-institution-group' pk=group.pk %}"
+                                        data-group-name="{{ group.name }}">
+                                    <i class="fas fa-trash"></i> <span class="hidden sm:inline">Delete</span>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-10 text-gray-500 text-lg italic">
+                                No institution groups found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="text-xl font-semibold">Confirm Deletion</h3>
+            <span class="close-btn">&times;</span>
+        </div>
+        <div class="modal-body my-4 text-sm text-gray-400">
+            Are you sure you want to delete the group: <strong id="group-name-placeholder" class="text-white"></strong>?
+            <br><br>
+            This action cannot be undone.
+        </div>
+        <div class="modal-footer">
+            <button id="cancel-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition duration-300">
+                Cancel
+            </button>
+            <a id="confirm-delete-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-300">
+                <i class="fas fa-trash"></i> Confirm Delete
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const closeBtn = document.querySelector('.close-btn');
+        const groupNamePlaceholder = document.getElementById('group-name-placeholder');
+
+        // Event delegation to handle clicks on all delete buttons
+        document.body.addEventListener('click', function(event) {
+            if (event.target.closest('.delete-btn')) {
+                const deleteButton = event.target.closest('.delete-btn');
+                const deleteUrl = deleteButton.dataset.url;
+                const groupName = deleteButton.dataset.groupName;
+
+                // Update the modal with the correct URL and group name
+                confirmDeleteBtn.href = deleteUrl;
+                groupNamePlaceholder.textContent = groupName;
+
+                // Show the modal
+                modal.style.display = 'block';
+            }
+        });
+
+        // Close the modal when the user clicks on <span> (x) or Cancel button
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+        cancelBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        // Close the modal when the user clicks anywhere outside of it
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    });
+</script>
+{% endblock %}

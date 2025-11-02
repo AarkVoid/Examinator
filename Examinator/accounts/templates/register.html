@@ -1,0 +1,96 @@
+{% load static %}
+{% load widget_tweaks %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - {{ request.site.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Registration Container -->
+    <div class="relative bg-slate-800 p-8 md:p-12 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-700">
+        <!-- Main Title -->
+        <h2 class="text-3xl md:text-4xl font-bold text-center mb-6 text-slate-100">Create Your Account</h2>
+        <p class="text-center text-slate-400 mb-8">Join the community and start your journey.</p>
+
+        <!-- Django Form -->
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+
+            <!-- Non-field errors for the form -->
+            {% if form.non_field_errors %}
+                <div class="bg-red-900 text-red-300 p-3 rounded-lg text-sm text-center">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Loop through form fields -->
+            {% for field in form %}
+                <!-- Exclude password fields from the generic loop to handle styling individually -->
+                {% if field.name != 'password' and field.name != 'confirm_password' %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-slate-300 mb-2 font-medium">{{ field.label }}</label>
+                        {{ field|add_class:"w-full px-4 py-2 bg-slate-700 border-slate-600 border rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" }}
+                        {% if field.errors %}
+                            <div class="text-red-400 text-sm mt-1">
+                                {% for error in field.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+            
+            <!-- Manually render password and confirm password fields -->
+            <div>
+                <label for="{{ form.password.id_for_label }}" class="block text-slate-300 mb-2 font-medium">{{ form.password.label }}</label>
+                {{ form.password|add_class:"w-full px-4 py-2 bg-slate-700 border-slate-600 border rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" }}
+                {% if form.password.errors %}
+                    <div class="text-red-400 text-sm mt-1">
+                        {% for error in form.password.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="{{ form.confirm_password.id_for_label }}" class="block text-slate-300 mb-2 font-medium">{{ form.confirm_password.label }}</label>
+                {{ form.confirm_password|add_class:"w-full px-4 py-2 bg-slate-700 border-slate-600 border rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" }}
+                {% if form.confirm_password.errors %}
+                    <div class="text-red-400 text-sm mt-1">
+                        {% for error in form.confirm_password.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+
+            <!-- Register Button -->
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition transform hover:scale-105 duration-300 ease-in-out font-bold">
+                Register
+            </button>
+        </form>
+
+        <!-- Login Link -->
+        <p class="text-sm mt-6 text-center text-slate-400">
+            Already have an account?
+            <a href="{% url 'login' %}" class="text-blue-500 hover:text-blue-400 transition">Login here</a>
+        </p>
+    </div>
+</body>
+</html>

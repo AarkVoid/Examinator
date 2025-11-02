@@ -1,0 +1,521 @@
+{% load static %}
+{% load dict_filters %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Examinator{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+  
+  {# --- REQUIRED: Add jQuery for the accordion script in the permissions page --- #}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  
+  <style>
+    /* Custom Scrollbar - KEPT */
+    .custom-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #d1d5db;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: #9ca3af;
+    }
+    .dark .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #4b5563;
+    }
+    .dark .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: #6b7280;
+    }
+    /* Active Link State with Underline Transition */
+    .active-link {
+        position: relative;
+    }
+    .active-link::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 100%;
+        background-color: currentColor; /* Matches the link text color */
+        border-radius: 9999px;
+    }
+
+    /* Add a subtle inset shadow to the header */
+    .header-shadow {
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .dark .header-shadow {
+        box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.05) inset;
+    }
+ 
+    {% block extra_css %}
+    {% endblock %}
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-100 flex font-sans md:pl-64">
+
+  {% with request.path|slice:":-1" as current_path %}
+  
+  {# NEW: Sidebar Backdrop for Mobile - A11y Improvement #}
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden transition-opacity duration-300 opacity-0" aria-hidden="true"></div>
+
+  <aside id="sidebar"
+    class="w-64 h-screen bg-white dark:bg-gray-900 shadow-2xl fixed z-40 top-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+    
+    {# UPDATED: Stronger branding and shadow #}
+    <div class="p-6 text-2xl font-extrabold text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center flex-shrink-0" >
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-feather-pointed text-3xl text-blue-500"></i>
+        <span>Examinator</span>
+      </div>
+      {# A11y: Ensure aria-label is correct #}
+      <button id="closeSidebar" class="md:hidden text-gray-600 dark:text-gray-300 hover:text-red-500 transition-colors" aria-label="Close navigation sidebar">
+        <i class="fa-solid fa-xmark text-2xl"></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 p-4 space-y-1 custom-scroll overflow-y-auto" aria-label="Main navigation">
+      
+      {# Home Link - BASE STYLE #}
+
+      {% if user.is_superuser %}
+      {% url 'home' as home_url %}
+      <a href="{{ home_url }}" 
+        class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+        {% if current_path == home_url %}bg-blue-50 dark:bg-blue-800/30 font-bold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}"
+      >
+        <i class="fa-solid fa-house text-lg"></i>
+        <span>Home</span>
+      </a>
+      {% elif request.user.role == 'admin'%}
+      {% url 'OrgHome' as home_url %}
+        <a href="{{ home_url }}" 
+        class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+        {% if current_path == home_url %}bg-blue-50 dark:bg-blue-800/30 font-bold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}"
+        >
+        <i class="fa-solid fa-house text-lg"></i>
+        <span>Home</span>
+        </a>
+      {% endif %}
+      
+      {% if user.is_authenticated %}
+      
+      {# Section: Quizzes #}
+      {% if request.user|check_permissions:"quiz.view_questionpaper,quiz.view_question,quiz.add_question|or" %}
+      <div class="pt-6">
+        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Quizzes</p>
+        
+        {% if request.user|check_permissions:"quiz.view_questionpaper|or" %}
+        {% url 'quiz:paper_list' as paper_list_url %}
+        <a href="{{ paper_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == paper_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-play-circle text-lg group-hover:text-green-500"></i>
+          <span>Take Quiz</span>
+        </a>
+        {% endif %}
+
+        {% if request.user|check_permissions:"quiz.view_question|or" %}
+        {% url 'quiz:question_list' as question_list_url %}
+        <a href="{{ question_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == question_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-list-check text-lg group-hover:text-blue-500"></i>
+          <span>My Questions</span>
+        </a>
+        {% endif %}
+
+
+        {% if request.user|check_permissions:"quiz.add_question|or" %}
+        {% url 'quiz:question_create' as question_create_url %}
+        <a href="{{ question_create_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == question_create_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-plus-circle text-lg group-hover:text-yellow-500"></i>
+          <span>Create Question</span>
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+      
+      {% if request.user|check_permissions:"curritree.view_treenode|or" %}
+      {# Section: Curriculum #}
+      <div class="pt-6">
+        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Curriculum</p>
+
+        {% if request.user|check_permissions:"curritree.view_treenode|or" %}
+        {% url 'curritree:curriculum_list' as curriculum_list_url %}
+        <a href="{{ curriculum_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == curriculum_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-school text-lg group-hover:text-indigo-500"></i>
+          <span>Streams Dashboard</span>
+        </a>
+        {% endif %}
+
+        {% if request.user|check_permissions:"education.view_lesson|or" %}
+        {% url 'lesson_list' as lesson_list_url %}
+          <a href="{{ lesson_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == lesson_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-book-open text-lg group-hover:text-teal-500"></i>
+            <span>Lessons</span>
+          </a>
+        {% endif %}
+      </div>
+        
+      {% endif %}
+      
+      {# Section: Management #}
+      {% if user.is_staff or user.is_superuser or user.role in 'admin,main_admin' %}
+      <div class="pt-6">
+        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Management</p>
+
+        {% if request.user|check_permissions:"saas.view_organizationprofile|or" %}
+        {% url 'saas:organization_list' as organization_list_url %}
+        <a href="{{ organization_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == organization_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-building text-lg group-hover:text-amber-500"></i>
+          <span>Organizations</span>
+        </a>
+        {% endif %}
+
+        {% if request.user|check_permissions:"saas.add_organizationprofile|or" %}
+        {% url 'saas:create_dashboard' as create_dashboard %}
+        <a href="{{ create_dashboard }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == create_dashboard %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-plus text-lg group-hover:text-green-500"></i>
+          <span>New Organization Setup</span>
+        </a>
+        {% endif %}
+
+        {% if request.user|check_permissions:"accounts.add_user|or" %}
+        {% url 'manage_users' as user_management_url %}
+          <a href="{{ user_management_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == user_management_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-users text-lg group-hover:text-purple-500"></i>
+            <span>User Management</span>
+          </a>
+        {% endif %}
+
+        {% if user.profile.organization_profile and user.role == 'admin' %}
+          {% url 'create_user_by_admin' org_pk=user.profile.organization_profile.pk as create_user_by_admin_url %}
+        <div class="mt-2">
+          <a href="{{ create_user_by_admin_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == create_user_by_admin_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-user-plus text-lg group-hover:text-green-500"></i>
+            <span>Add New User</span>
+          </a>
+
+        {% url 'view_organization_users_list' org_pk=user.profile.organization_profile.pk as view_organization_users_list_url %}
+        </div class="mt-2">
+          <a href="{{ view_organization_users_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
+            {% if current_path == view_organization_users_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-users-viewfinder text-lg group-hover:text-blue-500"></i>
+            <span>View Organization Users</span>
+          </a>
+        </div>
+
+        {% endif %}
+      
+
+      </div>
+      {% endif %}
+      
+      {% if request.user.role == "admin" and user.profile.organization_profile %}
+        <div class="pt-6">
+          <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Social</p>
+
+          {% url 'manage_groups' as Organisation_Group_url %}
+          <a href="{{ Organisation_Group_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == Organisation_Group_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-envelope text-lg group-hover:text-pink-500"></i>
+            <span>Manage Group</span>
+          </a>
+
+        </div>
+      {% endif %}
+
+      {# Section: Social #}
+      <div class="pt-6">
+        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Social</p>
+
+        {% url 'message_list' as message_list_url %}
+        <a href="{{ message_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == message_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-envelope text-lg group-hover:text-pink-500"></i>
+          <span>Messages</span>
+        </a>
+
+        {% url 'view_comments' as view_comments_url %}
+        <a href="{{ view_comments_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == view_comments_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-comments text-lg group-hover:text-fuchsia-500"></i>
+          <span>Comments</span>
+        </a>
+      </div>
+      
+      {# Section: Account & Logout #}
+      <div class="pt-6">
+        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Account</p>
+
+        {% url 'profile_update' as profile_update_url %}
+        <a href="{{ profile_update_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == profile_update_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-user text-lg group-hover:text-indigo-500"></i>
+          <span>Profile</span>
+        </a>
+
+        {% url 'contact_us' as contact_us_url %}
+        <a href="{{ contact_us_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == contact_us_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-phone text-lg group-hover:text-cyan-500"></i>
+          <span>Contact</span>
+        </a>
+        
+        <a href="{% url 'logout' %}" class="group flex items-center gap-4 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 hover:translate-x-1 mt-2">
+          <i class="fa-solid fa-right-from-bracket text-lg"></i>
+          <span>Logout</span>
+        </a>
+      </div>
+      {% else %}
+      {# Guest Links #}
+      <div class="pt-6 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">
+        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600">Get Started</p>
+        <a href="{% url 'login' %}" class="group flex items-center gap-4 px-4 py-3 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-colors shadow-lg">
+          <i class="fa-solid fa-sign-in-alt text-lg"></i>
+          <span>Login</span>
+        </a>
+        <a href="{% url 'register' %}" class="group flex items-center gap-4 px-4 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors mt-2 shadow-lg">
+          <i class="fa-solid fa-user-plus text-lg"></i>
+          <span>Register</span>
+        </a>
+      </div>
+      {% endif %}
+
+    </nav>
+  </aside>
+
+  <div class="flex-1 flex flex-col min-h-screen">
+    {# UPDATED: Header with stronger border and custom shadow #}
+    <header class="flex items-center justify-between bg-white dark:bg-gray-900 px-6 py-4 header-shadow sticky top-0 z-30 border-b border-gray-100 dark:border-gray-800">
+      <div class="flex items-center gap-4">
+        <button id="menuToggle" class="md:hidden text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Open sidebar" aria-expanded="false">
+          <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+        {# UPDATED: Breadcrumb style #}
+        <div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+          <i class="fa-solid fa-house text-xs"></i>
+          <span>/</span>
+          <span class="font-medium text-gray-700 dark:text-gray-300">{% block breadcrumb %}Dashboard{% endblock %}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        {# Theme Toggle #}
+        <button id="theme-toggle" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Toggle dark mode">
+          <i id="theme-icon" class="fa-solid fa-moon text-gray-700 dark:text-yellow-400"></i>
+        </button>
+        
+        {% if user.is_authenticated %}
+        {# User Dropdown Menu - REFACTORED for A11y and Touch #}
+        <div class="relative">
+          <button id="userMenuToggle" class="flex items-center gap-2 focus:outline-none p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-haspopup="true" aria-expanded="false">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center border-2 border-transparent hover:border-blue-500 transition-colors">
+              <i class="fa-solid fa-user text-white"></i>
+            </div>
+            <span class="hidden lg:inline font-semibold text-gray-700 dark:text-gray-200">{{ user.username|default:'User' }}</span>
+            <i class="fa-solid fa-chevron-down text-xs text-gray-500"></i>
+          </button>
+          
+          <div id="userMenu" class="absolute right-0 mt-3 w-48 bg-white dark:bg-gray-700 rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden transition-all duration-200 ease-out origin-top-right z-50 **hidden**" role="menu" aria-orientation="vertical" aria-labelledby="userMenuToggle">
+            <div class="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-600">
+                Logged in as:
+                <p class="text-xs text-blue-600 dark:text-blue-400 mt-0.5">{{ user.email|default:'N/A' }}</p>
+            </div>
+            <a href="{% url 'profile_update' %}" class="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" role="menuitem">
+              <i class="fa-solid fa-user-circle mr-2 w-4 text-indigo-400"></i> Profile Settings
+            </a>
+            <a href="{% url 'contact_us' %}" class="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" role="menuitem">
+              <i class="fa-solid fa-headset mr-2 w-4 text-cyan-400"></i> Support
+            </a>
+            <a href="{% url 'logout' %}" class="block px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-600 transition-colors border-t border-gray-100 dark:border-gray-600" role="menuitem">
+              <i class="fa-solid fa-sign-out-alt mr-2 w-4"></i> Log Out
+            </a>
+          </div>
+        </div>
+        {% else %}
+        {# Guest Buttons #}
+        <div class="flex items-center gap-2">
+          <a href="{% url 'login' %}" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+            Login
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="p-6 md:p-8 space-y-8 overflow-y-auto">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          {% if user.is_authenticated %}
+          <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+            Welcome Back, {{ user.username }} 👋
+          </h1>
+
+          <div class="mt-3 space-y-1">
+            {% if user.profile.board %}
+              <p class="text-gray-600 dark:text-gray-400 text-lg">
+                🎓 <strong>Board:</strong> {{ user.profile.board.name }}
+              </p>
+            {% endif %}
+
+            {% if user.profile.student_class %}
+              <p class="text-gray-600 dark:text-gray-400 text-lg">
+                🏫 <strong>Class:</strong> {{ user.profile.student_class.name }}
+              </p>
+            {% endif %}
+
+            {% if user.profile.chapters.exists %}
+              <div class="text-gray-600 dark:text-gray-400 text-lg">
+                📚 <strong>Chapters:</strong>
+                {% for chapter in user.profile.chapters.all %}
+                  <span class="inline-block bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium mr-2 mt-2">
+                    {{ chapter.name }}
+                  </span>
+                {% empty %}
+                  <span>No chapters assigned</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">Examinator: Learn with Confidence 🚀</h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-2 text-lg">Join thousands of students mastering their subjects through interactive quizzes.</p>
+          {% endif %}
+        </div>
+        {% if not user.is_authenticated %}
+          <a href="{% url 'register' %}" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700 transition-colors min-w-[150px] text-center">
+            <i class="fa-solid fa-user-plus mr-2"></i> Get Started
+          </a>
+        {% endif %}
+      </div>
+
+      {% block content %}
+      {% endblock %}
+    </main>
+    
+    {# Optional Footer #}
+    <footer class="p-4 text-center text-sm text-gray-500 dark:text-gray-600 border-t border-gray-200 dark:border-gray-800 mt-auto">
+        &copy; {% now "Y" %} Examinator. All rights reserved. | <a href="{% url 'contact_us' %}" class="hover:text-blue-500 transition-colors">Contact Support</a>
+    </footer>
+    
+  </div>
+
+  {% endwith %}
+  {% block extra_scripts %}
+  {% endblock %}
+
+  <script>
+    // --- Theme Toggle Logic (Kept as is) ---
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const html = document.documentElement;
+
+    const initialTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    // Apply initial theme
+    if (initialTheme === 'dark' || (!initialTheme && prefersDark)) {
+      html.classList.add('dark');
+      themeIcon.classList.replace('fa-moon', 'fa-sun');
+    } else {
+      html.classList.remove('dark');
+      themeIcon.classList.replace('fa-sun', 'fa-moon');
+    }
+
+    // Toggle theme on click
+    themeToggle.addEventListener('click', () => {
+      html.classList.toggle('dark');
+      if (html.classList.contains('dark')) {
+        localStorage.setItem('theme', 'dark');
+        themeIcon.classList.replace('fa-moon', 'fa-sun');
+      } else {
+        localStorage.setItem('theme', 'light');
+        themeIcon.classList.replace('fa-sun', 'fa-moon');
+      }
+    });
+
+    // --- Sidebar Toggle & Backdrop Logic (IMPROVED for mobile UX) ---
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const closeSidebar = document.getElementById('closeSidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+
+    const toggleSidebar = (show) => {
+      // Toggle sidebar visibility
+      sidebar.classList.toggle('-translate-x-full', !show);
+      
+      // Toggle backdrop visibility and opacity
+      if (show) {
+        backdrop.classList.remove('hidden');
+        // A small timeout to allow the transition to work
+        setTimeout(() => backdrop.classList.remove('opacity-0'), 10); 
+        menuToggle.setAttribute('aria-expanded', 'true');
+      } else {
+        backdrop.classList.add('opacity-0');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        // Hide backdrop completely after transition
+        setTimeout(() => backdrop.classList.add('hidden'), 300); 
+      }
+    }
+
+    menuToggle.addEventListener('click', () => toggleSidebar(true));
+    closeSidebar.addEventListener('click', () => toggleSidebar(false));
+    backdrop.addEventListener('click', () => toggleSidebar(false)); // Close on backdrop click
+
+    // --- User Menu Dropdown Logic (REFACTORED for A11y and Touch) ---
+    const userMenuToggle = document.getElementById('userMenuToggle');
+    const userMenu = document.getElementById('userMenu');
+
+    if (userMenuToggle && userMenu) {
+      userMenuToggle.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent closing immediately from document click
+        const isHidden = userMenu.classList.contains('hidden');
+        
+        userMenu.classList.toggle('hidden', !isHidden);
+        userMenuToggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+      });
+
+      // Close user menu when clicking outside
+      document.addEventListener('click', (e) => {
+        // Check if the click is outside the menu AND outside the toggle button
+        if (!userMenu.contains(e.target) && !userMenuToggle.contains(e.target)) {
+          if (!userMenu.classList.contains('hidden')) {
+            userMenu.classList.add('hidden');
+            userMenuToggle.setAttribute('aria-expanded', 'false');
+          }
+        }
+      });
+    }
+
+  </script>
+</body>
+</html>

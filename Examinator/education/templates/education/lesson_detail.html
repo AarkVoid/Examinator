@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ lesson.title }} - Lesson Detail</title>
+    {% load static %}
+    <style>
+        .lesson-detail-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .lesson-detail-card h2 {
+            color: #4CAF50;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .lesson-detail-card h3 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .lesson-detail-card p {
+            margin-bottom: 10px;
+            line-height: 1.8;
+        }
+        .lesson-detail-card .meta-info {
+            font-size: 0.9em;
+            color: #777;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #eee;
+        }
+        .lesson-detail-card .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            background: #000;
+            margin-bottom: 20px;
+        }
+        .video-container iframe,
+        .video-container object,
+        .video-container embed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .no-content-message {
+            color: #888;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <h1>Lesson Detail</h1>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="{% url 'education_dashboard' %}">Dashboard</a></li>
+                    <li><a href="{% url 'lesson_list' %}">Lessons</a></li>
+                    <li><a href="{% url 'game_list' %}">Games</a></li>
+                    <li><a href="{% url 'logout' %}">Logout</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="lesson-detail-card">
+            <h2>{{ lesson.title }}</h2>
+            <p><strong>Chapter:</strong> {{ lesson.chapter.title }}
+               {% if lesson.chapter.board %} | Board: {{ lesson.chapter.board.name }} {% endif %}
+               {% if lesson.chapter.student_class %} | Class: {{ lesson.chapter.student_class.name }} {% endif %}
+            </p>
+
+            {% if lesson.video_url %}
+                <h3>Video Lecture</h3>
+                <div class="video-container">
+                    {# Simple embed for YouTube. For Vimeo or other, you might need more complex parsing #}
+                    {# This assumes YouTube. For more robust solution, use django-embed-video or similar #}
+                    {% if "youtube.com/watch?v=" in lesson.video_url or "youtu.be/" in lesson.video_url %}
+                        {% with video_id=lesson.video_url|cut:"youtu.be/"|cut:"youtube.com/watch?v=" %}
+                        <iframe
+                            src="https://www.youtube.com/embed/{{ video_id.split|first }}"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen>
+                        </iframe>
+                        {% endwith %}
+                    {% else %}
+                        <p class="no-content-message">Video URL: <a href="{{ lesson.video_url }}" target="_blank">{{ lesson.video_url }}</a> (May not embed directly)</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <h3>Lesson Content</h3>
+            {% if lesson.content %}
+                <p>{{ lesson.content|linebreaksbr }}</p>
+            {% else %}
+                <p class="no-content-message">No main content provided for this lesson.</p>
+            {% endif %}
+
+            {% if lesson.notes %}
+                <h3>Supplementary Notes</h3>
+                <p>{{ lesson.notes|linebreaksbr }}</p>
+            {% else %}
+                <p class="no-content-message">No supplementary notes for this lesson.</p>
+            {% endif %}
+
+            <div class="meta-info">
+                <p><strong>Created by:</strong> {{ lesson.created_by.username }} on {{ lesson.created|date:"F d, Y" }}</p>
+                <p><strong>Last Modified:</strong> {{ lesson.modified|date:"F d, Y, P" }}</p>
+                <p><strong>Status:</strong> {% if lesson.is_published %}<span style="color: green; font-weight: bold;">Published</span>{% else %}<span style="color: orange; font-weight: bold;">Draft</span>{% endif %}</p>
+            </div>
+
+            <div class="action-buttons">
+                <a href="{% url 'lesson_list' %}" class="btn btn-secondary">Back to Lessons</a>
+                {% if request.user.role == 'admin' or request.user.role == 'teacher' %}
+                    <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-primary">Edit Lesson</a>
+                    <a href="{% url 'lesson_delete' lesson.id %}" class="btn btn-secondary" style="background-color: #dc3545;">Delete Lesson</a>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Your Education Platform. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

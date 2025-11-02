@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Licenses for {{ organization.name }}{% endblock %}
+
+{% block content %}
+<style>
+/* * 🎨 UI Fixes & Enhancements 
+ * --------------------------------------
+ * The styles below are focused on the custom-permissions-select 
+ * and ensuring good dark-mode support for the dynamically added elements.
+*/
+
+/* 🌟 Custom Permissions Select Field (Mimics a Button Panel) */
+
+.custom-permissions-select {
+    display: block;
+    width: 100%;
+    min-height: 280px; /* Tall panel */
+    padding: 8px;
+    border: 2px solid #6366f1; /* Indigo border */
+    border-radius: 12px;
+    background-color: #f0f4f8; /* Very light gray-blue background */
+    font-size: 15px;
+    font-weight: 500;
+    color: #374151;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+    overflow-y: auto;
+    transition: all 0.2s ease-in-out;
+}
+
+.custom-permissions-select:hover {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Style each option to mimic a button row */
+.custom-permissions-select option {
+    display: block;
+    background: #ffffff;
+    color: #374151;
+    border-radius: 8px;
+    margin: 6px 0;
+    padding: 10px 16px;
+    border: 1px solid #e5e7eb;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.1s ease-in-out;
+}
+
+/* On hover — simulate a button hover */
+.custom-permissions-select option:hover {
+    background-color: #eef2ff; /* light indigo */
+    border-color: #6366f1;
+}
+
+/* On selected — look like a pressed/active button */
+.custom-permissions-select option:checked,
+.custom-permissions-select option:focus {
+    background-color: #4f46e5 !important;
+    color: #ffffff !important;
+    border: 1px solid #4338ca !important;
+    font-weight: 600;
+}
+
+/* 🌙 Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+    .custom-permissions-select {
+        background-color: #1f2937; /* Dark Gray-800 */
+        color: #f3f4f6;
+        border-color: #4b5563; /* Darker border */
+    }
+
+    .custom-permissions-select option {
+        background-color: #2c3847; /* Slightly lighter than container */
+        color: #f3f4f6;
+        border-color: #374151;
+    }
+
+    .custom-permissions-select option:hover {
+        background-color: #374151; /* Darker hover */
+        border-color: #6366f1;
+    }
+
+    .custom-permissions-select option:checked,
+    .custom-permissions-select option:focus {
+        background-color: #6366f1 !important; /* Brighter Indigo for active */
+        color: #ffffff !important;
+        border: 1px solid #818cf8 !important; 
+    }
+}
+</style>
+
+{# Define a set of robust, dark-mode-aware classes for all standard inputs/selects #}
+{% with TAILWIND_INPUT_CLASSES="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400" %}
+    <div class="container mx-auto px-4 py-8">
+        <div class="w-full max-w-4xl mx-auto">
+            
+            {# Header #}
+            <div class="flex justify-between items-center mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+                    <i class="fa-solid fa-file-contract mr-3 text-indigo-600 dark:text-indigo-400"></i> Licenses for <span class="text-blue-600 dark:text-blue-400">{{ organization.name }}</span>
+                </h1>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 mb-10">
+                <h2 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-6 border-b border-indigo-200 dark:border-indigo-900 pb-3">Grant New Content Access</h2>
+
+                <form method="POST" class="space-y-6">
+                    {% csrf_token %}
+
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Select Content Access Point</h3>
+                    <div id="curriculum-filters" class="mb-4 space-y-4 p-5 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 border-indigo-200 dark:border-indigo-800">
+                        <div class="filter-group" id="filter_group_1">
+                            <label for="filter_1" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Level 1: Board or Exam</label>
+                            <select id="filter_1" data-level="1" data-target-id="id_license_curriculum_nodes"
+                                class="{{ TAILWIND_INPUT_CLASSES }}">
+                                <option value="">-- Select Board or Exam --</option>
+                                {% for node in root_nodes %}
+                                    <option value="{{ node.id }}" data-node-type="{{ node.node_type }}">
+                                        {{ node.name }} ({{ node.node_type }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <select name="curriculum_node" id="id_license_curriculum_nodes" multiple
+                        class="hidden">
+                    </select>
+
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Actionable Content Nodes</h3>
+                    <div id="curriculum-buttons-container"
+                        class="space-y-4 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 p-5 border-indigo-200 dark:border-indigo-800">
+                        <p class="text-gray-500 dark:text-gray-400 text-center py-4">
+                            {% for node in root_nodes %}
+                                <button type="button" data-node-id="{{ node.id }}" class="p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600">{{ node.name }} </button>
+                            {% empty %}
+                                There are no selectable content options at this level.
+                            {% endfor %}
+                            
+                        </p>
+                    </div>
+
+                    {# --- START: Added max_question_papers field --- #}
+                    <div>
+                        <label for="max_question_papers"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-100 mb-2">
+                            Maximum Question Papers
+                        </label>
+                        <input type="number" name="max_question_papers" id="max_question_papers"
+                            value="50" min="0" required
+                            class="{{ TAILWIND_INPUT_CLASSES }}">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Sets the total number of question papers this license allows the organization to generate. (Default: 50)
+                        </p>
+                    </div>
+                    {# --- END: Added max_question_papers field --- #}
+
+                    <div>
+                        <label for="valid_until"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-100 mb-2">Valid Until</label>
+                        <input type="date" name="valid_until" id="valid_until"
+                            class="{{ TAILWIND_INPUT_CLASSES }}">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Leave empty for perpetual access.
+                        </p>
+                    </div>
+
+                    <div class="bg-[#1f2937] border border-gray-700 rounded-xl p-6 shadow-lg mt-8">
+                        <h2 class="text-2xl font-semibold mb-4 text-indigo-400">Permissions</h2>
+
+                        <div class="space-y-4">
+                            {% for model_name, perms in all_permissions_by_model.items %}
+                                <div class="border border-gray-700 rounded-lg overflow-hidden">
+                                    <button type="button"
+                                            class="w-full flex justify-between items-center bg-gray-800 px-4 py-2 text-left font-medium text-gray-200 hover:bg-gray-700 transition"
+                                            onclick="toggleAccordion('{{ model_name|slugify }}')">
+                                        <span>{{ model_name }}</span>
+                                        <svg id="{{ model_name|slugify }}-icon" class="w-5 h-5 transition-transform"
+                                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+
+                                    <div id="{{ model_name|slugify }}-body" class="hidden bg-gray-900 p-4">
+                                        <div class="grid md:grid-cols-3 gap-3">
+                                            {% for perm in perms %}
+                                                <label class="flex items-center space-x-2">
+                                                    <input type="checkbox" name="permissions"
+                                                        value="{{ perm.id }}"
+                                                        class="rounded text-indigo-500 focus:ring-indigo-400 bg-gray-800 border-gray-600">
+                                                    <span class="text-gray-300 text-sm">{{ perm.display_name }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <p class="text-gray-400 text-sm">No permissions available for this organization.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full md:w-auto mt-4 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/50 transition duration-200 transform hover:-translate-y-0.5 hover:shadow-xl">
+                        <i class="fa-solid fa-plus-circle mr-2"></i> Add License Grant
+                    </button>
+                </form>
+
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+                <h2 class="text-2xl font-bold text-green-600 dark:text-green-400 mb-6 border-b border-green-200 dark:border-green-900 pb-3">Existing Grants</h2>
+
+                {% if grants %}
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        
+                        {# Loop over the pre-processed data grants_with_paths #}
+                        {% for grant_data in grants_with_paths %}
+                            
+                            
+                            
+                            <div class="p-5 rounded-xl shadow-lg transition duration-200 
+                                {% if grant_data.is_expired %}
+                                    bg-red-50 dark:bg-red-900/30 border-2 border-red-400 dark:border-red-700
+                                {% else %}
+                                    bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:shadow-2xl
+                                {% endif %}
+                            ">
+                                
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex flex-wrap gap-2">
+                                        {# Expiry status #}
+                                        {% if grant_data.valid_until %}
+                                            <span class="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider 
+                                                {% if grant_data.is_expired %}
+                                                    bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-100
+                                                {% else %}
+                                                    bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-100
+                                                {% endif %}
+                                            ">
+                                                Valid Until: {{ grant_data.valid_until|date:"Y-m-d" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100">
+                                                Perpetual Access
+                                            </span>
+                                        {% endif %}
+                                        
+                                        {# QP Limit Status - NEW #}
+                                        {% if grant_data.max_question_papers is not None %}
+                                            <span class="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider bg-purple-200 text-purple-800 dark:bg-purple-800 dark:text-purple-100">
+                                                QP Limit: {{ grant_data.max_question_papers }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if grant_data.is_expired %}
+                                        <span class="text-red-600 dark:text-red-400 font-bold ml-2">EXPIRED</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-bold mb-2 text-gray-700 dark:text-gray-200">Content Access Path(s):</h3>
+                                    
+                                    {% for path_string in grant_data.curriculum_paths %}
+                                        <div class="mb-2">
+                                            <span class="block px-3 py-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-700 shadow-sm">
+                                                <i class="fa-solid fa-graduation-cap mr-1"></i> {{ path_string }}
+                                            </span>
+                                        </div>
+                                    {% empty %}
+                                        <span class="text-gray-500 dark:text-gray-400 italic text-sm">No specific content nodes assigned</span>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="border-t pt-4 flex justify-end 
+                                    {% if grant_data.is_expired %}
+                                        border-red-300 dark:border-red-700
+                                    {% else %}
+                                        border-gray-200 dark:border-gray-600
+                                    {% endif %}
+                                ">
+                                    <a href="{% url 'saas:license_edit' grant_data.id %}" 
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors mr-4 font-semibold text-sm">
+                                        <i class="fa-solid fa-pencil mr-1"></i> Edit
+                                    </a>
+                                    <a href="{% url 'saas:license_delete' grant_data.id %}" 
+                                    class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors font-semibold text-sm">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                                    </a>
+                                </div>
+                            </div>
+                            
+                
+                        {% endfor %}
+                        
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fa-solid fa-ticket text-6xl text-gray-400 dark:text-gray-600 mb-4"></i>
+                        <p class="text-xl text-gray-600 dark:text-gray-300 font-medium">No active or past licenses found for this organization.</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">Use the **Grant New Content Access** form above to add an access license.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}');
+
+    // --- Configuration ---
+    const MAX_FILTER_LEVEL = 4; 
+    const filterContainer = document.getElementById('curriculum-filters');
+    const mainCurriculumSelect = document.getElementById('id_license_curriculum_nodes');
+    const buttonsContainer = document.getElementById('curriculum-buttons-container');
+    
+    // Define a variable for the class string used for dynamic select elements
+    const SELECT_CLASSES = 'mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400';
+
+    // --- Synchronization Functions ---
+    
+    /**
+     * Reads the hidden select field and marks the corresponding button as active.
+     */
+    function syncButtonsToSelect() {
+        const buttons = buttonsContainer.querySelectorAll('button[data-node-id]');
+        
+        const selectedIds = Array.from(mainCurriculumSelect.options)
+                                 .filter(option => option.selected)
+                                 .map(option => option.value);
+
+        buttons.forEach(button => {
+            const nodeId = button.dataset.nodeId;
+            if (selectedIds.includes(nodeId)) {
+                // Active/Selected State (Blue)
+                button.classList.add('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
+                button.classList.remove('bg-gray-200', 'text-gray-900', 'dark:bg-gray-700', 'dark:text-gray-200', 'hover:bg-gray-300', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
+            } else {
+                // Default State (Gray)
+                button.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
+                button.classList.add('bg-gray-200', 'text-gray-900', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:text-gray-200', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
+            }
+        });
+    }
+
+    /**
+     * Handles click on a node button, updating the hidden select element.
+     */
+    function handleNodeButtonClick(event) {
+        const button = event.currentTarget;
+        const nodeId = button.dataset.nodeId;
+        let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+
+        if (!option) {
+            // Create the option if it doesn't exist (e.g., if it's a new selection)
+            option = new Option(button.textContent, nodeId, false, false);
+            mainCurriculumSelect.add(option);
+        }
+
+        if (option) {
+            // Toggle selection in the hidden form field
+            option.selected = !option.selected;
+            
+            // Toggle the visual state of the button
+            syncButtonsToSelect();
+        }
+    }
+
+    function renderNodeButtons(data) {
+        buttonsContainer.innerHTML = '';
+        
+        if (data.children.length === 0) {
+            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; // Added lg:grid-cols-4 for more density
+
+        data.children.forEach(node => {
+            // 1. Ensure the <option> exists in the hidden select field
+            let option = mainCurriculumSelect.querySelector(`option[value="${node.id}"]`);
+            if (!option) {
+                option = new Option(node.name, node.id, false, false);
+                mainCurriculumSelect.add(option);
+            }
+            
+            // 2. Create the visible button element
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.nodeId = node.id;
+            button.textContent = node.name;
+            // Updated classes for a better default look and dark mode contrast
+            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
+                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
+            
+            button.addEventListener('click', handleNodeButtonClick);
+
+            grid.appendChild(button);
+        });
+        
+        buttonsContainer.appendChild(grid);
+        
+        // 3. Synchronize the visual state with the hidden select
+        syncButtonsToSelect();
+    }
+
+
+    function renderRootNodeButtons(data) {
+        buttonsContainer.innerHTML = '';
+        
+        if (data.length === 0) {
+            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; // Added lg:grid-cols-4 for more density
+
+        data.forEach(node => {
+            // 1. Ensure the <option> exists in the hidden select field
+            let option = mainCurriculumSelect.querySelector(`option[value="${node.pk}"]`);
+            if (!option) {
+                option = new Option(node.fields.name, node.pk, false, false);
+                mainCurriculumSelect.add(option);
+            }
+            
+            // 2. Create the visible button element
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.nodeId = node.pk;
+            button.textContent = node.fields.name;
+            // Updated classes for a better default look and dark mode contrast
+            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
+                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
+            
+            button.addEventListener('click', handleNodeButtonClick);
+
+            grid.appendChild(button);
+        });
+        
+        buttonsContainer.appendChild(grid);
+        
+        // 3. Synchronize the visual state with the hidden select
+        syncButtonsToSelect();
+    }
+
+    // --- Core Functions ---
+    function fetchAndPopulate(parentId, targetElement, isFinalSelect = false) {
+        // No parentId means no children to fetch, so clear target.
+        if (!parentId) {
+            if (isFinalSelect) {
+                buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to load license options.</p>';
+            } else {
+                targetElement.innerHTML = '<option value="">-- Select --</option>';
+            }
+            return;
+        }
+        
+        const url = `/quiz/nodes/${parentId}/children/`; 
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok. Status: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                if (isFinalSelect) {
+                    // Render the button UI
+                    renderNodeButtons(data); 
+
+                } else {
+                    // Render cascading filter select
+                    targetElement.innerHTML = '<option value="">-- Select --</option>';
+
+                    data.children.forEach(node => {
+                        const option = document.createElement('option');
+                        option.value = node.id;
+                        option.textContent = `${node.name} (${node.node_type})`;
+                        option.dataset.nodeType = node.node_type;
+                        targetElement.appendChild(option);
+                    });
+                    
+                    // If there are no options and this is a filter, it might mean the end of the line
+                    if (data.children.length === 0) {
+                        targetElement.innerHTML = '<option value="">-- No further options --</option>';
+                    }
+                }
+            })
+            .catch(error => console.error("Error fetching curriculum nodes:", error));
+    }
+
+    /**
+     * Creates and inserts the next cascading filter select element.
+     */
+    function createNextFilter(level, typeName) {
+        const container = document.createElement('div');
+        container.className = 'filter-group';
+        container.id = `filter_group_${level}`;
+        
+        // Label
+        const label = document.createElement('label');
+        label.htmlFor = `filter_${level}`;
+        label.className = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+        label.textContent = `Level ${level}: ${typeName}`;
+        container.appendChild(label);
+
+        // Select
+        const select = document.createElement('select');
+        select.id = `filter_${level}`;
+        select.dataset.level = level;
+        select.dataset.targetId = 'id_license_curriculum_nodes';
+        select.className = SELECT_CLASSES; 
+        select.addEventListener('change', handleFilterChange);
+        
+        // Initialize with the default option
+        select.innerHTML = '<option value="">-- Select --</option>';
+
+        container.appendChild(select);
+
+        filterContainer.appendChild(container);
+        return select;
+    }
+
+    // --- Event Handler ---
+    function handleFilterChange(event) {
+        const currentSelect = event.target;
+        const parentId = currentSelect.value;
+        const currentLevel = parseInt(currentSelect.dataset.level);
+        const nextLevel = currentLevel + 1;
+
+        // 1. Clear ALL Descendants (Filters)
+        Array.from(filterContainer.querySelectorAll('.filter-group')).forEach(group => {
+            const level = parseInt(group.id.replace('filter_group_', ''));
+            if (level >= nextLevel) group.remove();
+        });
+        
+        // 2. Clear Button UI message.
+        buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to see final license options.</p>';
+
+        if (parentId) {
+            const selectedOption = currentSelect.options[currentSelect.selectedIndex];
+            const nextNodeType = selectedOption.dataset.nodeType || 'Item';
+            
+            // 3. Populate Button UI (Curriculum Option) with children of the selected filter
+            fetchAndPopulate(parentId, mainCurriculumSelect, true);
+            
+            // 4. Create and Populate Next Filter (If not at max level)
+            if (nextLevel <= MAX_FILTER_LEVEL) {
+                const newSelect = createNextFilter(nextLevel, nextNodeType);
+                
+                // Populate the new filter with children nodes to allow drilling down
+                fetchAndPopulate(parentId, newSelect, false);
+            }
+        } else {
+            // 🚨 FIX: If the Level 1 filter is reset ("-- Select Board or Exam --"), 
+            // render the root nodes in the button panel.
+            if (currentLevel === 1) {
+                // The root_nodes are available in the global ROOT_NODES_DATA array. 
+                // We wrap it in { children: ... } to match the API response structure.
+                renderRootNodeButtons(ROOT_NODES_DATA);
+            } else {
+                // For subsequent filters, just display the default message (already done in step 2).
+            }
+        }
+    }
+
+    // --- Initialization ---
+    const filter1 = document.getElementById('filter_1');
+    if (filter1) {
+        filter1.addEventListener('change', handleFilterChange);
+    }
+    renderRootNodeButtons(ROOT_NODES_DATA);
+
+
+    function toggleAccordion(id) {
+        const body = document.getElementById(id + '-body');
+        const icon = document.getElementById(id + '-icon');
+        if (body.classList.contains('hidden')) {
+            body.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+        } else {
+            body.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+        }
+    }
+</script>
+{% endblock %}

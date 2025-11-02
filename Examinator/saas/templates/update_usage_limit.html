@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Update Limit: {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto my-12 px-4 md:px-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8 lg:p-10">
+        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-blue-300 mb-6 border-b-2 border-blue-500/40 pb-3 flex items-center gap-3">
+            <i class="fa-solid fa-file-circle-plus text-blue-500"></i>
+            Update Question Paper Generation Limit
+        </h1>
+
+        <p class="text-lg text-gray-700 dark:text-gray-300 mb-8">
+            Setting the quantitative limit for the subscription plan of: 
+            <span class="font-semibold text-blue-600 dark:text-blue-400">{{ organization.name }}</span>
+        </p>
+
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <div class="form-group">
+                {{ form.max_users.label_tag }}
+                {{ form.max_users }}
+                {% for error in form.max_users.errors %}
+                    <p class="text-red-500 text-sm italic">{{ error }}</p>
+                {% endfor %}
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Maximum number of active user seats allowed under this plan.
+                </p>
+            </div>
+
+            <div class="form-group">
+                {{ form.max_question_papers.label_tag }}
+                {{ form.max_question_papers }}
+                {% for error in form.max_question_papers.errors %}
+                    <p class="text-red-500 text-sm italic">{{ error }}</p>
+                {% endfor %}
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Total number of question papers the organization can generate.
+                </p>
+            </div>
+
+            <div class="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button type="submit"
+                        class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 transition transform hover:scale-[1.02]">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Limit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Simple script to ensure the input field is always focused on load for quick editing
+    document.addEventListener('DOMContentLoaded', () => {
+        const inputField = document.getElementById('id_max_question_papers');
+        if (inputField) {
+            inputField.focus();
+        }
+    });
+</script>
+{% endblock %}

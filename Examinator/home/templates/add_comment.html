@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block head %}
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              heading: ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              'dark-bg': '#121212',
+              'dark-card': 'rgba(255, 255, 255, 0.05)',
+              'dark-border': 'rgba(255, 255, 255, 0.1)',
+              'neon-blue': '#00bcd4',
+              'neon-purple': '#8e2de2',
+              'text-light': '#e0e0e0',
+              'text-muted': '#b0b0b0',
+            },
+            animation: {
+              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        /* This is the gradient background for the whole page */
+        background: linear-gradient(135deg, #1f1c2c 0%, #090b16 100%);
+        background-attachment: fixed;
+        font-family: 'Inter', sans-serif;
+        color: var(--text-light);
+      }
+      /* Custom scrollbar for a darker aesthetic */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #2c2c2c;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+      /* Style to target Django form elements more specifically */
+      .form-control, .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
+        color: #fff !important;
+        border-radius: 0.75rem !important;
+        transition: all 0.2s ease-in-out;
+      }
+      .form-control:focus {
+        box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.2) !important;
+        border-color: #00bcd4 !important;
+      }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-2xl w-full bg-dark-card backdrop-blur-xl border border-dark-border rounded-3xl p-8 md:p-12 shadow-2xl transition-all duration-300 hover:shadow-neon-blue/20">
+    <!-- Header Section -->
+    <div class="text-center mb-10">
+      <h1 class="font-heading text-4xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-neon-blue to-neon-purple leading-tight mb-2">
+        <i class="fas fa-satellite-dish mr-3"></i> {{ page_title }}
+      </h1>
+      <p class="text-lg text-text-muted max-w-md mx-auto">
+        Your feedback helps us navigate the digital cosmos. Share your thoughts, suggestions, or bug reports with us.
+      </p>
+    </div>
+
+    <!-- Form Section -->
+    <form method="post">
+      {% csrf_token %}
+      
+      <!-- Non-field errors from Django -->
+      {% if form.non_field_errors %}
+        <div class="bg-red-900 bg-opacity-50 text-red-300 border border-red-700 p-4 rounded-xl mb-6" role="alert">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <!-- Subject Field -->
+      <div class="mb-6">
+        <label for="{{ form.subject.id_for_label }}" class="block text-text-light font-semibold mb-2">
+          Subject
+        </label>
+        {{ form.subject }}
+        {% if form.subject.errors %}
+          <div class="text-red-400 text-sm mt-1">{{ form.subject.errors|first }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Message Field -->
+      <div class="mb-6">
+        <label for="{{ form.message.id_for_label }}" class="block text-text-light font-semibold mb-2">
+          Message
+        </label>
+        {{ form.message }}
+        {% if form.message.errors %}
+          <div class="text-red-400 text-sm mt-1">{{ form.message.errors|first }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Custom Checkbox for is_public field -->
+      <div class="mb-6">
+        <label class="flex items-center space-x-3 cursor-pointer">
+        
+          
+          {{ form.is_public }} </i>
+          
+           <span class="text-text-light font-medium">{{ form.is_public.label }}</span>
+        </label>
+        {% if form.is_public.errors %}
+          <div class="text-red-400 text-sm mt-1">{{ form.is_public.errors|first }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="w-full py-4 text-xl font-bold rounded-xl transition-all duration-300 transform bg-gradient-to-r from-neon-blue to-neon-purple hover:scale-105 active:scale-95 shadow-lg shadow-neon-blue/20 flex items-center justify-center space-x-3 text-white">
+        <i class="fas fa-paper-plane"></i>
+        <span>Submit Comment</span>
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block Script %}
+<script>
+  // Add a listener to handle the custom checkbox styling
+  document.addEventListener('DOMContentLoaded', () => {
+    const isPublicCheckbox = document.getElementById('{{ form.is_public.id_for_label }}');
+    const checkboxIcon = isPublicCheckbox.nextElementSibling.querySelector('i');
+    
+    isPublicCheckbox.addEventListener('change', (event) => {
+      if (event.target.checked) {
+        checkboxIcon.classList.remove('text-opacity-0');
+        checkboxIcon.classList.add('text-opacity-100');
+        checkboxIcon.parentElement.classList.add('bg-neon-blue', 'border-neon-blue');
+        checkboxIcon.parentElement.classList.remove('bg-dark-card', 'border-dark-border');
+      } else {
+        checkboxIcon.classList.remove('text-opacity-100');
+        checkboxIcon.classList.add('text-opacity-0');
+        checkboxIcon.parentElement.classList.remove('bg-neon-blue', 'border-neon-blue');
+        checkboxIcon.parentElement.classList.add('bg-dark-card', 'border-dark-border');
+      }
+    });
+  });
+</script>
+{% endblock %}

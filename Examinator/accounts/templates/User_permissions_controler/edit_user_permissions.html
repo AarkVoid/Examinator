@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% load static %}
+{% load custom_filters %}
+{% load form_tags %}
+
+{% block title %}Edit Permissions — {{ user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Visually distinguish disabled/inherited items */
+  .inherited-perm-label {
+    cursor: not-allowed;
+  }
+  .inherited-perm-label input[disabled] {
+    cursor: not-allowed;
+    opacity: 0.7; /* Make the checkbox slightly faded */
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto my-10 px-4 md:px-6">
+  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-6 sm:p-8 lg:p-10">
+    <h1 class="text-4xl font-extrabold text-gray-900 dark:text-blue-300 mb-8 border-b-4 border-blue-500/50 pb-4">
+      Edit Permissions for <span class="text-blue-600 dark:text-blue-400">{{ user.username }}</span>
+    </h1>
+
+    <form method="POST" class="space-y-12">
+      {% csrf_token %}
+
+      <section class="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 shadow-xl">
+        <h2 class="text-2xl font-bold text-indigo-700 dark:text-indigo-400 mb-6 flex items-center gap-3">
+          <i class="fa-solid fa-users-gear text-3xl"></i> Group Memberships
+        </h2>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {% for group in groups %}
+          <label for="group-{{ group.id }}" class="flex items-start gap-4 bg-white dark:bg-gray-900 p-5 rounded-lg shadow-lg border border-indigo-200 dark:border-indigo-700 hover:border-indigo-500 dark:hover:border-indigo-400 transition transform hover:-translate-y-0.5">
+            <input id="group-{{ group.id }}" name="groups" type="checkbox" value="{{ group.id }}"
+                   {% if group.id in user_group_ids %}checked{% endif %}
+                   class="w-6 h-6 mt-0.5 accent-indigo-600 dark:accent-indigo-400 cursor-pointer flex-shrink-0 rounded-md ring-2 ring-indigo-300 dark:ring-indigo-600">
+            <div class="flex flex-col flex-1">
+              <span class="font-bold text-lg text-gray-900 dark:text-gray-50">{{ group.name }}</span>
+              <span class="text-sm text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                {{ group.permissions.count }} permissions
+              </span>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-2xl font-bold text-teal-700 dark:text-teal-400 mb-6 flex items-center gap-3">
+          <i class="fa-solid fa-key text-3xl"></i> Individual Permissions
+        </h2>
+
+        <div class="space-y-4">
+          {% for app, models in app_perm_dict.items %}
+          <div class="app-card rounded-xl shadow-2xl overflow-hidden border border-gray-300 dark:border-gray-700">
+            <button type="button"
+                    class="app-header flex justify-between items-center w-full px-6 py-4 text-left bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+                    aria-expanded="false" aria-controls="app-{{ app|slugify }}">
+              <span class="font-extrabold text-xl text-gray-900 dark:text-gray-50 flex items-center gap-3">
+                <i class="fa-solid fa-folder-open text-teal-500"></i>
+                {{ app|capfirst }}
+                <span class="text-sm bg-teal-500 dark:bg-teal-400 text-white dark:text-gray-900 px-3 py-1 rounded-full font-medium shadow-md">
+                  {{ models|total_perms_in_app }} perms
+                </span>
+              </span>
+              <i class="fa-solid fa-chevron-down text-lg text-gray-600 dark:text-gray-300 transition-transform duration-300"></i>
+            </button>
+
+            <div id="app-{{ app|slugify }}" class="app-content hidden p-6 bg-white dark:bg-gray-900">
+              <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {% for model in models %}
+                {% with perms=models|get_item:model %}
+                <div class="model-card bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
+                  <div class="flex justify-between items-center mb-4 pb-3 border-b border-dashed border-gray-300 dark:border-gray-600">
+                    <h5 class="text-xl font-bold text-blue-600 dark:text-blue-400">{{ model|capfirst }}</h5>
+                    <span class="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full font-medium">
+                      {{ perms|length }}
+                    </span>
+                  </div>
+
+                  <ul class="space-y-3">
+                    {% for perm in perms %}
+                    {% with perm_codename=perm.content_type.app_label|add:'.'|add:perm.codename %}
+                    <li class="flex items-center">
+                      <label class="flex items-start gap-3 cursor-pointer w-full
+                                    {% if perm_codename in user_group_permissions_codenames %}inherited-perm-label{% endif %}"
+                             title="{% if perm_codename in user_group_permissions_codenames %}Inherited from group. Cannot be modified individually.{% endif %}">
+                        
+                        <input type="checkbox" name="user_permissions" value="{{ perm.id }}"
+                               {% if perm.id in user_direct_permission_ids or perm_codename in user_group_permissions_codenames %}
+                               checked
+                               {% endif %}
+                               {% if perm_codename in user_group_permissions_codenames %}
+                               disabled
+                               {% endif %}
+                               class="w-5 h-5 mt-1 accent-indigo-600 dark:accent-indigo-400 flex-shrink-0 rounded">
+                        
+                        <div class="flex flex-col flex-grow">
+                          <span class="text-base font-medium 
+                                       {% if perm_codename in user_group_permissions_codenames %}
+                                       text-indigo-500 dark:text-indigo-300 italic
+                                       {% else %}
+                                       text-gray-700 dark:text-gray-200
+                                       {% endif %}">
+                            {{ perm.name }}
+                          </span>
+                          {% if perm_codename in user_group_permissions_codenames %}
+                          <span class="text-xs font-bold text-white bg-indigo-600 dark:bg-indigo-400 px-2 py-0.5 mt-0.5 rounded-full w-fit shadow-sm">
+                            INHERITED
+                          </span>
+                          {% endif %}
+                        </div>
+                      </label>
+                    </li>
+                    {% endwith %}
+                    {% endfor %}
+                  </ul>
+                </div>
+                {% endwith %}
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div class="flex justify-end gap-4 pt-8 border-t border-gray-300 dark:border-gray-700">
+        <button type="submit"
+                class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-lg rounded-xl shadow-2xl shadow-blue-500/50 dark:shadow-blue-700/50 transform hover:scale-105 transition duration-200 flex items-center gap-3">
+          <i class="fa-solid fa-floppy-disk"></i> Save All Changes
+        </button>
+        <a href="{% url 'manage_users' %}"
+           class="px-8 py-3 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-semibold text-lg rounded-xl shadow-md flex items-center gap-3 transition">
+          <i class="fa-solid fa-xmark"></i> Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const headers = document.querySelectorAll('.app-header');
+  
+  // Initialize accordion state
+  headers.forEach(header => {
+    const content = header.nextElementSibling;
+    const icon = header.querySelector('i');
+    
+    // Set initial state (all closed except maybe the first one if desired, but default to closed)
+    content.classList.add('hidden');
+    icon.classList.remove('rotate-180');
+    header.setAttribute('aria-expanded', 'false');
+
+    // Accordion Toggle Logic
+    header.addEventListener('click', () => {
+      const isExpanded = header.getAttribute('aria-expanded') === 'true' || false;
+      
+      content.classList.toggle('hidden');
+      icon.classList.toggle('rotate-180');
+      header.setAttribute('aria-expanded', !isExpanded);
+    });
+  });
+
+  // Handle click on inherited (disabled) permissions for user feedback
+  document.querySelectorAll('.inherited-perm-label').forEach(label => {
+    label.addEventListener('click', (e) => {
+      // Prevent the default checkbox toggle action
+      e.preventDefault(); 
+      e.stopPropagation();
+
+      // Simple visual feedback (e.g., flash the label)
+      label.classList.add('ring-4', 'ring-indigo-300', 'dark:ring-indigo-600', 'ring-opacity-70');
+      setTimeout(() => {
+        label.classList.remove('ring-4', 'ring-indigo-300', 'dark:ring-indigo-600', 'ring-opacity-70');
+      }, 500);
+
+      // Optional: Display a temporary message (can use a simple toast/alert library instead)
+      // console.log("This permission is inherited from a group and cannot be modified here.");
+    });
+  });
+});
+</script>
+{% endblock %}

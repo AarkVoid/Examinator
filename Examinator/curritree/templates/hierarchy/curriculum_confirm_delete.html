@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+  <div class="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8">
+    
+    <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-50 mb-4 flex items-center gap-2">
+      <i class="fa-solid fa-trash-alt text-red-500"></i> Delete Node
+    </h2>
+    
+    <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
+      Are you absolutely sure you want to delete the node:
+      <strong class="text-red-600 dark:text-red-400">"{{ node.name }}"</strong>?
+    </p>
+
+    <div class="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-lg mb-8">
+      <div class="flex items-center">
+        <i class="fa-solid fa-exclamation-triangle text-red-500 mr-3 text-xl"></i>
+        <p class="text-sm text-red-800 dark:text-red-300 font-medium">
+          This action **cannot be undone**. Deleting a parent node may also delete its children.
+        </p>
+      </div>
+    </div>
+
+    <form method="post" class="flex gap-4">
+      {% csrf_token %}
+      
+      <button type="submit" class="flex-1 px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 transition-colors shadow-lg">
+        <i class="fa-solid fa-check mr-2"></i> Yes, Delete it
+      </button>
+      
+      <a href="{% url 'curritree:curriculum_list' %}" class="flex-1 px-5 py-2.5 text-sm font-medium text-gray-900 focus:outline-none bg-gray-100 rounded-lg border border-gray-200 hover:bg-gray-200 hover:text-gray-800 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-600 transition-colors shadow-md">
+        <i class="fa-solid fa-times mr-2"></i> Cancel
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

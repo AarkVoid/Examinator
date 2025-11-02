@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    /* Custom dark theme styling */
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #1f2937; /* Dark gray background */
+        color: #e5e7eb; /* Light gray text for readability */
+    }
+    .card-container {
+        background-color: #374151; /* Lighter gray for the card */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .header-bg {
+        background-color: #dc2626; /* Vibrant red for the header */
+    }
+    .warning-text {
+        color: #fca5a5; /* Light red for the warning message */
+    }
+    .delete-button {
+        background-color: #dc2626; /* Red for the delete button */
+        color: #e5e7eb;
+    }
+    .delete-button:hover {
+        background-color: #b91c1c; /* Darker red on hover */
+    }
+    .cancel-button {
+        background-color: #4b5563; /* Gray for the cancel button */
+        color: #d1d5db;
+    }
+    .cancel-button:hover {
+        background-color: #374151; /* Darker gray on hover */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-lg rounded-xl overflow-hidden text-center card-container">
+        <!-- Card Header -->
+        <div class="header-bg text-white py-6">
+            <h2 class="text-3xl font-bold">Confirm Deletion</h2>
+        </div>
+
+        <!-- Card Body -->
+        <div class="p-8">
+            <p class="text-xl text-gray-300 mb-6">Are you sure you want to delete user "<strong>{{ user_to_delete.username }}</strong>" ({{ user_to_delete.get_role_display }}) from your institute?</p>
+            <p class="warning-text mb-8 flex items-center justify-center space-x-2">
+                <i class="fas fa-exclamation-triangle text-xl"></i>
+                <span class="font-semibold">This action cannot be undone.</span>
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                    <button type="submit" class="w-full sm:w-auto py-3 px-8 rounded-lg font-bold delete-button transition duration-200 hover:scale-105">
+                        <i class="fas fa-trash-alt mr-2"></i> Confirm Delete
+                    </button>
+                    <a href="{% url 'manage_institute_users' %}" class="w-full sm:w-auto py-3 px-8 rounded-lg font-bold cancel-button transition duration-200 hover:scale-105">
+                        <i class="fas fa-times mr-2"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

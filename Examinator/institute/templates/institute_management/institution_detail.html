@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ page_title }} | EduGame
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables (True Dark Theme - Consistent with other pages) --- */
+    :root {
+        --primary-accent: #00BFFF; /* Bright Sky Blue */
+        --secondary-accent: #5EDDFF; /* Lighter Sky Blue */
+        --background-dark: #121212; /* Very dark gray for body background */
+        --card-background: #1F2937; /* Slightly lighter dark gray for cards */
+        --light-text: #E5E7EB; /* Very light gray for main text */
+        --medium-text: #9CA3AF; /* Muted gray for meta info */
+        --border-dark: #374151; /* Dark border color */
+        --success-color: #2ECC71; /* Green for success */
+        --error-color: #E74C3C; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark); /* Use the new dark background */
+        font-family: 'Lato', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text); /* Use light text on dark background */
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card { /* Main wrapper for the content, similar to the form */
+        max-width: 850px; /* Consistent max-width for detail page */
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp 0.6s ease-out forwards;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .container-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 35px 70px -15px var(--shadow-dark);
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .header { /* Styling for the page title */
+        border-bottom: 2px solid var(--border-dark);
+        padding-bottom: 1.8rem;
+        margin-bottom: 3rem;
+        text-align: center;
+    }
+
+    .header h2 { /* Targeting the h2 for the title */
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.8rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* Django Messages Styling (adapted for dark theme) */
+    .messages {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .messages li {
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 0.8rem;
+        font-weight: 600;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .messages .success {
+        background-color: rgba(46, 204, 113, 0.2);
+        color: var(--success-color);
+        border: 1px solid var(--success-color);
+    }
+
+    .messages .error {
+        background-color: rgba(231, 76, 60, 0.2);
+        color: var(--error-color);
+        border: 1px solid var(--error-color);
+    }
+
+    .messages .info {
+        background-color: rgba(52, 152, 219, 0.2);
+        color: #3498db;
+        border: 1px solid #3498db;
+    }
+
+    /* Action Buttons Container & Styling */
+    .button-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        gap: 1rem;
+        flex-wrap: wrap; /* Allow buttons to wrap on small screens */
+    }
+
+    .action-button {
+        transition: all 0.2s ease-in-out;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        color: var(--light-text); /* Default text color for buttons */
+    }
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    /* Specific button colors */
+    .action-button.back {
+        color: var(--primary-accent);
+    }
+    .action-button.back:hover {
+        color: var(--secondary-accent);
+    }
+
+    .action-button.edit {
+        background-color: #FBBF24; /* Amber */
+        color: var(--dark-text); /* Dark text for contrast on amber */
+    }
+    .action-button.edit:hover {
+        background-color: #FCD34D;
+    }
+
+    .action-button.delete {
+        background-color: var(--error-color);
+    }
+    .action-button.delete:hover {
+        background-color: #EF4444;
+    }
+
+    .action-button.generate {
+        background: linear-gradient(45deg, var(--success-color) 0%, #34D399 100%);
+        color: var(--dark-text); /* Dark text for contrast on green */
+    }
+    .action-button.generate:hover {
+        background: linear-gradient(45deg, #34D399 0%, var(--success-color) 100%);
+    }
+
+    /* Institution Detail Card */
+    .detail-card {
+        background-color: #2D3748; /* Slightly lighter dark for the detail card */
+        padding: 2.5rem;
+        border-radius: 15px;
+        border: 1px solid var(--border-dark);
+        box-shadow: 0 5px 20px var(--shadow-dark);
+        margin-bottom: 3rem;
+    }
+
+    .detail-card h3 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--light-text);
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid rgba(255,255,255,0.1);
+        padding-bottom: 1rem;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
+        gap: 1.5rem;
+        color: var(--medium-text);
+        font-size: 1.05rem;
+    }
+
+    .detail-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px dashed var(--border-dark);
+    }
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    .detail-item span {
+        font-weight: 600;
+        color: var(--light-text);
+        margin-right: 0.5rem;
+    }
+
+    /* Passkeys Section */
+    .passkeys-section h3 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--light-text);
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid rgba(255,255,255,0.1);
+        padding-bottom: 1rem;
+    }
+
+    .passkey-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .passkey-card {
+        background-color: #2D3748; /* Consistent with detail card */
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-dark);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .passkey-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .passkey-card p {
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+        color: var(--medium-text);
+    }
+    .passkey-card p:last-child {
+        margin-bottom: 0;
+    }
+
+    .passkey-card .key-value {
+        font-family: 'Space Mono', monospace; /* Monospaced font for keys */
+        font-weight: bold;
+        color: var(--primary-accent);
+        word-break: break-all; /* Ensure long keys wrap */
+        background-color: rgba(0, 191, 255, 0.1);
+        padding: 0.3rem 0.6rem;
+        border-radius: 5px;
+        display: inline-block;
+        margin-top: 0.5rem;
+    }
+
+    .passkey-card .status-used {
+        color: var(--error-color);
+        font-weight: bold;
+    }
+    .passkey-card .status-unused {
+        color: var(--success-color);
+        font-weight: bold;
+    }
+
+    .no-passkeys-message {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        background-color: #2D3748; /* Consistent with other cards */
+        border-radius: 12px;
+        border: 2px dashed var(--border-dark);
+        margin-top: 30px;
+        box-shadow: 0 2px 10px var(--shadow-dark);
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+
+        .header h2, .detail-card h3, .passkeys-section h3 {
+            font-size: 2.2rem;
+            padding-bottom: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .button-actions {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        .action-button {
+            width: 100%; /* Full width for stacked buttons */
+            justify-content: center;
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+        }
+
+        .detail-card {
+            padding: 1.8rem;
+        }
+        .detail-grid {
+            grid-template-columns: 1fr; /* Stack items on small screens */
+            gap: 1rem;
+        }
+        .detail-item {
+            padding: 0.5rem 0;
+            font-size: 1rem;
+        }
+
+        .passkey-grid {
+            grid-template-columns: 1fr; /* Stack passkey cards */
+            gap: 1rem;
+        }
+        .passkey-card {
+            padding: 1.2rem;
+        }
+        .passkey-card .key-value {
+            font-size: 0.9rem;
+        }
+        .passkey-card p {
+            font-size: 0.9rem;
+        }
+        .no-passkeys-message {
+            padding: 30px;
+            font-size: 1rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        .container-card {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .header h2, .detail-card h3, .passkeys-section h3 {
+            font-size: 2rem;
+            padding-bottom: 0.6rem;
+            margin-bottom: 1.2rem;
+        }
+        .action-button {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            gap: 0.5rem;
+        }
+        .detail-card {
+            padding: 1.5rem;
+        }
+        .detail-item {
+            font-size: 0.95rem;
+        }
+        .passkey-card {
+            padding: 1rem;
+        }
+        .no-passkeys-message {
+            padding: 25px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-br from-slate-900 via-gray-800 to-slate-900 text-slate-200 min-h-screen flex items-center justify-center p-4">
+    <div class="container-card relative">
+        <div class="header">
+            <h2>{{ page_title }}</h2>
+        </div>
+        
+        {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                    <div class="p-3 rounded-lg text-sm text-center 
+                        {% if message.tags == 'success' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="button-actions">
+            <a href="{% url 'institution_list' %}" class="action-button back">
+                <i class="fas fa-arrow-left"></i> <span>Back to List</span>
+            </a>
+            <div class="flex flex-wrap gap-3">
+                <a href="{% url 'institution_update' institution.pk %}" class="action-button edit">
+                    <i class="fas fa-edit"></i> <span>Edit Institution</span>
+                </a>
+                <a href="{% url 'institution_delete' institution.pk %}" class="action-button delete">
+                    <i class="fas fa-trash-alt"></i> <span>Delete Institution</span>
+                </a>
+                {# Assuming you have a URL for generating passkeys #}
+                {% comment %} <!-- <a href="{% url 'passkey_create' institution_id=institution.pk %}" class="action-button generate">
+                    <i class="fas fa-key"></i> <span>Generate Passkey</span>
+                </a> --> {% endcomment %}
+            </div>
+        </div>
+
+        <div class="detail-card">
+            <h3>Institution Details</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span>Name:</span> {{ institution.name }}
+                </div>
+                <div class="detail-item">
+                    <span>Code:</span> {{ institution.code }}
+                </div>
+                {# Display Country, State, and Board from the Institution's Board relationship #}
+                <div class="detail-item">
+                    <span>Country:</span> 
+                    {% if institution.board and institution.board.location and institution.board.location.country %}
+                        {{ institution.board.location.country.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+                <div class="detail-item">
+                    <span>Group :</span> 
+                    {% if institution.group %}
+                        {{ institution.group.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+                <div class="detail-item">
+                    <span>State:</span> 
+                    {% if institution.board and institution.board.location %}
+                        {{ institution.board.location.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+                <div class="detail-item">
+                    <span>Board:</span> 
+                    {% if institution.board %}
+                        {{ institution.board.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+                <div class="detail-item">
+                    <span>Created At:</span> {{ institution.created_at|date:"F j, Y, P" }}
+                </div>
+                <div class="detail-item col-span-full"> {# Make address span full width #}
+                    <span>Address:</span> {{ institution.address|linebreaksbr|default:"N/A" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="passkeys-section">
+            <h3>Associated Passkeys</h3>
+            {% if passkeys %}
+                <div class="passkey-grid">
+                    {% for passkey in passkeys %}
+                        <div class="passkey-card">
+                            <p>Key: <span class="key-value">{{ passkey.passkey }}</span></p>
+                            <p>Valid Until: {{ passkey.valid_until|date:"F j, Y" }}</p>
+                            <p>Used: 
+                                {% if passkey.is_used %}
+                                    <span class="status-used">Yes</span>
+                                {% else %}
+                                    <span class="status-unused">No</span>
+                                {% endif %}
+                            </p>
+                            {# Link to passkey detail if needed #}
+                            <p class="text-right mt-2">
+                                <a href="{% url 'passkey_detail' passkey.pk %}" class="table-action-link view text-sm">
+                                    <i class="fas fa-info-circle"></i> Details
+                                </a>
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-passkeys-message">
+                    <i class="fas fa-key" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    <p>No passkeys generated for this institution.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

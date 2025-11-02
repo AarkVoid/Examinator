@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load l10n %}
+{% load tz %}
+
+{% load static %}
+{% load custom_filters %}
+{% load form_tags %}
+{% comment %} 
+    NOTE: The success of this template relies on the Django view providing:
+    1. 'app_perm_dict': Permissions structured by app and model.
+    2. 'group_permission_ids': A list of IDs of permissions currently assigned to the group (for editing).
+    3. The custom filters 'total_perms_in_app' and 'get_item' (assumed to be available).
+{% endcomment %}
+
+{% block title %}Manage Groups for {{ organization.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* -------------------------------------------------------------------------
+ * DARK MODE FIXES for standard input fields
+ * -------------------------------------------------------------------------
+*/
+@media (prefers-color-scheme: dark) {
+    /* Standard Form Fields (e.g., Group Name) */
+    .form-input-field {
+        background-color: #1f2937 !important; /* dark:bg-gray-800 */
+        border-color: #4b5563 !important; /* dark:border-gray-600 */
+        color: #f3f4f6 !important; /* dark:text-gray-100 */
+    }
+}
+
+/* Accordion icon transition */
+/* Rotation is applied via JavaScript setting the aria-expanded attribute */
+.app-header i {
+    transition: transform 0.3s ease-in-out;
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+{% comment %} 
+    Define consistent Tailwind classes for standard form fields 
+{% endcomment %}
+{% with TAILWIND_INPUT_CLASSES='w-full px-4 py-2.5 border rounded-lg transition-all duration-150 bg-gray-50 border-gray-300 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 form-input-field dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100' %}
+
+<div class="container mx-auto px-4 py-8">
+    <div class="w-full max-w-6xl mx-auto">
+        
+        {# Header #}
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-gray-50 mb-2 md:mb-0">
+                <i class="fa-solid fa-users-gear mr-3 text-indigo-600 dark:text-indigo-400"></i> {{ action_name }} Organization Group
+            </h1>
+            <p class="text-lg md:text-xl text-gray-600 dark:text-gray-300">Tenant: <span class="font-bold text-blue-600 dark:text-blue-400">{{ organization.name }}</span></p>
+        </div>
+
+        {# --- FLASH MESSAGES --- #}
+        {% if messages %}
+            <div class="space-y-3 mb-8">
+            {% for message in messages %}
+                <div class="p-4 rounded-xl text-sm font-medium shadow-md
+                    {% if 'error' in message.tags %} bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/50 dark:text-red-100 dark:border-red-700
+                    {% elif 'success' in message.tags %} bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/50 dark:text-green-100 dark:border-green-700
+                    {% else %} bg-blue-100 text-blue-700 border border-blue-300 dark:bg-blue-900/50 dark:text-blue-100 dark:border-blue-700
+                    {% endif %}
+                ">
+                    {{ message }}
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- GROUP CREATE/EDIT FORM SECTION -->
+        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 mb-10">
+            <h2 class="text-2xl font-semibold text-indigo-600 dark:text-indigo-400 mb-6 border-b pb-3">
+                {{ action_name }} Group Details
+            </h2>
+
+            <form method="POST" class="space-y-10" action="{% if is_editing %}{% url 'manage_groups' group_id=form.instance.id %}{% else %}{% url 'manage_groups' %}{% endif %}">
+                {% csrf_token %}
+
+                <!-- Group Name -->
+                <div class="max-w-md">
+                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-100 mb-2">
+                        Group Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="{{ form.name.name }}" id="{{ form.name.id_for_label }}" 
+                        value="{{ form.name.value|default:'' }}"
+                        class="{{ TAILWIND_INPUT_CLASSES }}"
+                        placeholder="e.g., Managers, Accountants, Sales Team">
+                    
+                    {% if form.name.errors %}
+                        <p class="text-sm text-red-500 dark:text-red-400 mt-1">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- --- PERMISSIONS SELECTION ACCORDION (Enhanced UI) --- -->
+                <section>
+                    <h2 class="text-2xl font-bold text-teal-700 dark:text-teal-400 mb-6 flex items-center gap-3">
+                      <i class="fa-solid fa-key text-3xl"></i> Assign Permissions
+                    </h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        Select which permissions members of this group will inherit.
+                    </p>
+
+                    <div class="space-y-4">
+                      {% for app, models in app_perm_dict.items %}
+                      <div class="app-card rounded-xl shadow-2xl overflow-hidden border border-gray-300 dark:border-gray-700">
+                        <button type="button"
+                                class="app-header flex justify-between items-center w-full px-6 py-4 text-left bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+                                aria-expanded="false" aria-controls="app-{{ app|slugify }}">
+                          <span class="font-extrabold text-xl text-gray-900 dark:text-gray-50 flex items-center gap-3">
+                            <i class="fa-solid fa-folder-open text-teal-500"></i>
+                            {{ app|capfirst }}
+                            <span class="text-sm bg-teal-500 dark:bg-teal-400 text-white dark:text-gray-900 px-3 py-1 rounded-full font-medium shadow-md">
+                              {{ models|total_perms_in_app }} perms
+                            </span>
+                          </span>
+                          <i class="fa-solid fa-chevron-down text-lg text-gray-600 dark:text-gray-300"></i>
+                        </button>
+
+                        <div id="app-{{ app|slugify }}" class="app-content hidden p-6 bg-white dark:bg-gray-900">
+                          <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+                            {% for model in models %}
+                            {% with perms=models|get_item:model %}
+                            <div class="model-card bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
+                              <div class="flex justify-between items-center mb-4 pb-3 border-b border-dashed border-gray-300 dark:border-gray-600">
+                                <h5 class="text-xl font-bold text-blue-600 dark:text-blue-400">{{ model|capfirst }}</h5>
+                                <span class="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full font-medium">
+                                  {{ perms|length }}
+                                </span>
+                              </div>
+
+                              <ul class="space-y-3">
+                                {% for perm in perms %}
+                                <li class="flex items-center">
+                                  <label class="flex items-start gap-3 cursor-pointer w-full">
+                                    
+                                    <input type="checkbox" name="permissions" value="{{ perm.id }}"
+                                           {% if perm.id in group_permission_ids %}
+                                           checked
+                                           {% endif %}
+                                           class="w-5 h-5 mt-1 accent-indigo-600 dark:accent-indigo-400 flex-shrink-0 rounded">
+                                    
+                                    <div class="flex flex-col flex-grow">
+                                      <span class="text-base font-medium text-gray-700 dark:text-gray-200">
+                                        {{ perm.name }}
+                                      </span>
+                                    </div>
+                                  </label>
+                                </li>
+                                {% endfor %}
+                              </ul>
+                            </div>
+                            {% endwith %}
+                            {% endfor %}
+                          </div>
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                </section>
+                <!-- --- END PERMISSIONS SELECTION ACCORDION --- -->
+
+
+                <!-- Submit -->
+                <div class="flex space-x-4 pt-4 justify-end border-t border-gray-200 dark:border-gray-700">
+                    <button type="submit"
+                        class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/50 transition duration-200 transform hover:scale-[1.02]">
+                        <i class="fa-solid fa-save mr-2"></i> {{ action_name }} Group
+                    </button>
+
+                    {% if is_editing %}
+                        <a href="{% url 'manage_groups' %}"
+                            class="px-6 py-3 border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 font-semibold rounded-xl shadow-md transition duration-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600">
+                            <i class="fa-solid fa-xmark mr-2"></i> Cancel Edit
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+
+        </div>
+        
+        {% if is_editing %}
+            <div class="mb-10 text-center">
+                <a href="{% url 'manage_groups' %}"
+                    class="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+                    ← Back to Group Creation
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- EXISTING GROUPS TABLE SECTION (Unchanged) -->
+        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-semibold text-green-600 dark:text-green-400 mb-6 border-b pb-3">Existing Groups ({{ groups|length }})</h2>
+
+            {% if groups %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                                    Group Name
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                                    Members
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                                    Permissions Count
+                                </th>
+                                <th scope="col" class="relative px-6 py-3">
+                                    <span class="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                            {% for group in groups %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition duration-150">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-50">
+                                    <span class="p-1 px-3 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                                        {{ group.name }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {{ group.members.count }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    <span class="font-semibold">{{ group.permissions.count }}</span> permissions
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <a href="{% url 'manage_groups' group_id=group.id %}" 
+                                       class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors mr-4">
+                                        <i class="fa-solid fa-pencil mr-1"></i> Edit
+                                    </a>
+                                    <a href="{% url 'delete_group' group_id=group.id %}" 
+                                       class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-circle-user text-6xl text-gray-400 dark:text-gray-600 mb-4"></i>
+                    <p class="text-xl text-gray-600 dark:text-gray-300">No custom groups found for this organization.</p>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">Use the form above to create the first organization-specific user group.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endwith %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const headers = document.querySelectorAll('.app-header');
+  
+  // Initialize accordion state
+  headers.forEach(header => {
+    const content = header.nextElementSibling;
+    
+    // Check if the content area has any checked checkboxes within it.
+    // If so, keep the accordion open by default (useful for edits).
+    const hasChecked = content.querySelector('input[type="checkbox"]:checked');
+
+    // Set initial state based on checked boxes
+    if (hasChecked) {
+        content.classList.remove('hidden');
+        header.setAttribute('aria-expanded', 'true');
+    } else {
+        content.classList.add('hidden');
+        header.setAttribute('aria-expanded', 'false');
+    }
+
+    // Accordion Toggle Logic
+    header.addEventListener('click', () => {
+      const isExpanded = header.getAttribute('aria-expanded') === 'true';
+      
+      content.classList.toggle('hidden');
+      
+      // Toggle the icon rotation based on the new state
+      header.setAttribute('aria-expanded', !isExpanded);
+    });
+
+    // Manually handle the icon rotation based on the aria attribute
+    // Note: CSS handles the transition, JS toggles the class on the icon
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'aria-expanded') {
+                const icon = header.querySelector('i');
+                if (header.getAttribute('aria-expanded') === 'true') {
+                    icon.classList.add('rotate-180');
+                } else {
+                    icon.classList.remove('rotate-180');
+                }
+            }
+        });
+    });
+
+    observer.observe(header, { attributes: true });
+
+    // Apply initial rotation state
+    const initialIcon = header.querySelector('i');
+    if (header.getAttribute('aria-expanded') === 'true') {
+        initialIcon.classList.add('rotate-180');
+    }
+  });
+});
+</script>
+{% endblock %}

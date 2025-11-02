@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Users{% endblock %}
+
+{% block head %}
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+        .bg-card {
+            background-color: #161b22;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen p-4 md:p-8">
+    <div class="w-full max-w-7xl mx-auto">
+        <!-- Header & Filter -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-card rounded-2xl p-6 shadow-lg">
+            <h1 class="text-3xl md:text-4xl font-bold text-white mb-4 md:mb-0">Manage Users</h1>
+            <form method="get" class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4">
+                <label for="role" class="text-gray-400 font-medium">Filter by Role:</label>
+                <select name="role" id="role" 
+                        class="form-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" 
+                        onchange="this.form.submit()">
+                    <option value="">All Roles</option>
+                    {% for role in roles %}
+                        <option value="{{ role }}" {% if role == selected_role %}selected{% endif %}>
+                            {{ role|title }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <label for="institute" class="text-gray-400 font-medium">Filter by Institute:</label>
+                <select name="institute" id="institute" 
+                        class="form-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" 
+                        onchange="this.form.submit()">
+                    <option value="">All Institutes</option>
+                    {% for institute in institutes %}
+                        <option value="{{ institute.name }}" {% if institute.name == selected_institute %}selected{% endif %}>
+                            {{ institute|title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <!-- Grouped User Lists -->
+        {% for institute_name, roles in grouped_data.items %}
+        <div class="mb-10 bg-card rounded-2xl p-6 md:p-8 shadow-xl border border-gray-700">
+            <h2 class="text-2xl font-semibold text-blue-400 mb-6 border-b border-gray-700 pb-3">
+                {{ institute_name }}
+            </h2>
+
+            {% for role, users in roles.items %}
+            <div class="mb-8">
+                <h3 class="text-xl font-medium text-gray-300 mb-4">{{ role|title }}</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full table-auto text-left whitespace-nowrap">
+                        <thead>
+                            <tr class="bg-gray-800 text-gray-400 text-sm font-semibold uppercase tracking-wider">
+                                <th class="py-3 px-4 rounded-tl-xl">Username</th>
+                                <th class="py-3 px-4">Email</th>
+                                <th class="py-3 px-4">Stream</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                                <th class="py-3 px-4 rounded-tr-xl text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr class="border-b border-gray-700 hover:bg-gray-800 transition duration-200">
+                                <td class="py-4 px-4 font-medium">{{ user.username }}</td>
+                                <td class="py-4 px-4 text-gray-400">{{ user.email }}</td>
+                                <td class="py-4 px-4 text-gray-400">
+                                    {{ user.profile.board|default:"N/A" }}
+                                </td>
+                              
+                                <td class="py-4 px-4 text-center">
+                                    {% if user.is_active %}
+                                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-green-500 text-white">
+                                            Active
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-500 text-white">
+                                            Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 px-4 text-center space-x-2">
+                                    <!-- Updated Edit Button Styles -->
+                                    <a href="{% url 'edit_user' user.id %}" 
+                                       class="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200">
+                                        Edit
+                                    </a>
+                                    <!-- Updated Delete Button Styles -->
+                                    <a href="{% url 'delete_user' user.id %}" 
+                                       class="inline-block px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200" 
+                                       onclick="return confirm('Are you sure you want to delete {{ user.username }}?');">
+                                        Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="py-4 px-4 text-center text-gray-500">No users found for this role.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% empty %}
+        <div class="text-center bg-card rounded-2xl p-10 shadow-xl border border-gray-700">
+            <p class="text-lg text-gray-400">No users found that match the criteria.</p>
+        </div>
+        {% endfor %}
+    </div>
+    <!-- Updated Create Admin Button Container and Styles -->
+    {% comment %} <div class="mt-8 text-center">
+    
+            <a href="{% url 'create_admin' %}" 
+               class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Create New Admin {{ selected_role|title }}
+            </a>
+        
+            <a href="{% url 'create_group_admin' %}" 
+               class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Create New Group Admin
+            </a>
+    </div> {% endcomment %}
+</div>
+{% endblock %}

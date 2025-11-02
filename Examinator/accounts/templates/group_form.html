@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+    /* General Body & Container */
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: url("{% static 'image/background.jpg' %}") no-repeat center center fixed;
+        background-size: cover;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .main-content-wrapper {
+        flex-grow: 1; /* Allow content to take up available space */
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Align to the top */
+        padding: 40px 20px; /* Add padding to the wrapper */
+    }
+    .form-card-container {
+        background: rgba(35, 15, 45, 0.85); /* Slightly darker for better contrast */
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        width: 100%;
+        max-width: 1100px; /* Increased max-width for more horizontal space */
+    }
+    label {
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    /* Form Elements */
+    .form-control {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+    }
+    .form-control:focus {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.6);
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+    }
+    .text-danger {
+        color: #ffdddd !important; /* Lighter red for visibility */
+    }
+
+    /* Permissions Section */
+    .permissions-section {
+        margin-top: 30px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 20px;
+    }
+    .app-permissions-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    .app-permissions-card:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .app-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #fff;
+        font-size: 1.4rem;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        user-select: none;
+        font-weight: 600;
+    }
+    .app-header .toggle-icon {
+        font-size: 1.5rem;
+        transition: transform 0.3s ease;
+    }
+    .app-header.collapsed .toggle-icon {
+        transform: rotate(-90deg); /* Rotate for collapsed state */
+    }
+    .app-header .header-text {
+        flex-grow: 1;
+    }
+    .app-header .select-all-app {
+        font-size: 0.9rem;
+        font-weight: 500;
+        opacity: 0.8;
+        margin-left: 20px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+    .app-header .select-all-app:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .model-permissions-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Adjusted min-width for better spacing */
+        gap: 20px;
+    }
+    .model-permissions-card {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        transition: all 0.3s ease;
+    }
+    .model-permissions-card:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .model-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.25);
+        font-weight: 500;
+    }
+    .model-header strong {
+        color: #fff;
+        font-size: 1.1rem;
+    }
+    .model-header .badge {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .model-header .select-all-model {
+        font-size: 0.85rem;
+        font-weight: 500;
+        opacity: 0.8;
+        margin-left: 15px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        transition: all 0.3s ease;
+    }
+    .model-header .select-all-model:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .permissions-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .permission-item {
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .permission-item:last-child {
+        border-bottom: none;
+    }
+    .permission-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+        transition: all 0.2s ease;
+    }
+    .permission-label:hover {
+        color: #fff;
+    }
+    .permission-checkbox {
+        margin-right: 12px;
+        min-width: 20px;
+        min-height: 20px;
+        accent-color: #7289da; /* A pleasing blue-purple shade */
+        cursor: pointer;
+    }
+    .permission-name {
+        flex-grow: 1;
+    }
+
+    /* Buttons */
+    .d-flex {
+        display: flex;
+    }
+    .justify-content-between {
+        justify-content: space-between;
+    }
+    .mt-4 {
+        margin-top: 25px !important;
+    }
+    .btn {
+        padding: 12px 25px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-primary {
+        background: #7289da; /* A pleasing blue-purple shade */
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(114, 137, 218, 0.4);
+    }
+    .btn-primary:hover {
+        background: #6079c6;
+        box-shadow: 0 6px 20px rgba(114, 137, 218, 0.6);
+    }
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    
+    /* Responsive adjustments */
+    @media (max-width: 992px) {
+        .form-card-container {
+            padding: 30px;
+        }
+        .app-header {
+            font-size: 1.2rem;
+        }
+        .model-permissions-container {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+    }
+    @media (max-width: 768px) {
+        .form-card-container {
+            padding: 20px;
+            margin: 20px auto;
+        }
+        .app-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .app-header .select-all-app {
+            margin-left: 0;
+            margin-top: 10px;
+        }
+        .model-permissions-container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content-wrapper">
+    <div class="form-card-container">
+        <h3 class="text-center mb-4" style="color:#77c6ff;">
+            <i class="fas fa-users-cog"></i> {{ title }}
+        </h3>
+        <form method="post" id="group-form">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label for="{{ form.name.id_for_label }}">Group Name</label>
+                {{ form.name|add_class:"form-control"|attr:"placeholder:Enter group name" }}
+                {% if form.name.errors %}
+                    <div class="text-danger mt-2">
+                        {% for error in form.name.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <label class="d-block mb-3">Assign Permissions</label>
+            <div class="permissions-section">
+                {% regroup all_permissions|dictsort:"content_type.app_label" by content_type.app_label as permissions_by_app %}
+                {% for app in permissions_by_app %}
+                <div class="app-permissions-card">
+                    <div class="app-header" data-target="#app-{{ app.grouper|slugify }}-content" data-app-label="{{ app.grouper }}">
+                        <span class="header-text">{{ app.grouper|capfirst }} ({{ app.list|length }} permissions)</span>
+                        <span class="select-all-app" onclick="event.stopPropagation(); toggleAppCheckboxes('{{ app.grouper }}')">
+                            Toggle All
+                        </span>
+                        <i class="fas fa-chevron-down toggle-icon ml-auto"></i>
+                    </div>
+                    
+                    <div id="app-{{ app.grouper|slugify }}-content" class="app-content collapse-target show">
+                        <div class="model-permissions-container">
+                            {% regroup app.list|dictsort:"content_type.model" by content_type.model as permissions_by_model %}
+                            {% for model in permissions_by_model %}
+                            <div class="model-permissions-card">
+                                <div class="model-header">
+                                    <strong>{{ model.grouper|capfirst }}</strong>
+                                    <span class="badge">{{ model.list|length }} perms</span>
+                                    <span class="select-all-model" onclick="event.stopPropagation(); toggleModelCheckboxes('{{ app.grouper }}', '{{ model.grouper }}')">
+                                        Toggle All
+                                    </span>
+                                </div>
+                                
+                                <ul class="permissions-list" data-app-label="{{ app.grouper }}" data-model-name="{{ model.grouper }}">
+                                    {% for perm in model.list|dictsort:"name" %}
+                                    <li class="permission-item">
+                                        <label class="permission-label">
+                                            <input type="checkbox" 
+                                                   name="permissions" 
+                                                   value="{{ perm.id }}"
+                                                   id="perm-{{ perm.id }}"
+                                                   {% if perm.id in group_permission_ids %}checked{% endif %}
+                                                   class="permission-checkbox">
+                                            <span class="permission-name">{{ perm.name }}</span>
+                                        </label>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-center text-muted">No permissions found in the system.</p>
+                {% endfor %}
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'group_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times-circle"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {{ button_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block Script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Collapse/Expand Logic ---
+        document.querySelectorAll('.app-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const targetId = this.dataset.target;
+                const targetElement = document.querySelector(targetId);
+                const toggleIcon = this.querySelector('.toggle-icon');
+
+                if (targetElement.classList.contains('show')) {
+                    targetElement.classList.remove('show');
+                    toggleIcon.classList.remove('fa-chevron-up');
+                    toggleIcon.classList.add('fa-chevron-down');
+                } else {
+                    targetElement.classList.add('show');
+                    toggleIcon.classList.remove('fa-chevron-down');
+                    toggleIcon.classList.add('fa-chevron-up');
+                }
+            });
+        });
+
+        // --- Toggle Checkboxes for App ---
+        window.toggleAppCheckboxes = function(appLabel) {
+            // Find all checkboxes within this app's card
+            const appCard = document.querySelector(`.app-header[data-app-label="${appLabel}"]`).closest('.app-permissions-card');
+            const checkboxes = appCard.querySelectorAll('.permission-checkbox');
+            
+            const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+            });
+        };
+
+        // --- Toggle Checkboxes for Model ---
+        window.toggleModelCheckboxes = function(appLabel, modelName) {
+            // Find the specific model's permission list
+            const modelList = document.querySelector(`.permissions-list[data-app-label="${appLabel}"][data-model-name="${modelName}"]`);
+            if (!modelList) return; // Should not happen if appLabel/modelName are correct
+
+            const checkboxes = modelList.querySelectorAll('.permission-checkbox');
+            const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+            });
+        };
+
+        // Ensure Font Awesome icons are used
+        document.querySelectorAll('.btn-primary .fas').forEach(icon => icon.classList.add('fa-save'));
+        document.querySelectorAll('.btn-secondary .fas').forEach(icon => icon.classList.add('fa-times-circle'));
+    });
+</script>
+{% endblock %}

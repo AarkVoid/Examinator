@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }} | EduGame{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables for the Dark Theme --- */
+    :root {
+        --primary-accent: #4A72EC; /* Professional Blue */
+        --secondary-accent: #6C8DFF; /* Lighter Blue */
+        --background-dark: #1F2937; /* Very dark gray for body background */
+        --card-background: #2D3748; /* Slightly lighter dark gray for cards */
+        --light-text: #E5E7EB; /* Very light gray for main text */
+        --medium-text: #9CA3AF; /* Muted gray for meta info */
+        --border-dark: #4B5563; /* Dark border color */
+        --success-color: #10B981; /* Green for success */
+        --error-color: #EF4444; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark);
+        font-family: 'Inter', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card {
+        max-width: 700px;
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp var(--transition-speed) ease-out forwards;
+        transition: all var(--transition-speed) ease-in-out;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .card-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 2.5rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        padding-bottom: 1.8rem;
+        border-bottom: 2px solid var(--border-dark);
+    }
+
+    /* --- Crispy Forms & Inputs --- */
+    .form-group, .form-check, .mb-3 {
+        margin-bottom: 1.5rem;
+    }
+
+    label {
+        font-weight: 500;
+        color: var(--medium-text);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control {
+        background-color: #1F2937;
+        color: var(--light-text);
+        border: 1px solid var(--border-dark);
+        border-radius: 8px;
+        padding: 0.8rem 1rem;
+        height: 50px;
+        transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+    }
+
+    .form-control:focus {
+        background-color: #1F2937;
+        color: var(--light-text);
+        border-color: var(--primary-accent);
+        box-shadow: 0 0 0 3px rgba(74, 114, 236, 0.2);
+        outline: none;
+    }
+
+    .form-control:disabled, .form-control[readonly] {
+        background-color: #2d5276;
+        opacity: 1;
+    }
+    
+    .form-text {
+        color: var(--medium-text);
+        font-size: 0.875rem;
+    }
+
+    /* --- Buttons --- */
+    .btn {
+        font-weight: 600;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        transition: all var(--transition-speed) ease-in-out;
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
+        color: var(--background-dark);
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        background: linear-gradient(45deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+    }
+
+    .btn-outline-secondary {
+        border: 1px solid var(--border-dark);
+        color: var(--light-text);
+        background-color: transparent;
+    }
+    .btn-outline-secondary:hover {
+        background-color: var(--border-dark);
+        color: var(--light-text);
+    }
+
+    /* --- Django Messages --- */
+    .alert {
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        border: 1px solid transparent;
+        position: relative;
+    }
+
+    .alert-success {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: var(--success-color);
+        border-color: var(--success-color);
+    }
+    .alert-danger {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: var(--error-color);
+        border-color: var(--error-color);
+    }
+
+    .btn-close {
+        filter: invert(1);
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+        .card-title {
+            font-size: 2rem;
+        }
+    }
+    @media (max-width: 480px) {
+        body { padding: 10px; }
+        .container-card {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .card-title {
+            font-size: 1.8rem;
+        }
+        .btn-lg {
+            font-size: 1rem;
+            padding: 0.7rem 1.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-card">
+    <h2 class="card-title text-center mb-4">{{ page_title }}</h2>
+    <hr class="mb-4" style="border-color: var(--border-dark);">
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form|crispy }}
+        <div class="d-grid gap-2 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">Create Passkey</button>
+            <a href="{% url 'passkey_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

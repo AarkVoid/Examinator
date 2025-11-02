@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ page_title }} | EduGame
+{% endblock %}
+
+{% block head %}
+    <style>
+        /* --- CSS Variables (True Dark Theme) --- */
+        :root {
+            --primary-accent: #00BFFF; /* Bright Sky Blue */
+            --secondary-accent: #5EDDFF; /* Lighter Sky Blue */
+            --background-dark: #121212; /* Very dark gray for body background */
+            --card-background: #1F2937; /* Slightly lighter dark gray for cards */
+            --light-text: #E5E7EB; /* Very light gray for main text */
+            --medium-text: #9CA3AF; /* Muted gray for meta info */
+            --border-dark: #374151; /* Dark border color */
+            --success-color: #2ECC71; /* Green for success */
+            --error-color: #E74C3C; /* Red for errors */
+            --shadow-dark: rgba(0, 0, 0, 0.4);
+            --shadow-medium: rgba(0, 0, 0, 0.2);
+            --transition-speed: 0.3s;
+        }
+
+        /* --- Base Styles --- */
+        body {
+            background-color: var(--background-dark); /* Use the new dark background */
+            font-family: 'Lato', sans-serif;
+            line-height: 1.6;
+            color: var(--light-text); /* Use light text on dark background */
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container-card {
+            max-width: 850px;
+            margin: 3rem auto;
+            padding: 3.5rem;
+            background-color: var(--card-background);
+            border-radius: 18px;
+            box-shadow: 0 15px 40px var(--shadow-dark);
+            border: 1px solid var(--border-dark);
+            animation: fadeInScaleUp 0.6s ease-out forwards;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .container-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 35px 70px -15px var(--shadow-dark);
+        }
+
+        @keyframes fadeInScaleUp {
+            from { opacity: 0; transform: scale(0.98) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .header {
+            border-bottom: 2px solid var(--border-dark);
+            padding-bottom: 1.8rem;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .header h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.8rem;
+            color: var(--light-text);
+            margin: 0;
+            font-weight: 700;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        /* Django Messages Styling */
+        .messages {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .messages li {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 0.8rem;
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .messages .success {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+
+        .messages .error {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+
+        /* Form Group and Label Styling */
+        .space-y-6 > div {
+            margin-bottom: 1.5rem;
+        }
+        .space-y-6 > div:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.8rem;
+            color: var(--light-text);
+            font-size: 1.1rem;
+        }
+
+        .form-input-field {
+            width: 100%;
+            padding: 1rem 1.2rem;
+            font-size: 1rem;
+            border: 1px solid var(--border-dark);
+            border-radius: 10px;
+            transition: all var(--transition-speed) ease;
+            background-color: #2D3748;
+            color: var(--light-text);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .form-input-field::placeholder {
+            color: var(--medium-text);
+        }
+
+        .form-input-field:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 4px rgba(0, 191, 255, 0.25);
+            outline: none;
+            background-color: var(--card-background);
+        }
+        textarea.form-input-field {
+            min-height: 180px;
+            resize: vertical;
+        }
+
+        /* Action Buttons */
+        .action-button {
+            transition: all 0.2s ease-in-out;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: none;
+            cursor: pointer;
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .text-blue-400 {
+            color: var(--primary-accent);
+        }
+        .hover\:text-blue-300:hover {
+            color: var(--secondary-accent);
+        }
+        .bg-blue-600 {
+            background: linear-gradient(45deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
+            color: #121212;
+        }
+        .hover\:bg-blue-700:hover {
+            background: linear-gradient(45deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+        }
+
+        .error-message {
+            color: var(--error-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            animation: fadeIn 0.4s ease-out;
+            font-weight: 600;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Styling for the selected boards section */
+        #selected-boards-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            background-color: #2D3748;
+            border: 1px solid var(--border-dark);
+            border-radius: 8px;
+            min-height: 50px;
+        }
+
+        .board-tag {
+            background-color: var(--primary-accent);
+            color: #121212;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .board-tag .remove-btn {
+            background: none;
+            border: none;
+            color: #121212;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-br from-slate-900 via-gray-800 to-slate-900 text-slate-200 min-h-screen flex items-center justify-center p-4">
+    <div class="container-card relative">
+        <div class="header">
+            <h2>{{ page_title }}</h2>
+        </div>
+        
+        {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                    <div class="p-3 rounded-lg text-sm text-center 
+                        {% if message.tags == 'success' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            <div>
+                <label for="id_group_name">Group Name</label>
+                <input type="text" 
+                       name="group_name" 
+                       id="id_group_name" 
+                       value="{{ group.name|default_if_none:'' }}" 
+                       class="form-input-field"
+                       placeholder="Enter group name"
+                       required>
+            </div>
+
+            <div>
+                <label for="id_description">Description</label>
+                <textarea name="description" 
+                          id="id_description" 
+                          class="form-input-field"
+                          placeholder="Enter description">{{ group.description|default_if_none:'' }}</textarea>
+            </div>
+            
+            {# Cascading Dropdowns for Board Selection #}
+            <div class="flex items-end gap-4">
+                <div class="flex-1">
+                    <label for="id_country">Country</label>
+                    <select id="id_country" class="form-input-field">
+                        <option value="">Select a Country</option>
+                        {% for country in countries %}
+                            <option value="{{ country.id }}">{{ country.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="id_state">State</label>
+                    <select id="id_state" class="form-input-field" disabled>
+                        <option value="">Select a State</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="id_board">Board</label>
+                    <select id="id_board" class="form-input-field" disabled>
+                        <option value="">Select a Board</option>
+                    </select>
+                </div>
+                <button type="button" id="add-board-btn" class="action-button bg-blue-600" disabled>
+                    <i class="fas fa-plus"></i> Add Board
+                </button>
+            </div>
+
+            {# Display area for selected boards #}
+            <div>
+                <label>Selected Boards</label>
+                <div id="selected-boards-list">
+                    {% for board in group.board.all %}
+                        <span class="board-tag" data-board-id="{{ board.id }}">{{ board.name }} <button type="button" class="remove-btn">x</button></span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Hidden input to store selected board IDs #}
+            <input type="hidden" name="boards" id="id_selected_boards" value="">
+
+            <div class="flex justify-between items-center mt-8">
+                <a onclick="goBack()" class="action-button text-blue-400 hover:text-blue-300">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Groups</span>
+                </a>
+                <button type="submit" class="action-button bg-blue-600 hover:bg-blue-700">Save Group</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const countrySelect = document.getElementById('id_country');
+        const stateSelect = document.getElementById('id_state');
+        const boardSelect = document.getElementById('id_board');
+        const addBoardBtn = document.getElementById('add-board-btn');
+        const selectedBoardsList = document.getElementById('selected-boards-list');
+        const selectedBoardsInput = document.getElementById('id_selected_boards');
+
+        // Function to reset and disable a select element
+        function resetSelect(selectElement, defaultText) {
+            selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+            selectElement.disabled = true;
+        }
+
+        // Function to update the hidden input with a list of IDs
+        function updateHiddenInput() {
+            const boardIds = [];
+            selectedBoardsList.querySelectorAll('.board-tag').forEach(tag => {
+                boardIds.push(tag.dataset.boardId);
+            });
+            selectedBoardsInput.value = boardIds.join(',');
+        }
+
+        // Event listener for Country select change
+        countrySelect.addEventListener('change', function() {
+            const countryId = this.value;
+            resetSelect(stateSelect, 'Select a State');
+            resetSelect(boardSelect, 'Select a Board');
+            addBoardBtn.disabled = true;
+
+            if (countryId) {
+                fetch(`/location/get-states/?country_id=${countryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.states.forEach(state => {
+                            const option = document.createElement('option');
+                            option.value = state.id;
+                            option.textContent = state.name;
+                            stateSelect.appendChild(option);
+                        });
+                        stateSelect.disabled = false;
+                    })
+                    .catch(error => console.error('Error fetching states:', error));
+            }
+        });
+
+        // Event listener for State select change
+        stateSelect.addEventListener('change', function() {
+            const stateId = this.value;
+            resetSelect(boardSelect, 'Select a Board');
+            addBoardBtn.disabled = true;
+
+            if (stateId) {
+                fetch(`/education/get-boards/?state_id=${stateId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.boards.forEach(board => {
+                            const option = document.createElement('option');
+                            option.value = board.id;
+                            option.textContent = board.name;
+                            boardSelect.appendChild(option);
+                        });
+                        boardSelect.disabled = false;
+                    })
+                    .catch(error => console.error('Error fetching boards:', error));
+            }
+        });
+
+        // Event listener for Board select change
+        boardSelect.addEventListener('change', function() {
+            addBoardBtn.disabled = !this.value;
+        });
+
+        // Event listener for Add Board button
+        addBoardBtn.addEventListener('click', function() {
+            const boardId = boardSelect.value;
+            const boardName = boardSelect.options[boardSelect.selectedIndex].text;
+
+            // Prevent adding the same board twice
+            if (document.querySelector(`.board-tag[data-board-id="${boardId}"]`)) {
+                return;
+            }
+
+            const boardTag = document.createElement('span');
+            boardTag.className = 'board-tag';
+            boardTag.dataset.boardId = boardId;
+            boardTag.innerHTML = `${boardName} <button type="button" class="remove-btn">x</button>`;
+
+            selectedBoardsList.appendChild(boardTag);
+
+            // Update the hidden input
+            updateHiddenInput();
+        });
+
+        // Event listener for removing a board
+        selectedBoardsList.addEventListener('click', function(event) {
+            if (event.target.classList.contains('remove-btn')) {
+                event.target.closest('.board-tag').remove();
+                updateHiddenInput();
+            }
+        });
+
+        // Initialize the hidden input with pre-selected boards on page load (for edit view)
+        window.onload = function() {
+            const preselectedBoards = selectedBoardsList.querySelectorAll('.board-tag');
+            if (preselectedBoards.length > 0) {
+                updateHiddenInput();
+            }
+        };
+    });
+
+    function goBack() {
+        window.history.back();
+    }
+</script>
+{% endblock %}

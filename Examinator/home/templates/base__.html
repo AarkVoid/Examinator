@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Examinator - Educational Platform{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="h-full bg-background text-foreground">
+    <!-- Navigation -->
+    <nav class="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <!-- Logo -->
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-2xl font-bold flex items-center">
+                        <i class="fas fa-graduation-cap mr-2"></i>
+                        Examinator
+                    </a>
+                </div>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden lg:flex items-center space-x-6">
+                    <a href="/" class="hover:text-accent transition-colors">
+                        <i class="fas fa-home mr-1"></i>Home
+                    </a>
+                    
+                    {% if user.is_authenticated %}
+                        <!-- Quiz Menu -->
+                        <div class="relative group">
+                            <button class="hover:text-accent transition-colors flex items-center">
+                                <i class="fas fa-question-circle mr-1"></i>Quizzes
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <div class="absolute top-full left-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                                <a href="{% url 'quiz:question_list' %}" class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                                    <i class="fas fa-list mr-2"></i>Questions
+                                </a>
+                                <a href="{% url 'quiz:paper_list' %}" class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                                    <i class="fas fa-file-alt mr-2"></i>Papers
+                                </a>
+                                <a href="{% url 'quiz:question_create' %}" class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                                    <i class="fas fa-plus mr-2"></i>Add Question
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Messages -->
+                        <a href="{% url 'message_list' %}" class="hover:text-accent transition-colors">
+                            <i class="fas fa-envelope mr-1"></i>Messages
+                        </a>
+                        
+                        <!-- Comments -->
+                        <a href="{% url 'view_comments' %}" class="hover:text-accent transition-colors">
+                            <i class="fas fa-comments mr-1"></i>Comments
+                        </a>
+                        
+                        <!-- Contact -->
+                        <a href="{% url 'contact_us' %}" class="hover:text-accent transition-colors">
+                            <i class="fas fa-envelope mr-1"></i>Contact
+                        </a>
+                        
+                        <!-- User Menu -->
+                        <div class="relative group">
+                            <button class="hover:text-accent transition-colors flex items-center">
+                                <i class="fas fa-user mr-1"></i>{{ user.username }}
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <div class="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                                <a href="{% url 'profile_update' %}" class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                                    <i class="fas fa-user-edit mr-2"></i>Profile
+                                </a>
+                                <a href="{% url 'send_message' %}" class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                                    <i class="fas fa-paper-plane mr-2"></i>Send Message
+                                </a>
+                                <a href="{% url 'add_comment' %}" class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                                    <i class="fas fa-comment-plus mr-2"></i>Add Comment
+                                </a>
+                                <div class="border-t border-border my-1"></div>
+                                <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="hover:text-accent transition-colors">
+                            <i class="fas fa-sign-in-alt mr-1"></i>Login
+                        </a>
+                        <a href="{% url 'register' %}" class="bg-accent text-accent-foreground px-4 py-2 rounded-md hover:bg-accent/80 transition-colors">
+                            <i class="fas fa-user-plus mr-1"></i>Register
+                        </a>
+                    {% endif %}
+                </div>
+                
+                <!-- Mobile menu button -->
+                <button id="mobile-menu-btn" class="lg:hidden text-primary-foreground">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Mobile Navigation -->
+            <div id="mobile-menu" class="lg:hidden hidden pb-4">
+                <div class="space-y-2">
+                    <a href="/" class="block py-2 hover:text-accent transition-colors">
+                        <i class="fas fa-home mr-2"></i>Home
+                    </a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'quiz:question_list' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-question-circle mr-2"></i>Questions
+                        </a>
+                        <a href="{% url 'quiz:paper_list' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-file-alt mr-2"></i>Papers
+                        </a>
+                        <a href="{% url 'message_list' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-envelope mr-2"></i>Messages
+                        </a>
+                        <a href="{% url 'view_comments' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-comments mr-2"></i>Comments
+                        </a>
+                        <a href="{% url 'contact_us' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-envelope mr-2"></i>Contact
+                        </a>
+                        <a href="{% url 'profile_update' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-user-edit mr-2"></i>Profile
+                        </a>
+                        <a href="{% url 'logout' %}" class="block py-2 hover:text-destructive transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Login
+                        </a>
+                        <a href="{% url 'register' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-user-plus mr-2"></i>Register
+                        </a>
+                        <a href="{% url 'contact_us' %}" class="block py-2 hover:text-accent transition-colors">
+                            <i class="fas fa-envelope mr-2"></i>Contact
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="container mx-auto px-4 mt-4">
+            {% for message in messages %}
+                <div class="alert mb-4 p-4 rounded-lg border flex items-center justify-between {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-800{% elif message.tags == 'error' %}bg-red-50 border-red-200 text-red-800{% elif message.tags == 'warning' %}bg-yellow-50 border-yellow-200 text-yellow-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %}">
+                    <div class="flex items-center">
+                        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mr-2"></i>
+                        {{ message }}
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-current opacity-50 hover:opacity-100">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="min-h-screen">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-muted text-muted-foreground py-12 mt-16">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-graduation-cap text-2xl mr-2"></i>
+                        <h3 class="text-xl font-bold">Examinator</h3>
+                    </div>
+                    <p class="text-sm mb-4">
+                        Your comprehensive educational platform for creating, managing, and taking quizzes. 
+                        Enhance learning through interactive assessments.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="/" class="hover:text-primary transition-colors">Home</a></li>
+                        <li><a href="{% url 'view_comments' %}" class="hover:text-primary transition-colors">Comments</a></li>
+                        <li><a href="{% url 'contact_us' %}" class="hover:text-primary transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Support</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="hover:text-primary transition-colors">Help Center</a></li>
+                        <li><a href="#" class="hover:text-primary transition-colors">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-primary transition-colors">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-border mt-8 pt-8 text-center text-sm">
+                <p>&copy; 2024 Examinator. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        });
+        
+        // Auto-hide alerts after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.3s';
+                setTimeout(() => alert.remove(), 300);
+            });
+        }, 5000);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

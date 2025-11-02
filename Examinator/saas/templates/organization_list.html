@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Organizations{% endblock %}
+{% block breadcrumb %}Organizations List{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-center">
+        <div class="w-full xl:w-4/5">
+            
+            {# Header #}
+            <div class="flex justify-between items-center mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+                    <i class="fa-solid fa-building-columns mr-3 text-blue-600 dark:text-blue-400"></i> All Organizations
+                </h1>
+                {# Link to the New Client Setup view #}
+                <a href="{% url 'saas:create_organization' %}" 
+                   class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-lg shadow-green-500/50 transition duration-300 transform hover:-translate-y-0.5">
+                    <i class="fa-solid fa-user-plus mr-2"></i> New Organization Setup
+                </a>
+            </div>
+
+            {% if page_obj.object_list %}
+                {# List Grid #}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for org in page_obj.object_list %}
+                        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-6 transition duration-300 transform hover:shadow-2xl hover:border-blue-500 dark:hover:border-blue-500">
+                            
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 truncate">
+                                {{ org.name }}
+                            </h2>
+                            
+                            {# --- Subscription Status Indicator (using is_active from model) --- #}
+                            {% if org.is_active %}
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 mb-4 shadow-sm">
+                                    <i class="fa-solid fa-check-circle mr-2"></i> Active Subscription
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 mb-4 shadow-sm">
+                                    <i class="fa-solid fa-times-circle mr-2"></i> Inactive Subscription
+                                </span>
+                            {% endif %}
+                            {# -------------------------------- #}
+                            
+                            <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300 pt-3">
+                                
+                                {% comment %}
+                                    Using 'billing_email' as per the OrganizationProfile model definition.
+                                {% endcomment %}
+                                {% if org.billing_email %}
+                                <p class="flex items-center"><i class="fa-solid fa-envelope w-4 mr-3 text-blue-400"></i> <span class="truncate">{{ org.billing_email }}</span></p>
+                                {% endif %}
+                                
+                                {% if org.phone_number %}
+                                <p class="flex items-center"><i class="fa-solid fa-phone w-4 mr-3 text-blue-400"></i> {{ org.phone_number }}</p>
+                                {% endif %}
+                                
+                                {% if org.city %}
+                                <p class="flex items-center"><i class="fa-solid fa-location-dot w-4 mr-3 text-blue-400"></i> {{ org.city }}{% if org.state %}, {{ org.state }}{% endif %}</p>
+                                {% endif %}
+                            </div>
+
+                            <div class="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                                
+                                <a href="{% url 'saas:manage_licenses' org.id %}" 
+                                   class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center">
+                                    <i class="fa-solid fa-file-contract mr-1"></i> Manage License
+                                </a>
+                                
+                                <a href="{% url 'saas:update_max_question_papers' org.id %}" 
+                                   class="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors flex items-center">
+                                    <i class="fa-solid fa-chart-simple mr-1"></i> Usage Limits
+                                </a>
+
+                                <a href="{% url 'saas:organization_edit' org.id %}" 
+                                   class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center">
+                                    Edit Details <i class="fa-solid fa-arrow-right ml-1 text-xs"></i>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {# Pagination #}
+                {% if page_obj.has_other_pages %}
+                    <div class="flex justify-center mt-12">
+                        <nav class="relative z-0 inline-flex rounded-xl shadow-lg" aria-label="Pagination">
+                            
+                            {# Previous Page Link #}
+                            {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-l-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <span class="sr-only">Previous</span>
+                                <i class="fa-solid fa-chevron-left h-4 w-4"></i>
+                            </a>
+                            {% endif %}
+
+                            {# Page Numbers #}
+                            {% for i in page_obj.paginator.page_range %}
+                                {% if page_obj.number == i %}
+                                    <span aria-current="page" class="relative inline-flex items-center px-4 py-2 border border-blue-600 bg-blue-600 text-sm font-bold text-white shadow-inner">
+                                        {{ i }}
+                                    </span>
+                                {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+                                    <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                        {{ i }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Next Page Link #}
+                            {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-r-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <span class="sr-only">Next</span>
+                                <i class="fa-solid fa-chevron-right h-4 w-4"></i>
+                            </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                {% endif %}
+
+            {% else %}
+                {# No Organizations Found State (Updated Look) #}
+                <div class="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl">
+                    <i class="fa-solid fa-building-user text-7xl text-gray-400 dark:text-gray-600 mb-6"></i>
+                    <p class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">No organizations found.</p>
+                    <p class="text-gray-500 dark:text-gray-400 mb-6">Start by setting up your first client organization and granting initial access.</p>
+                    <a href="{% url 'saas:create_organization' %}" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/50 transition duration-200">
+                        <i class="fa-solid fa-plus mr-2"></i> Create First Organization
+                    </a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

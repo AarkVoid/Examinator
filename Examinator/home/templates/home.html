@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Home - Examinator{% endblock %}
+
+{% block content %}
+      <!-- Section 1: Core Statistics Cards -->
+      <!-- Adjusted to lg:grid-cols-3 for better visual balance across 2 rows of metrics -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        
+        <!-- 1. Total Questions -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Questions</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_questions|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-question-circle text-lg text-blue-600 dark:text-blue-400"></i>
+          </div>
+        </div>
+        
+        <!-- 2. Total Attempts -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Attempts</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_attempts|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-play-circle text-lg text-green-600 dark:text-green-400"></i>
+          </div>
+        </div>
+
+        <!-- 3. Total Users -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Users</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_users|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-users text-lg text-purple-600 dark:text-purple-400"></i>
+          </div>
+        </div>
+        
+        <!-- 4. Total Organizations -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Organizations</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_organizations|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-building text-lg text-indigo-600 dark:text-indigo-400"></i>
+          </div>
+        </div>
+
+        <!-- 5. Expiring Licenses -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Expiring Licenses</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ expiring_licenses_count|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-hourglass-half text-lg text-yellow-600 dark:text-yellow-400"></i>
+          </div>
+        </div>
+
+        <!-- 6. Expired Licenses -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Expired Licenses</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ expired_licenses_count|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-ban text-lg text-red-600 dark:text-red-400"></i>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 1B: Content Structure Statistics (New Section based on TreeNode Model) -->
+      <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-50">Content Structure Overview</h2>
+      <!-- Changed to lg:grid-cols-5 to fit all five content metrics in one row on wide screens -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+        
+        <!-- Total Boards -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Boards</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_boards|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-graduation-cap text-lg text-gray-600 dark:text-gray-400"></i>
+          </div>
+        </div>
+        
+        <!-- Total Competitive Exams -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Competitive Exams</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_competitive_exams|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-rocket text-lg text-orange-600 dark:text-orange-400"></i>
+          </div>
+        </div>
+
+        <!-- Total Subjects -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Subjects</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_subjects|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-teal-100 dark:bg-teal-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-book-open text-lg text-teal-600 dark:text-teal-400"></i>
+          </div>
+        </div>
+
+        <!-- Total Classes -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Classes</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_class|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-lime-100 dark:bg-lime-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-chalkboard-teacher text-lg text-lime-600 dark:text-lime-400"></i>
+          </div>
+        </div>
+        
+        <!-- Total Chapters (NEW CARD) -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-5 flex items-center justify-between transition-transform transform hover:scale-105">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Chapters</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{ total_chapters|default:"0" }}</p>
+          </div>
+          <div class="w-10 h-10 bg-pink-100 dark:bg-pink-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-list-check text-lg text-pink-600 dark:text-pink-400"></i>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Section 2: Management Overview & Quick Actions (Remains the same) -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Management & Quick Actions -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Quick Actions -->
+          <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-50">Quick Actions</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <a href="{% url 'quiz:question_create' %}" class="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-950 rounded-lg transition-transform transform hover:scale-105 hover:shadow-xl border border-gray-100 dark:border-gray-800">
+                <i class="fa-solid fa-plus-circle text-3xl text-blue-600 mb-2"></i>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Create Question</span>
+              </a>
+              <a href="{% url 'quiz:add_question_paper' %}" class="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-950 rounded-lg transition-transform transform hover:scale-105 hover:shadow-xl border border-gray-100 dark:border-gray-800">
+                <i class="fa-solid fa-file-plus text-3xl text-green-600 mb-2"></i>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Create Quiz Paper</span>
+              </a>
+              <a href="{% url 'quiz:paper_list' %}" class="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-950 rounded-lg transition-transform transform hover:scale-105 hover:shadow-xl border border-gray-100 dark:border-gray-800">
+                <i class="fa-solid fa-play text-3xl text-yellow-600 mb-2"></i>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Take Quiz</span>
+              </a>
+              <a href="{% url 'quiz:question_list' %}" class="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-950 rounded-lg transition-transform transform hover:scale-105 hover:shadow-xl border border-gray-100 dark:border-gray-800">
+                <i class="fa-solid fa-list text-3xl text-pink-600 mb-2"></i>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">View Questions</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- User & Role Distribution -->
+          <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-50">User Distribution by Role</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                
+                <!-- Role Distribution -->
+                <div class="bg-gray-50 dark:bg-gray-950 p-4 rounded-xl space-y-3">
+                    {% for role, count in user_roles_data.items %}
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ role }}</span>
+                          <span class="text-sm font-semibold text-gray-900 dark:text-gray-50">{{ count|default:"0" }}</span>
+                        </div>
+                        {% if total_users %}
+                          {% widthratio count total_users 100 as role_percentage %}
+                            <div class="progress-bar-wrap">
+                              {% with color_class=role|lower %}
+                                {% if "admin" in color_class %}
+                                  <div class="progress-bar-fill bg-red-500" style="width: {{ role_percentage|default:0 }}%;"></div>
+                                {% elif "teacher" in color_class %}
+                                  <div class="progress-bar-fill bg-blue-500" style="width: {{ role_percentage|default:0 }}%;"></div>
+                                {% else %}
+                                  <div class="progress-bar-fill bg-green-500" style="width: {{ role_percentage|default:0 }}%;"></div>
+                                {% endif %}
+                              {% endwith %}
+                            </div>
+                        {% else %}
+                            <div class="progress-bar-wrap"><div class="progress-bar-fill bg-gray-400" style="width: 0%;"></div></div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">No users found or role data is unavailable.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Quiz Performance Overview (Kept existing section) -->
+                <div class="bg-white dark:bg-gray-900 rounded-2xl">
+                    <h3 class="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-50">Quiz Performance</h3>
+                    <div class="h-48 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400">
+                      <div class="text-center">
+                        <i class="fa-solid fa-chart-bar text-4xl mb-2"></i>
+                        <p>Quiz Analytics Chart</p>
+                        <p class="text-sm">(Chart.js integration)</p>
+                      </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- Right Column: Recent Activity & New Users/Orgs -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- Recent Activity (Quiz Papers) -->
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
+              <h2 class="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-50">Recent Quiz Activity ({{ total_papers|default:"0" }} Papers)</h2>
+              <ul class="space-y-4 text-sm">
+                {% for paper in recent_papers %}
+                <li class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <i class="fa-solid fa-file-alt text-blue-500 text-xs mt-1"></i>
+                  <div>
+                    <p class="font-medium text-gray-900 dark:text-gray-50">New Quiz Created</p>
+                    <p class="text-gray-500 dark:text-gray-400"><b>{{ paper.title }}</b> by {{ paper.created_by.username }}</p>
+                  </div>
+                </li>
+                {% empty %}
+                <li class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <i class="fa-solid fa-circle text-gray-400 text-xs mt-1"></i>
+                  <div>
+                    <p class="font-medium text-gray-900 dark:text-gray-50">No Recent Activity</p>
+                    <p class="text-gray-500 dark:text-gray-400">Create your first quiz to get started!</p>
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <!-- Recently Added Users -->
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-50">Recently Added Users</h2>
+                <ul class="space-y-4 text-sm">
+                    {% for user in recently_added_users %}
+                    <li class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-100 dark:border-gray-800">
+                        <i class="fa-solid fa-user-plus text-green-500 text-base"></i>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-900 dark:text-gray-50">{{ user.get_full_name }}</p>
+                            <p class="text-gray-500 dark:text-gray-400 text-xs">Joined: {{ user.date_joined|date:"M d, H:i" }}</p>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-gray-500 dark:text-gray-400 text-sm">No new users this week.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Recently Added Organizations -->
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-50">Recently Added Orgs</h2>
+                <ul class="space-y-4 text-sm">
+                    {% for org in recently_added_orgs %}
+                    <li class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-100 dark:border-gray-800">
+                        <i class="fa-solid fa-handshake text-indigo-500 text-base"></i>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-900 dark:text-gray-50">{{ org.name }}</p>
+                            <p class="text-gray-500 dark:text-gray-400 text-xs">Added: {{ org.created_at|date:"M d" }}</p>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-gray-500 dark:text-gray-400 text-sm">No new organizations this week.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+        </div>
+      </section>
+
+      <!-- Custom CSS for Progress Bar -->
+      <style>
+        .progress-bar-wrap {
+            height: 8px;
+            background-color: #e5e7eb; /* Gray-200 */
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .dark .progress-bar-wrap {
+            background-color: #374151; /* Gray-700 */
+        }
+        .progress-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease-in-out;
+        }
+      </style>
+
+{% endblock %}

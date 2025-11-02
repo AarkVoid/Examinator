@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="flex items-start justify-center min-h-screen pt-12 pb-12 bg-gray-50 dark:bg-gray-900">
+    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-10 border border-gray-200 dark:border-gray-700">
+        
+        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-2">
+            {{ page_title }}
+        </h1>
+        <p class="text-lg text-gray-500 dark:text-gray-400 mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
+            Provision a new client organization, grant content access, set user limits, and **create** a primary administrator.
+        </p>
+
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                <div class="p-4 rounded-xl text-sm 
+                    {% if message.tags == 'success' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                    {% elif message.tags == 'error' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300
+                    {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300
+                    {% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" class="space-y-10">
+            {% csrf_token %}
+
+            <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                <h2 class="text-2xl font-semibold text-blue-500 mb-4 border-b pb-2">1. Organization Profile</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {% for field in org_form %}
+                    <div class="{% if field.field.widget.input_type == 'checkbox' %}col-span-2{% endif %}">
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                    <h2 class="text-2xl font-semibold text-purple-500 mb-4 border-b pb-2">2. Usage Limit</h2>
+                    {% for field in usage_form %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                    <h2 class="text-2xl font-semibold text-yellow-500 mb-4 border-b pb-2">3. Create Administrator User</h2>
+                    
+                    {# Use new_user_form instead of user_assign_form #}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {% for field in new_user_form %}
+                            {# Hide the 'role' field, but include its value #}
+                            {% if field.name == 'role' %}
+                                {{ field }}
+                            {% else %}
+                                <div class="{% if field.name == 'email' or field.name == 'password' or field.name == 'confirm_password' %}sm:col-span-2{% endif %}">
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
+                                    {% endif %}
+                                    {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                <h2 class="text-2xl font-semibold text-green-500 mb-4 border-b pb-2">4. Content Licenses (License Grants)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ license_form.curriculum_nodes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ license_form.curriculum_nodes.label }}</label>
+                        {{ license_form.curriculum_nodes }}
+                        {% if license_form.curriculum_nodes.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ license_form.curriculum_nodes.help_text }}</p>
+                        {% endif %}
+                        {% if license_form.curriculum_nodes.errors %}<p class="text-red-500 text-xs mt-1">{{ license_form.curriculum_nodes.errors|striptags }}</p>{% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ license_form.valid_until.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ license_form.valid_until.label }}</label>
+                        {{ license_form.valid_until }}
+                        {% if license_form.valid_until.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ license_form.valid_until.help_text }}</p>
+                        {% endif %}
+                        {% if license_form.valid_until.errors %}<p class="text-red-500 text-xs mt-1">{{ license_form.valid_until.errors|striptags }}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit"
+                class="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50">
+                Create Organization & Grant Licenses
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load custom_filters %} 
+{% block title %}{{ title }}{% endblock %}
+
+
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
+      <h1 class="text-2xl font-bold text-white text-center">{{ title }}</h1>
+    </div>
+
+    <div class="p-8">
+      <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+          <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            {% for error in form.non_field_errors %}
+              <p class="text-red-800 dark:text-red-300 text-sm font-medium">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% for field in form %}
+          <div>
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ field.label }}</label>
+            
+            {% if field.field.widget.input_type == 'file' %}
+              <div class="relative">
+                <label class="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors bg-gray-50 dark:bg-gray-700">
+                  <div class="text-center">
+                    <i class="fa-solid fa-cloud-upload-alt text-2xl text-gray-400 dark:text-gray-500 mb-2"></i>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                      {% if field.value %}Change file{% else %}Choose file{% endif %}
+                    </p>
+                  </div>
+                  {{ field }}
+                </label>
+                {% if field.value %}
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Currently: {{ field.value }}</p>
+                {% endif %}
+              </div>
+            {% else %}
+              {{ field|add_class:"w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" }}
+            {% endif %}
+            
+            {% if field.help_text %}
+              <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">{{ field.help_text }}</p>
+            {% endif %}
+            
+            {% if field.errors %}
+              {% for error in field.errors %}
+                <p class="text-red-500 text-sm mt-1 font-medium flex items-center gap-1">
+                  <i class="fa-solid fa-exclamation-triangle"></i>
+                  {{ error }}
+                </p>
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
+          <i class="fa-solid fa-{% if 'Edit' in title or 'Update' in title %}save{% else %}plus-circle{% endif %}"></i>
+          {% if 'Edit' in title or 'Update' in title %}
+            Save Changes
+          {% else %}
+            Create {{ title }}
+          {% endif %}
+        </button>
+
+        {% if cancel_url %}
+          <div class="text-center">
+            <a href="{{ cancel_url }}" class="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+              <i class="fa-solid fa-arrow-left"></i>
+              Cancel and go back
+            </a>
+          </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+/* File input styling */
+input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+</style>
+
+<script>
+  // Enhance file input display
+  document.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', function(e) {
+      const fileName = e.target.files[0]?.name || 'No file selected';
+      const container = this.closest('label');
+      if (container) {
+        const textElement = container.querySelector('p');
+        if (textElement) {
+          textElement.textContent = fileName !== 'No file selected' ? `Selected: ${fileName}` : 'Choose file';
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}

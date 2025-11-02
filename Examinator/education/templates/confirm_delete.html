@@ -1,0 +1,35 @@
+{% extends 'base.html' %} {# Assuming you have a base.html template #}
+
+{% block title %}Confirm Delete{% endblock %}
+
+
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-red-200 dark:border-red-700 p-8 text-center">
+        <div class="flex items-center justify-center mb-6">
+            <i class="fa-solid fa-exclamation-triangle text-4xl text-red-500 mr-3"></i>
+            <h2 class="text-2xl font-bold text-red-600 dark:text-red-400">Confirm Deletion</h2>
+        </div>
+        
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
+            <p class="text-lg font-medium text-red-800 dark:text-red-200 mb-2">
+                Are you sure you want to delete this {{ type }}: "{{ obj.name }}"?
+            </p>
+            <p class="text-red-600 dark:text-red-300 text-sm">
+                This action cannot be undone and will permanently remove all associated data.
+            </p>
+        </div>
+
+        <form method="post" class="flex items-center justify-center gap-4">
+            {% csrf_token %}
+            <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                <i class="fa-solid fa-trash mr-2"></i>Yes, Delete
+            </button>
+            <a href="{% url 'education_dashboard' %}" class="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
+                Cancel
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    Delete Passkey | EduGame
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables for the Dark Theme --- */
+    :root {
+        --primary-accent: #000000; /* Professional Blue */
+        --secondary-accent: #000000; /* Lighter Blue */
+        --background-dark: #caf6f1; /* Very dark gray for body background */
+        --card-background: #ffffff; /* Slightly lighter dark gray for cards */
+        --light-text: #181a3d; /* Very light gray for main text */
+        --medium-text: #0c150a; /* Muted gray for meta info */
+        --border-dark: #4B5563; /* Dark border color */
+        --success-color: #10B981; /* Green for success */
+        --error-color: #EF4444; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark);
+        font-family: 'Inter', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card {
+        max-width: 700px;
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp var(--transition-speed) ease-out forwards;
+        transition: all var(--transition-speed) ease-in-out;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .card-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 2.5rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        padding-bottom: 1.8rem;
+        border-bottom: 2px solid var(--border-dark);
+    }
+
+    .content-section p {
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .content-section strong {
+        color: var(--light-text);
+    }
+
+    /* --- Buttons --- */
+    .btn {
+        font-weight: 600;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        transition: all var(--transition-speed) ease-in-out;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+    }
+
+    .btn-danger {
+        background-color: var(--error-color);
+        color: var(--light-text);
+        border: none;
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+    }
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        background-color: #DC2626;
+        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-secondary {
+        border: 1px solid var(--border-dark);
+        color: var(--light-text);
+        background-color: transparent;
+    }
+    .btn-secondary:hover {
+        background-color: var(--border-dark);
+        color: var(--light-text);
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2.5rem;
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+        .card-title {
+            font-size: 2rem;
+        }
+        .content-section p {
+            font-size: 1rem;
+        }
+        .btn {
+            font-size: 0.9rem;
+            padding: 0.7rem 1.2rem;
+        }
+    }
+    @media (max-width: 480px) {
+        body { padding: 10px; }
+        .container-card {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .card-title {
+            font-size: 1.8rem;
+        }
+        .form-actions {
+            flex-direction: column;
+        }
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-card">
+    <div class="header text-center">
+        <h2 class="card-title">{{ page_title }}</h2>
+    </div>
+
+    <div class="content-section text-center mt-5">
+        <p>
+            Are you sure you want to delete the passkey for "<strong>{{ object.institution.name }}</strong>" ({{ object.passkey }})?
+            <br>
+            <span class="text-red-500">This action cannot be undone.</span>
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash-alt"></i> Confirm Delete
+                </button>
+                <a href="{% url 'passkey_detail' object.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock content %}

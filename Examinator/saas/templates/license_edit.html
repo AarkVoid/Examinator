@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% load static %}
+{% load custom_filters %} {# Assuming you have a custom filter that can replace text or you can chain built-in filters #}
+
+{% block title %}Edit License for {{ organization.name }}{% endblock %}
+
+{% block content %}
+{# Define a set of robust, dark-mode-aware classes for all standard inputs/selects #}
+{% with TAILWIND_INPUT_CLASSES="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400" %}
+    <div class="container mx-auto px-4 py-10">
+        <div class="max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
+
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    <i class="fa-solid fa-pen-to-square mr-2 text-indigo-600 dark:text-indigo-400"></i>
+                    Edit License for <span class="text-indigo-600 dark:text-indigo-400">{{ organization.name }}</span>
+                </h1>
+            </div>
+
+
+            <div class="mb-8 p-5 rounded-xl border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/30">
+                <h2 class="text-xl font-bold text-green-700 dark:text-green-300 mb-3">
+                    <i class="fa-solid fa-list-check mr-2"></i> Currently Licensed Content
+                </h2>
+                <div id="current-nodes-summary" class="space-y-3">
+                    {% for item in licensed_nodes_with_paths %}
+                        <div class="flex items-center flex-wrap gap-2">
+                            {% for ancestor_name in item.path %}
+                                <span class="px-3 py-1 text-xs font-medium bg-gray-300 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-full shadow-sm">
+                                    {{ ancestor_name }}
+                                </span>
+                                <i class="fa-solid fa-angle-right text-gray-500 text-xs dark:text-gray-400"></i>
+                            {% endfor %}
+                            
+                            <span class="px-3 py-1 text-sm font-medium bg-green-200 text-green-800 dark:bg-green-600 dark:text-white rounded-full shadow-sm">
+                                **{{ item.name }}**
+                            </span>
+                        </div>
+                    {% empty %}
+                        <p class="text-green-600 dark:text-green-400 text-sm">No specific content nodes are currently assigned to this license.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <form id="editLicenseForm" method="POST" class="space-y-8">
+                {% csrf_token %}
+
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Select Content Access Point</h3>
+                <div id="curriculum-filters" class="mb-4 space-y-4 p-5 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 border-indigo-200 dark:border-indigo-800">
+                    <div class="filter-group" id="filter_group_1">
+                        <label for="filter_1" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Level 1: Board or Exam</label>
+                        <select id="filter_1" data-level="1" data-target-id="id_license_curriculum_nodes"
+                            class="{{ TAILWIND_INPUT_CLASSES }}">
+                            <option value="">-- Select Board or Exam --</option>
+                            {# The root_nodes loop is necessary for initial Django rendering #}
+                            {% for node in root_nodes %}
+                                <option value="{{ node.id }}" data-node-type="{{ node.node_type }}">
+                                    {{ node.name }} ({{ node.node_type }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <select name="curriculum_node" id="id_license_curriculum_nodes" multiple
+                    class="hidden">
+                    {# Pre-populate hidden select with existing nodes for form submission #}
+                    {% for node in license_grant.curriculum_node.all %}
+                        <option value="{{ node.id }}" selected>{{ node.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Actionable Content Nodes</h3>
+                <div id="curriculum-buttons-container"
+                    class="space-y-4 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 p-5 border-indigo-200 dark:border-indigo-800">
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-4">Loading currently licensed nodes...</p>
+                    {# Initial button content will be replaced by JS #}
+                </div>
+
+                <section>
+                    <label for="valid_until" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Valid Until
+                    </label>
+                    <input type="date" id="valid_until" name="valid_until"
+                        class="{{ TAILWIND_INPUT_CLASSES }}"
+                        value="{{ license_grant.valid_until|date:'Y-m-d' }}">
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-4">
+                        <i class="fa-solid fa-lock-open mr-2"></i> Permissions
+                    </h2>
+
+                    {# RENDER PERMISSIONS USING DJANGO TEMPLATE LOGIC #}
+                    <div id="permissions-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for model, perms in permissions_by_model.items %}
+                            <div class="model-card bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+                                <div class="flex justify-between items-center mb-4 pb-3 border-b border-dashed border-gray-300 dark:border-gray-600">
+                                    {# Clean up model name for display #}
+                                    {% with clean_model_name=model|capfirst|cut:"_"|cut:"profile"|cut:"user"|cut:"organization" %}
+                                        <h5 class="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                                            {{ clean_model_name|default:model|capfirst }}
+                                        </h5>
+                                    {% endwith %}
+                                    <span class="text-sm bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300 px-3 py-1 rounded-full font-medium">
+                                        {{ perms|length }} Permissions
+                                    </span>
+                                </div>
+
+                                <div class="space-y-3">
+                                    {% for perm in perms %}
+                                        <label class="permission-checkbox">
+                                            <input type="checkbox" name="permissions" value="{{ perm.id }}"
+                                                   {% if perm.is_granted %}checked{% endif %}
+                                                   class="w-5 h-5 mt-1 accent-indigo-600 dark:accent-indigo-400 flex-shrink-0 rounded">
+                                            
+                                            <div class="flex flex-col flex-grow">
+                                                <span class="text-base font-medium text-gray-700 dark:text-gray-200">
+                                                    {{ perm.name }} 
+                                                </span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                    ({{ perm.content_type.app_label }}: {{ perm.codename }})
+                                                </span>
+                                            </div>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {# END TEMPLATE RENDERING #}
+                </section>
+
+                <div class="flex gap-4 mt-8">
+                    <button type="submit"
+                        class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-save mr-2"></i> Save Changes
+                    </button>
+                    <a href="{% url 'saas:organization_edit' organization.pk %}"
+                        class="px-6 py-3 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-semibold rounded-xl transition">
+                        <i class="fa-solid fa-arrow-left mr-2"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endwith %}
+
+<style>
+/* Simplified CSS for better control */
+/* Applied to the outer label for large clickable area */
+.permission-checkbox {
+    @apply flex items-center space-x-3 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer;
+}
+.permission-checkbox input {
+    @apply w-5 h-5 accent-indigo-600;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // JSON data passed from Django View
+    const ROOT_NODES_DATA = JSON.parse('{{ root_nodes_json|safe|escapejs }}');
+    // const PERMISSIONS_DATA is removed as permissions are now rendered via Django
+
+    const SELECTED_NODE_IDS = JSON.parse('{{ selected_node_ids|safe|escapejs }}');
+
+    // --- Configuration ---
+    const MAX_FILTER_LEVEL = 4; 
+    const filterContainer = document.getElementById('curriculum-filters');
+    const mainCurriculumSelect = document.getElementById('id_license_curriculum_nodes');
+    const buttonsContainer = document.getElementById('curriculum-buttons-container');
+    // const permissionsList is no longer needed for rendering permissions
+    
+    const SELECT_CLASSES = 'mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400';
+
+    // --- Core Functions (Curriculum Node Logic - Unchanged) ---
+    
+    /**
+     * Reads the hidden select field and marks the corresponding button as active.
+     */
+    function syncButtonsToSelect() {
+        const buttons = buttonsContainer.querySelectorAll('button[data-node-id]');
+        
+        const selectedIds = Array.from(mainCurriculumSelect.options)
+                                 .filter(option => option.selected)
+                                 .map(option => option.value);
+
+        buttons.forEach(button => {
+            const nodeId = button.dataset.nodeId;
+            // Toggle visual state
+            if (selectedIds.includes(nodeId)) {
+                button.classList.add('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
+                button.classList.remove('bg-gray-200', 'text-gray-900', 'dark:bg-gray-700', 'dark:text-gray-200', 'hover:bg-gray-300', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
+            } else {
+                button.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
+                button.classList.add('bg-gray-200', 'text-gray-900', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:text-gray-200', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
+            }
+        });
+    }
+
+    /**
+     * Handles click on a node button, updating the hidden select element.
+     */
+    function handleNodeButtonClick(event) {
+        const button = event.currentTarget;
+        const nodeId = button.dataset.nodeId;
+        
+        // Find existing option or create new one
+        let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+        if (!option) {
+            // This happens if the user selects a node not in the initial set (e.g., from an API fetch)
+            option = new Option(button.textContent, nodeId, false, false);
+            mainCurriculumSelect.add(option);
+        }
+
+        if (option) {
+            // Toggle selection and update visual state
+            option.selected = !option.selected;
+            syncButtonsToSelect();
+        }
+    }
+
+    /**
+     * Renders curriculum node buttons based on fetched data (or initial root data).
+     * @param {Array} nodes - Array of node objects.
+     */
+    function renderButtons(nodes) {
+        buttonsContainer.innerHTML = '';
+        
+        if (nodes.length === 0) {
+            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3';
+
+        nodes.forEach(node => {
+            // Determine PK and Name based on source: 
+            // - API response (children) uses `id` and `name`
+            // - Django serialization (root nodes) uses `pk` and `fields.name`
+            const nodeId = node.id || node.pk;
+            const nodeName = node.name || node.fields.name;
+
+            // Ensure the <option> exists in the hidden select field (important for re-rendering)
+            let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+            if (!option) {
+                // If it's a node already selected on page load, it's already there. 
+                // If it's a brand new option from an API fetch, add it.
+                // We DON'T add here, we only add on button click to avoid populating all options.
+            }
+
+            // Create the visible button element
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.nodeId = nodeId;
+            button.textContent = nodeName;
+            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
+                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
+            
+            button.addEventListener('click', handleNodeButtonClick);
+
+            grid.appendChild(button);
+        });
+        
+        buttonsContainer.appendChild(grid);
+        
+        // Synchronize the visual state with the hidden select
+        syncButtonsToSelect();
+    }
+    
+    function fetchAndPopulate(parentId, targetElement, isFinalSelect = false) {
+        // ... (fetchAndPopulate logic remains the same, but calls renderButtons(data.children)) ...
+        if (!parentId) {
+            if (isFinalSelect) {
+                buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to load license options.</p>';
+            } else {
+                targetElement.innerHTML = '<option value="">-- Select --</option>';
+            }
+            return;
+        }
+        
+        const url = `/quiz/nodes/${parentId}/children/`; 
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok. Status: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                if (isFinalSelect) {
+                    renderButtons(data.children); 
+
+                } else {
+                    targetElement.innerHTML = '<option value="">-- Select --</option>';
+                    data.children.forEach(node => {
+                        const option = document.createElement('option');
+                        option.value = node.id;
+                        option.textContent = `${node.name} (${node.node_type})`;
+                        option.dataset.nodeType = node.node_type;
+                        targetElement.appendChild(option);
+                    });
+                    
+                    if (data.children.length === 0) {
+                        targetElement.innerHTML = '<option value="">-- No further options --</option>';
+                    }
+                }
+            })
+            .catch(error => console.error("Error fetching curriculum nodes:", error));
+    }
+
+    function createNextFilter(level, typeName) {
+        // ... (createNextFilter logic remains the same) ...
+        const container = document.createElement('div');
+        container.className = 'filter-group';
+        container.id = `filter_group_${level}`;
+        
+        // Label
+        const label = document.createElement('label');
+        label.htmlFor = `filter_${level}`;
+        label.className = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+        label.textContent = `Level ${level}: ${typeName}`;
+        container.appendChild(label);
+
+        // Select
+        const select = document.createElement('select');
+        select.id = `filter_${level}`;
+        select.dataset.level = level;
+        select.dataset.targetId = 'id_license_curriculum_nodes';
+        select.className = SELECT_CLASSES; 
+        select.addEventListener('change', handleFilterChange);
+        select.innerHTML = '<option value="">-- Select --</option>';
+
+        container.appendChild(select);
+        filterContainer.appendChild(container);
+        return select;
+    }
+
+    function handleFilterChange(event) {
+        const currentSelect = event.target;
+        const parentId = currentSelect.value;
+        const currentLevel = parseInt(currentSelect.dataset.level);
+        const nextLevel = currentLevel + 1;
+
+        // 1. Clear ALL Descendants (Filters)
+        Array.from(filterContainer.querySelectorAll('.filter-group')).forEach(group => {
+            const level = parseInt(group.id.replace('filter_group_', ''));
+            if (level >= nextLevel) group.remove();
+        });
+        
+        // 2. Clear Button UI message.
+        buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to see final license options.</p>';
+
+        if (parentId) {
+            const selectedOption = currentSelect.options[currentSelect.selectedIndex];
+            const nextNodeType = selectedOption.dataset.nodeType || 'Item';
+            
+            // 3. Populate Button UI (Curriculum Option) with children of the selected filter
+            fetchAndPopulate(parentId, mainCurriculumSelect, true);
+            
+            // 4. Create and Populate Next Filter (If not at max level)
+            if (nextLevel <= MAX_FILTER_LEVEL) {
+                const newSelect = createNextFilter(nextLevel, nextNodeType);
+                fetchAndPopulate(parentId, newSelect, false);
+            }
+        } else {
+            // If the Level 1 filter is reset, render the root nodes.
+            if (currentLevel === 1) {
+                renderButtons(ROOT_NODES_DATA);
+            }
+        }
+    }
+    
+    // initializePermissions function removed!
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const filter1 = document.getElementById('filter_1');
+        
+        // initializePermissions() call removed!
+
+        // 2. Initialize Curriculum UI
+        if (filter1) {
+            filter1.addEventListener('change', handleFilterChange);
+        }
+        
+        // 🚨 CRITICAL: On page load, render the buttons for ALL currently selected nodes.
+        // This is done by querying the hidden select field and rendering all its options.
+        const currentlyLicensedNodes = Array.from(mainCurriculumSelect.options).map(option => ({
+            id: option.value,
+            name: option.textContent
+            // Note: This won't have the full JSON structure (like fields.name), 
+            // but for simple display, id/name are enough.
+        }));
+        
+        // Fallback: If no nodes are licensed, show the root nodes for selection.
+        if (currentlyLicensedNodes.length > 0) {
+            // **Simplest UX for Edit Page:** Show the root nodes (Level 1) for the user to start editing, 
+            // and the sync function will mark the pre-selected ones.
+            renderButtons(ROOT_NODES_DATA);
+            
+        } else {
+            // No nodes licensed initially, show root nodes ready for selection.
+            renderButtons(ROOT_NODES_DATA);
+        }
+    });
+
+</script>
+{% endblock %}

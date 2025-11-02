@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Email Verified{% endblock %}
+
+{% block head %}
+<style>
+    /* Custom dark theme styling with a vibrant accent */
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #1f2937; /* Dark gray background */
+        background-image: radial-gradient(at 50% 0, #374151, #1f2937); /* Subtle radial gradient */
+        color: #e5e7eb; /* Light gray text for readability */
+    }
+    .card-container {
+        background-color: #374151; /* Lighter gray for the card */
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+    .success-icon {
+        color: #2dd4bf; /* Vibrant teal for the icon */
+    }
+    .main-title {
+        color: #e5e7eb;
+    }
+    .action-button {
+        background-color: #2dd4bf; /* Vibrant teal for the button */
+        color: #1f2937;
+    }
+    .action-button:hover {
+        background-color: #14b8a6; /* A slightly darker teal on hover */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-lg px-8 py-12 rounded-2xl card-container text-center transition-all duration-300 transform hover:scale-105">
+        <!-- Success Icon -->
+        <div class="flex justify-center mb-6">
+            <i class="fas fa-check-circle text-6xl md:text-7xl success-icon"></i>
+        </div>
+        
+        <!-- Main Title -->
+        <h2 class="text-3xl md:text-4xl font-bold mb-4 main-title">Email Verified!</h2>
+        <p class="text-center text-gray-400 mb-8">
+            Your email address has been successfully verified. You can now log in to your account.
+        </p>
+
+        <!-- Login Button -->
+        <a href="{% url 'home' %}" class="inline-block w-full sm:w-auto py-3 px-8 rounded-lg font-bold action-button transition-all duration-300 transform hover:scale-105">
+            Go to home
+        </a>
+    </div>
+</div>
+{% endblock %}

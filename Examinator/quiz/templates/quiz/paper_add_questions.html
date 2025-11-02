@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load quiz_filters %}
+
+{% block title %}Add Questions - {{ paper.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Add Questions</h1>
+            <p class="text-gray-600 dark:text-gray-400">To: {{ paper.title }}</p>
+        </div>
+        <a href="{% url 'quiz:paper_detail' paper.id %}" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back to Paper
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-48">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                {{ search_form.search }}
+            </div>
+            <div class="min-w-32">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chapter</label>
+                {{ search_form.chapter }}
+            </div>
+            <div class="min-w-32">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                {{ search_form.question_type }}
+            </div>
+            <div class="min-w-32">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Difficulty</label>
+                {{ search_form.difficulty }}
+            </div>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fa-solid fa-search mr-2"></i>Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- Questions List -->
+    <form method="post">
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="select-all" class="form-checkbox text-blue-600">
+                            <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Select All</span>
+                        </label>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">{{ questions.count }} questions available</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="text" name="section" placeholder="Section (optional)" class="form-control w-48">
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fa-solid fa-plus mr-2"></i>Add Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto">
+                {% if questions %}
+                    {% for question in questions %}
+                    <div class="p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="checkbox" name="selected_questions" value="{{ question.id }}" class="form-checkbox text-blue-600 mt-1">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-medium">
+                                        {{ question.get_question_type_display }}
+                                    </span>
+                                    <span class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded text-xs">
+                                        {{ question.marks }} marks
+                                    </span>
+                                    <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded text-xs">
+                                        {{ question.get_difficulty_display }}
+                                    </span>
+                                    {% if question.chapter %}
+                                    <span class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded text-xs">
+                                        {{ question.chapter.name }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-gray-900 dark:text-white font-medium">{{ question.question_text|truncatewords:15 }}</p>
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="p-8 text-center">
+                        <i class="fa-solid fa-search text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Questions Found</h3>
+                        <p class="text-gray-500 dark:text-gray-400">No questions match your current filters or all questions are already added to this paper.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="selected_questions"]');
+    checkboxes.forEach(checkbox => checkbox.checked = this.checked);
+});
+</script>
+{% endblock %}

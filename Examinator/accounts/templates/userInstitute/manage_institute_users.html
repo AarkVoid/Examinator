@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block head %}
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: url("{% static 'image/background.jpg' %}") no-repeat center center fixed;
+        background-size: cover;
+    }
+
+    .page-header {
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 40px 0;
+        text-align: center;
+        margin-bottom: 30px;
+        backdrop-filter: blur(4px);
+        border-bottom-left-radius: 50px;
+        border-bottom-right-radius: 50px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .page-header h1 {
+        color: rgba(1, 166, 254, 0.93);
+        font-size: 2.2rem;
+        font-weight: bold;
+    }
+
+    .manage-users-container {
+        background: rgba(18, 19, 47, 0.78);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        color: #fff;
+    }
+
+    .manage-users-container .table {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 0;
+    }
+
+    .manage-users-container .table thead th {
+        border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+        color: #e0f2f7;
+        font-weight: 600;
+        vertical-align: middle;
+        padding: 12px 15px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .manage-users-container .table tbody tr {
+        transition: background-color 0.3s ease;
+    }
+
+    .manage-users-container .table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: rgb(171, 246, 246);
+    }
+
+    .manage-users-container .table tbody tr td {
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 12px 15px;
+        vertical-align: middle;
+    }
+
+    .btn-action-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        margin-right: 8px;
+        white-space: nowrap;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .btn-info {
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+        color: #fff;
+    }
+    .btn-info:hover {
+        background-color: #138496;
+        border-color: #117a8b;
+        color: #fff;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+        color: #fff;
+    }
+
+    .badge-status {
+        padding: 0.5em 0.75em;
+        border-radius: 0.5rem;
+        font-weight: bold;
+        display: inline-block;
+        min-width: 70px;
+        text-align: center;
+    }
+    .badge-active {
+        background-color: #28a745;
+        color: #fff;
+    }
+    .badge-inactive {
+        background-color: #ffc107;
+        color: #343a40;
+    }
+
+    .action-btn-container {
+        text-align: right;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ page_title }}</h1>
+    <p class="lead">Managing users for {{ institute_name }}</p>
+</div>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="manage-users-container">
+
+                {% if request.user.role == 'main_admin' %}
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3 class="text-white mb-0">Admin</h3>
+                        <a href="{% url 'create_admin' %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-user-plus me-2"></i> Add admin
+                        </a>
+                    </div>
+
+                    {% if admin %}
+                        <div class="table-responsive mb-5">
+                            <table class="table table-hover table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Institute</th>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in admin %}
+                                    <tr>
+                                        <td>{{ user.username }}</td>
+                                        <td>{{ user.profile.institute }}</td>
+                                        <td>{{ user.email }}</td>
+                                        <td>
+                                            {% if user.is_active %}
+                                                <span class="badge-status badge-active">Active</span>
+                                            {% else %}
+                                                <span class="badge-status badge-inactive">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'edit_institute_user' user.id %}" class="btn-action-sm btn-info">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            <a href="{% url 'delete_institute_user' user.id %}" class="btn-action-sm btn-danger" onclick="return confirm('Are you sure you want to delete teacher {{ user.username }}?');">
+                                                <i class="fas fa-trash-alt"></i> Delete
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-white-50 mb-5">No admins found in your institute.</p>
+                    {% endif %}
+                {% endif %}
+
+
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="text-white mb-0">Teachers</h3>
+                    <a href="{% url 'add_teacher' %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-user-plus me-2"></i> Add New Teacher
+                    </a>
+                </div>
+
+                {% if teachers %}
+                <div class="table-responsive mb-5">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Institute</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in teachers %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.profile.institute }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge-status badge-active">Active</span>
+                                    {% else %}
+                                        <span class="badge-status badge-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'edit_institute_user' user.id %}" class="btn-action-sm btn-info">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <a href="{% url 'delete_institute_user' user.id %}" class="btn-action-sm btn-danger" onclick="return confirm('Are you sure you want to delete teacher {{ user.username }}?');">
+                                        <i class="fas fa-trash-alt"></i> Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p class="text-white-50 mb-5">No teachers found in your institute.</p>
+                {% endif %}
+
+                <h3 class="text-white mb-4">Students</h3>
+                {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Institute</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in students %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.profile.institute }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge-status badge-active">Active</span>
+                                    {% else %}
+                                        <span class="badge-status badge-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'edit_institute_user' user.id %}" class="btn-action-sm btn-info">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <a href="{% url 'delete_institute_user' user.id %}" class="btn-action-sm btn-danger" onclick="return confirm('Are you sure you want to delete student {{ user.username }}?');">
+                                        <i class="fas fa-trash-alt"></i> Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p class="text-white-50">No students found in your institute.</p>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

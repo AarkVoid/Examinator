@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-card border border-border rounded-lg shadow-lg">
+            <div class="bg-muted/50 px-6 py-4 border-b border-border">
+                <h2 class="text-2xl font-bold text-primary">
+                    <i class="fas fa-paper-plane mr-2"></i>Send Message
+                </h2>
+            </div>
+            <div class="p-6">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-foreground">Recipient</label>
+                        {{ form.recipient }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-foreground">Subject</label>
+                        {{ form.subject }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-foreground">Message</label>
+                        {{ form.content }}
+                    </div>
+                    <div class="flex justify-between pt-6">
+                        <a href="{% url 'message_list' %}" class="bg-secondary text-secondary-foreground px-6 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                            <i class="fas fa-arrow-left mr-2"></i>Back
+                        </a>
+                        <button type="submit" class="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors">
+                            <i class="fas fa-send mr-2"></i>Send Message
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

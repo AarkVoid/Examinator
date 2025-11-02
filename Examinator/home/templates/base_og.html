@@ -1,0 +1,297 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}EduPlatform{% endblock %}</title>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="Free HTML Templates" name="keywords">
+  <meta content="Free HTML Templates" name="description">
+
+  <link href="{% static 'img/favicon.ico' %}" rel="icon">
+
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet"> 
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+
+  <link href="{% static 'lib/owlcarousel/assets/owl.carousel.min.css' %}" rel="stylesheet">
+
+  <link href="{% static 'css/style.css' %}" rel="stylesheet">
+
+  {# IMPORTANT: Your custom CSS block should come LAST to override Bootstrap #}
+  {% block head %}{% endblock %} 
+</head>
+<body>
+    <div class="container-fluid p-0">
+        <nav class="navbar navbar-expand-lg bg-white navbar-light py-3 py-lg-0 px-lg-5">
+            <a href="{% url 'home' %}" class="navbar-brand ml-lg-3">
+                <h1 class="m-0 text-uppercase text-primary"><i class="fa fa-book-reader mr-3"></i>Edukate</h1>
+            </a>
+            <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-between px-lg-3" id="navbarCollapse">
+                <div class="navbar-nav mx-auto py-0">
+                    <a href="{% url 'TakeTest' %}" class="nav-item nav-link active">Take-A-Test</a>
+                    <a href="{% url 'lesson_list' %}" class="nav-item nav-link">Lesson </a>
+                    <a href="{% url 'education_dashboard' %}" class="nav-item nav-link">Education </a>
+                    <div class="nav-item dropdown">
+                        <a href="{% url 'location_dropdown' %}" class="nav-link dropdown-toggle" data-toggle="dropdown">Institution</a>
+                        <div class="dropdown-menu m-0">
+                            <a href="{% url 'add_institution' %}" class="dropdown-item">Add Institution</a>
+                            <a href="{% url 'add_passkey' %}" class="dropdown-item">Add Passkey</a>
+                        </div>
+                    </div>
+                    <div class="nav-item dropdown">
+                        <a href="{% url 'location_dropdown' %}" class="nav-link dropdown-toggle" data-toggle="dropdown">Location</a>
+                        <div class="dropdown-menu m-0">
+                            <a href="{% url 'location_dropdown' %}" class="dropdown-item">All Locations</a>
+                            <a href="{% url 'upload_location_csv' %}" class="dropdown-item">Upload CSV</a>
+                        </div>
+                    </div>
+                    <div class="nav-item dropdown">
+                        <a href="{% url 'quiz_list' %}" class="nav-link dropdown-toggle" data-toggle="dropdown">Quizes</a>
+                        <div class="dropdown-menu m-0">
+                            <a href="{% url 'quiz_list' %}" class="dropdown-item">QuizeContainer List</a>
+                            <a href="{% url 'add_quiz' %}" class="dropdown-item">Add Quize</a>
+                            <a href="{% url 'question_list' %}" class="dropdown-item">Question List</a>
+                            <a href="{% url 'add_question' %}" class="dropdown-item">Add Question</a>
+                            <a href="{% url 'upload_questions_csv' %}" class="dropdown-item">Upload CSV Question</a>
+                        </div>
+                    </div>
+                    <div class="nav-item dropdown">
+                        <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">Connect</a>
+                        <div class="dropdown-menu m-0">
+                            <a href="{% url 'add_comment' %}" class="dropdown-item">Add Comment</a>
+                            <a href="{% url 'contact_us' %}" class="dropdown-item">Contact Us</a>
+                        </div>
+                    </div>
+                    <a href="{% url 'game_list' %}" class="nav-item nav-link">View Games</a>
+                    
+                </div>
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'profile_update' %}" class="btn btn-outline-secondary py-2 px-4 d-none d-lg-block">Profile</a>
+                    <a href="{% url 'logout' %}" class="btn btn-outline-primary py-2 px-4 d-none d-lg-block">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary py-2 px-4 d-none d-lg-block">Login</a>
+                    <a href="{% url 'register' %}" class="btn btn-outline-primary py-2 px-4 d-none d-lg-block">Register</a>
+                {% endif %}
+            </div>
+        </nav>
+    </div>
+    <main>
+    {% if messages %}
+      <div class="mb-4">
+        {% for message in messages %}
+          <div class="p-4 rounded-lg bg-green-100 text-green-800 border border-green-200 mb-2 shadow-sm">
+            <i class="fas fa-check-circle mr-2"></i> {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+       
+    {% block content %}{% endblock %}
+
+  </main>
+
+
+
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'lib/easing/easing.min.js' %}"></script>
+    <script src="{% static 'lib/waypoints/waypoints.min.js' %}"></script>
+    <script src="{% static 'lib/counterup/counterup.min.js' %}"></script>
+    <script src="{% static 'lib/owlcarousel/owl.carousel.min.js' %}"></script>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block Script %}
+    
+    {% endblock %}
+
+
+</body>
+
+    
+
+</html>
+
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}EduPlatform{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex flex-col font-sans antialiased">
+
+  <nav class="bg-gradient-to-r from-blue-700 to-indigo-700 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-3xl font-extrabold tracking-tight">EduSite</a>
+            <div class="space-x-6 hidden md:flex items-center">
+
+                <div class="relative group">
+                    <a href="{% url 'education_dashboard' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">
+                        Education
+                    </a>
+                    <div class="absolute invisible group-hover:visible bg-white text-gray-800 mt-2 shadow-xl rounded-lg py-2 min-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-95 group-hover:scale-100 origin-top-left z-20">
+                        <a href="{% url 'add_board' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Board</a>
+                    </div>
+                </div>
+                
+                <div class="relative group">
+                    <button class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">
+                        Institution
+                    </button>
+                    <div class="absolute invisible group-hover:visible bg-white text-gray-800 mt-2 shadow-xl rounded-lg py-2 min-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-95 group-hover:scale-100 origin-top-left z-20">
+                        <a href="{% url 'add_institution' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Institution</a>
+                        <a href="{% url 'add_passkey' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Passkey</a>
+                    </div>
+                </div>
+
+                <div x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false" class="relative">
+                    <a href="{% url 'location_dropdown' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">
+                        Location
+                    </a>
+                    <div x-show="open" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute bg-white text-gray-800 mt-2 shadow-xl rounded-lg py-2 flex flex-col min-w-max z-20 origin-top-left">
+                        <a href="{% url 'add_country' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Country</a>
+                        <a href="{% url 'add_state' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add State</a>
+                        <a href="{% url 'add_city' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add City</a>
+                        <a href="{% url 'add_pincode' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Pincode</a>
+                        <a href="{% url 'upload_location_csv' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Upload CSV</a>
+                    </div>
+                </div>
+                
+                <div x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false" class="relative">
+                    <a href="{% url 'quiz_list' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">
+                        Quiz
+                    </a>
+                    <div x-show="open" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute bg-white text-gray-800 mt-2 shadow-xl rounded-lg py-2 flex flex-col min-w-max z-20 origin-top-left">
+                        <a href="{% url 'add_quiz' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Quiz</a>
+                        <a href="{% url 'question_list' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Question List</a>
+                        <a href="{% url 'add_question' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Add Question</a>
+                        <a href="{% url 'upload_questions_csv' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Upload CSV Question</a>
+                    </div>
+                </div>
+
+                <div x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false" class="relative">
+                    <a href="{% url 'game_list' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">
+                        Game
+                    </a>
+                    <div x-show="open" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute bg-white text-gray-800 mt-2 shadow-xl rounded-lg py-2 flex flex-col min-w-max z-20 origin-top-left">
+                        <a href="{% url 'create_game' %}" class="block px-4 py-2 hover:bg-gray-100 transition duration-200 text-sm">Create Game</a>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <a href="{% url 'lesson_list' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">
+                        Lesson
+                    </a>
+                </div>
+
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'profile_update' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">Profile</a>
+                    <a href="{% url 'logout' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium bg-red-500 hover:bg-red-600 transition duration-300">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium hover:bg-blue-600 transition duration-300">Login</a>
+                    <a href="{% url 'register' %}" class="flex items-center px-3 py-2 rounded-md text-lg font-medium bg-green-500 hover:bg-green-600 transition duration-300">Register</a>
+                {% endif %}
+            </div>
+
+            <button class="md:hidden text-white text-2xl focus:outline-none" @click="open = !open">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <div class="md:hidden" x-show="open" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-blue-700">
+                <a href="{% url 'education_dashboard' %}" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600">Education</a>
+                <a href="{% url 'add_board' %}" class="block pl-8 pr-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600"> - Add Board</a>
+                
+                <button @click="institutionOpen = !institutionOpen" class="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600 focus:outline-none">
+                    Institution <i :class="{'fa-chevron-down': !institutionOpen, 'fa-chevron-up': institutionOpen}" class="fas ml-2 text-xs"></i>
+                </button>
+                <div x-show="institutionOpen" class="pl-8 pr-3 space-y-1">
+                    <a href="{% url 'add_institution' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add Institution</a>
+                    <a href="{% url 'add_passkey' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add Passkey</a>
+                </div>
+
+                <button @click="locationOpen = !locationOpen" class="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600 focus:outline-none">
+                    Location <i :class="{'fa-chevron-down': !locationOpen, 'fa-chevron-up': locationOpen}" class="fas ml-2 text-xs"></i>
+                </button>
+                <div x-show="locationOpen" class="pl-8 pr-3 space-y-1">
+                    <a href="{% url 'add_country' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add Country</a>
+                    <a href="{% url 'add_state' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add State</a>
+                    <a href="{% url 'add_city' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add City</a>
+                    <a href="{% url 'add_pincode' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add Pincode</a>
+                    <a href="{% url 'upload_location_csv' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Upload CSV</a>
+                </div>
+
+                <button @click="quizOpen = !quizOpen" class="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600 focus:outline-none">
+                    Quiz <i :class="{'fa-chevron-down': !quizOpen, 'fa-chevron-up': quizOpen}" class="fas ml-2 text-xs"></i>
+                </button>
+                <div x-show="quizOpen" class="pl-8 pr-3 space-y-1">
+                    <a href="{% url 'add_quiz' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add Quiz</a>
+                    <a href="{% url 'question_list' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Question List</a>
+                    <a href="{% url 'add_question' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Add Question</a>
+                    <a href="{% url 'upload_questions_csv' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Upload CSV Question</a>
+                </div>
+
+                <button @click="gameOpen = !gameOpen" class="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600 focus:outline-none">
+                    Game <i :class="{'fa-chevron-down': !gameOpen, 'fa-chevron-up': gameOpen}" class="fas ml-2 text-xs"></i>
+                </button>
+                <div x-show="gameOpen" class="pl-8 pr-3 space-y-1">
+                    <a href="{% url 'create_game' %}" class="block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-600">Create Game</a>
+                </div>
+
+                <a href="{% url 'lesson_list' %}" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600">Lesson</a>
+                
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'profile_update' %}" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600">Profile</a>
+                    <a href="{% url 'logout' %}" class="block px-3 py-2 rounded-md text-base font-medium bg-red-500 hover:bg-red-600">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-blue-600">Login</a>
+                    <a href="{% url 'register' %}" class="block px-3 py-2 rounded-md text-base font-medium bg-green-500 hover:bg-green-600">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+  <main class="container mx-auto mt-6 px-4 flex-1">
+    {% if messages %}
+      <div class="mb-4">
+        {% for message in messages %}
+          <div class="p-4 rounded-lg bg-green-100 text-green-800 border border-green-200 mb-2 shadow-sm">
+            <i class="fas fa-check-circle mr-2"></i> {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="bg-gray-800 text-white text-center p-6 mt-8 shadow-inner">
+    <p class="text-lg">&copy; 2025 EduPlatform. All rights reserved.</p>
+    <div class="flex justify-center space-x-6 mt-4">
+        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-facebook-f text-xl"></i></a>
+        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-twitter text-xl"></i></a>
+        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-linkedin-in text-xl"></i></a>
+        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-instagram text-xl"></i></a>
+    </div>
+  </footer>
+
+</body>
+{% block Script %}
+    
+{% endblock %}
+</html> {% endcomment %}

@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Message Details | EduPlatform{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<!-- Google Fonts: Poppins for headings/bold text, Lato for body text -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    /* --- New CSS Variables for a Professional Dark Theme --- */
+    :root {
+        --primary-accent: #beff1b; /* A warm, muted gold */
+        --secondary-accent: #ffe082; /* Lighter shade of the gold */
+        --background-dark: #151929; /* Deep, dark charcoal */
+        --card-background: #152a48; /* Slightly lighter shade for cards */
+        --dark-text: #e0e0e0; /* Light gray for main text */
+        --medium-text: #96c5af; /* Soft gray for meta info */
+        --border-dark: #333333; /* Dark gray for borders */
+        --success-color: #4CAF50; /* A classic green for success */
+        --error-color: #f44336; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles (Consistent with previous design) --- */
+    body {
+        background-color: var(--background-dark);
+        font-family: 'Lato', sans-serif;
+        line-height: 1.6;
+        color: var(--dark-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 950px;
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp 0.6s ease-out forwards;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .header {
+        border-bottom: 2px solid var(--border-dark);
+        padding-bottom: 1.8rem;
+        margin-bottom: 3rem;
+        text-align: center;
+    }
+
+    .header h1 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.8rem;
+        color: var(--dark-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .header p {
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        margin-top: 0.8rem;
+    }
+
+    /* --- Buttons Container & Styling --- */
+    .button-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        color: var(--primary-accent);
+        font-weight: 600;
+        transition: transform 0.2s ease, color 0.2s ease;
+    }
+    
+    .btn-back:hover {
+        transform: translateX(-5px);
+        color: var(--secondary-accent);
+    }
+    
+    .btn-reply {
+        background: linear-gradient(45deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
+        color: var(--background-dark);
+        font-weight: 600;
+        padding: 0.8rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        transition: all var(--transition-speed) ease;
+        box-shadow: 0 4px 15px rgba(255, 179, 0, 0.2);
+    }
+
+    .btn-reply:hover {
+        background: linear-gradient(45deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(255, 179, 0, 0.3);
+    }
+    
+    .btn-reply:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 10px rgba(255, 179, 0, 0.1);
+    }
+
+
+    .message-detail-card {
+        background-color: var(--card-background);
+        border-radius: 15px;
+        padding: 2.5rem;
+        box-shadow: 0 5px 20px var(--shadow-medium);
+    }
+    
+    .message-info-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px dashed var(--border-dark);
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .sender-initials {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
+        color: var(--card-background);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 1.8rem;
+        flex-shrink: 0;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+        border: 3px solid var(--primary-accent);
+    }
+    
+    .sender-details {
+        flex-grow: 1;
+    }
+
+    .sender-details h2 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 2rem;
+        margin: 0;
+        color: var(--dark-text);
+    }
+    
+    .sender-details .email-and-date {
+        font-size: 1rem;
+        color: var(--medium-text);
+        margin-top: 0.5rem;
+    }
+    
+    .message-subject {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+        color: var(--dark-text);
+    }
+    
+    .message-body {
+        white-space: pre-line;
+        color: var(--dark-text);
+        line-height: 1.8;
+        font-size: 1.1rem;
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+        }
+        
+        .header p {
+            font-size: 1rem;
+        }
+        
+        .button-actions {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1.5rem;
+        }
+        
+        .btn-reply {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .message-detail-card {
+            padding: 1.8rem;
+        }
+        
+        .message-info-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1.2rem;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .sender-initials {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+        }
+        
+        .sender-details h2 {
+            font-size: 1.8rem;
+        }
+        
+        .sender-details .email-and-date {
+            font-size: 0.95rem;
+        }
+        
+        .message-subject {
+            font-size: 1.6rem;
+        }
+        
+        .message-body {
+            font-size: 1rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        .container {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+        .header p {
+            font-size: 0.9rem;
+        }
+        .button-actions {
+            margin-bottom: 1.5rem;
+        }
+        .message-detail-card {
+            padding: 1.5rem;
+        }
+        .message-info-header {
+            gap: 1rem;
+            padding-bottom: 1.2rem;
+            margin-bottom: 1.2rem;
+        }
+        .sender-initials {
+            width: 50px;
+            height: 50px;
+            font-size: 1.3rem;
+        }
+        .sender-details h2 {
+            font-size: 1.5rem;
+        }
+        .sender-details .email-and-date {
+            font-size: 0.9rem;
+        }
+        .message-subject {
+            font-size: 1.4rem;
+        }
+        .message-body {
+            font-size: 0.95rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Message Details</h1>
+        <p>A full view of the inquiry submitted by {{ message.name }}.</p>
+    </div>
+
+    <div class="button-actions">
+        <a href="{% url 'view_contact_messages' %}" class="btn-back">
+            <i class="fas fa-arrow-left"></i> Back to all messages
+        </a>
+        <a href="{% url 'reply_to_contact_message' message.id %}" class="btn-reply">
+            <i class="fas fa-reply"></i> Reply to Message
+        </a>
+    </div>
+
+    <div class="message-detail-card">
+        <div class="message-info-header">
+            <div class="sender-initials">{{ message.name|slice:":2"|upper }}</div>
+            <div class="sender-details">
+                <h2>{{ message.name }}</h2>
+                <div class="email-and-date">
+                    <p>{{ message.email }}</p>
+                    <p>Sent on {{ message.created_at|date:"F j, Y, P" }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="message-subject">{{ message.subject }}</div>
+        <div class="message-body">{{ message.message }}</div>
+    </div>
+</div>
+{% endblock %}

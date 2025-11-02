@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+<script src="https://cdn.tailwindcss.com"></script>
+
+{% block title %}Add Random Questions - {{ paper.title }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8 font-sans antialiased">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-extrabold text-gray-900">Automated Question Generation</h2>
+                    <a href="{% url 'quiz:paper_detail' paper.id %}" 
+                       class="text-sm text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-medium">
+                        Back to Paper &rarr;
+                    </a>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">Configure criteria for adding random questions to: 
+                    <strong class="text-gray-900">{{ paper.title }}</strong>
+                </p>
+            </div>
+
+            <!-- Django Messages (Fix for Issue 2: Displaying the Marks Alert) -->
+            {% if messages %}
+            <div class="px-6 pt-4">
+                {% for message in messages %}
+                <div class="p-4 mb-4 text-sm rounded-lg 
+                    {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700 border border-yellow-200{% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}"
+                    role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Paper Info Summary -->
+            <div class="px-6 py-4 bg-blue-50 border-b border-blue-200">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="font-bold text-blue-900">Pattern:</span>
+                        <span class="text-blue-700">{{ paper.get_pattern_display }}</span>
+                    </div>
+                    <div>
+                        <span class="font-bold text-blue-900">Subject:</span>
+                        <span class="text-blue-700">{{ paper.curriculum_subject.name }}</span>
+                    </div>
+                    <div>
+                        <span class="font-bold text-blue-900">Current Marks:</span>
+                        <span class="text-blue-700 font-extrabold text-lg">{{ current_marks }}</span>
+                        {% if paper.max_marks %}
+                            <span class="text-xs text-blue-500">(Out of {{ paper.max_marks }} intended)</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="font-bold text-blue-900">Chapters:</span>
+                        <span class="text-blue-700">{{ paper.curriculum_chapters.count }} selected</span>
+                    </div>
+                    <div class="col-span-2">
+                        <span class="font-bold text-blue-900">Available Questions:</span>
+                        <span class="text-blue-700 font-extrabold">{{ available_question_count }} questions available for selection.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="post" class="px-6 py-6">
+                {% csrf_token %}
+                
+                <!-- Target Marks (Fix for Issue 1: Using dynamic default value) -->
+                <div class="mb-8 p-4 border rounded-lg bg-white">
+                    <label for="target_marks" class="block text-lg font-bold text-gray-800 mb-2">
+                        Target Marks to Add
+                    </label>
+                    <input type="number" id="target_marks" name="target_marks" 
+                           min="1" max="500" value="{{ target_marks_default }}" required
+                           class="w-full sm:w-40 px-4 py-2 border border-gray-300 rounded-lg shadow-inner text-xl font-mono focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition duration-150">
+                    <p class="text-xs text-gray-500 mt-2">The system will try to select questions that total this amount of marks. Default suggests the remaining marks needed.</p>
+                </div>
+
+                <!-- Distribution Type (Applies to Difficulty/Type) -->
+                <div class="mb-8 p-4 border rounded-lg bg-gray-50">
+                    <label class="block text-lg font-bold text-gray-800 mb-4">
+                        Question Distribution Strategy
+                    </label>
+                    <p class="text-sm text-gray-600 mb-4 italic">Determines the balance of question difficulty (if pattern is 'Difficulty-wise') or type (if pattern is 'Standard').</p>
+                    <div class="space-y-3">
+                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
+                            <input type="radio" name="distribution_type" value="balanced" checked
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-3 text-sm">
+                                <strong class="text-gray-900">Balanced (40/40/20)</strong>
+                                <p class="text-gray-500">Even mix of Easy and Medium, with some Hard questions.</p>
+                            </span>
+                        </label>
+                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
+                            <input type="radio" name="distribution_type" value="exam_focused" 
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-3 text-sm">
+                                <strong class="text-gray-900">Exam Focused (30/50/20)</strong>
+                                <p class="text-gray-500">Heavier weight on Medium difficulty questions, suitable for typical exams.</p>
+                            </span>
+                        </label>
+                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
+                            <input type="radio" name="distribution_type" value="progressive" 
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-3 text-sm">
+                                <strong class="text-gray-900">Progressive (50/30/20)</strong>
+                                <p class="text-gray-500">Focus on Easy questions, ideal for foundational review or practice tests.</p>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Chapter Distribution -->
+                <div class="mb-8 p-4 border rounded-lg bg-gray-50">
+                    <label class="block text-lg font-bold text-gray-800 mb-4">
+                        Chapter Weighting
+                    </label>
+                    <p class="text-sm text-gray-600 mb-4 italic">How marks should be allocated across the selected chapters.</p>
+                    <div class="space-y-3">
+                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
+                            <input type="radio" name="chapter_distribution" value="equal" checked
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-3 text-sm">
+                                <strong class="text-gray-900">Equal</strong>
+                                <p class="text-gray-500">Marks are split evenly among all selected chapters.</p>
+                            </span>
+                        </label>
+                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
+                            <input type="radio" name="chapter_distribution" value="proportional" 
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-3 text-sm">
+                                <strong class="text-gray-900">Proportional (Default)</strong>
+                                <p class="text-gray-500">Marks are weighted based on the total *available* marks in each chapter.</p>
+                            </span>
+                        </label>
+                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
+                            <input type="radio" name="chapter_distribution" value="weighted" 
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-3 text-sm">
+                                <strong class="text-gray-900">Weighted</strong>
+                                <p class="text-gray-500">Marks are weighted based on the *number* of available questions in each chapter.</p>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Pattern-specific Info -->
+                <div class="bg-yellow-100 border-l-4 border-yellow-500 rounded-r-lg p-4 mb-6 shadow-md">
+                    <h4 class="text-md font-bold text-yellow-900 mb-2">Current Paper Pattern: {{ paper.get_pattern_display }}</h4>
+                    {% if paper.pattern == 'difficulty_wise' %}
+                    <p class="text-sm text-yellow-800">
+                        The primary filter will be **Difficulty**, balanced across chapters using the weights above.
+                    </p>
+                    {% elif paper.pattern == 'section_wise' %}
+                    <p class="text-sm text-yellow-800">
+                        The primary filter will be **Chapter**, with all selected questions grouped by their respective chapter name.
+                    </p>
+                    {% elif paper.pattern == 'standard' %}
+                    <p class="text-sm text-yellow-800">
+                        The primary filter will be **Question Type** (MCQ, Short Answer, etc.), balanced across chapters.
+                    </p>
+                    {% else %}
+                    <p class="text-sm text-yellow-800">
+                        The system is using the **Custom/Fallback** selection, prioritizing proportional chapter distribution and random selection.
+                    </p>
+                    {% endif %}
+                </div>
+
+                <!-- Chapter Details -->
+                {% if paper.curriculum_chapters.exists %}
+                <div class="bg-green-100 border-l-4 border-green-500 rounded-r-lg p-4 mb-6 shadow-md">
+                    <h4 class="text-md font-bold text-green-900 mb-2">Selected Chapters:</h4>
+                    <ul class="list-disc ml-5 text-sm text-green-800 max-h-40 overflow-y-auto">
+                        {% for chapter in paper.curriculum_chapters.all %}
+                        <li>{{ chapter.name }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% else %}
+                <div class="bg-blue-100 border-l-4 border-blue-500 rounded-r-lg p-4 mb-6 shadow-md">
+                    <h4 class="text-md font-bold text-blue-900 mb-2">Chapter Selection:</h4>
+                    <p class="text-sm text-blue-800">No specific chapters selected. Questions will be drawn from all chapters linked to the subject: <strong>{{ paper.curriculum_subject.name }}</strong></p>
+                </div>
+                {% endif %}
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <a href="{% url 'quiz:paper_detail' paper.id %}" 
+                       class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-5 py-2.5 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                        Generate & Add Questions
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

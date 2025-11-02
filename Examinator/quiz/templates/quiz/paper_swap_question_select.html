@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load quiz_filters %}
+
+{% block title %}Swap Question in {{ paper.title }}{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto space-y-8">
+<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-50">Swap Question</h1>
+<p class="text-gray-500 dark:text-gray-400">
+Replacing Question <span class="font-bold">Q{{ old_pq.order }}</span> in <span class="font-bold">{{ paper.title }}</span>.
+</p>
+
+<!-- Old Question Details -->
+<div class="bg-yellow-50 dark:bg-yellow-950 rounded-xl p-5 border-2 border-yellow-300 dark:border-yellow-700 shadow-lg">
+    <h2 class="text-xl font-semibold text-yellow-800 dark:text-yellow-200 mb-3">Question to Replace (Q{{ old_pq.order }})</h2>
+    <div class="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="flex flex-wrap gap-3 mb-3">
+            <span class="bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-3 py-1 rounded-full text-sm font-semibold">
+                {{ old_question.marks }} Marks
+            </span>
+            <span class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full text-sm">
+                {{ old_question.get_question_type_display }}
+            </span>
+        </div>
+        <p class="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{{ old_question.question_text }}</p>
+    </div>
+</div>
+
+<!-- Criteria and Candidate Count -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 border border-gray-200 dark:border-gray-700">
+    <h2 class="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-3">Replacement Criteria</h2>
+    <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+        {% for key, value in criteria.items %}
+        <div class="flex flex-col">
+            <span class="font-medium text-gray-500 dark:text-gray-400">{{ key }} MUST Match:</span>
+            <span class="text-gray-800 dark:text-gray-200 font-semibold">{{ value }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="p-3 bg-blue-50 dark:bg-blue-900/50 rounded-lg text-blue-800 dark:text-blue-200">
+        Found **{{ candidate_count }}** available questions matching all criteria. Showing {{ candidate_questions|length }} random candidates below.
+    </div>
+</div>
+
+<!-- Candidates List -->
+{% if candidate_questions %}
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-8 mb-4">Select a Replacement Question</h2>
+    
+    <div class="space-y-4">
+        {% for candidate in candidate_questions %}
+        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-5 border border-gray-300 dark:border-gray-700 flex justify-between items-start space-x-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-3 mb-3">
+                    <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        {{ candidate.get_question_type_display }}
+                    </span>
+                    {% if candidate.curriculum_chapter %}
+                    <span class="text-xs text-gray-700 dark:text-gray-300 px-2 py-1 rounded border border-gray-400 dark:border-gray-600">
+                        Chapter: {{ candidate.curriculum_chapter.name }}
+                    </span>
+                    {% endif %}
+                </div>
+                <!-- Candidate Question Text -->
+                <p class="text-gray-800 dark:text-gray-200 font-medium whitespace-pre-wrap">{{ candidate.question_text|truncatewords:40 }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Marks: {{ candidate.marks }} | Difficulty: {{ candidate.get_difficulty_display }}</p>
+            </div>
+
+            <a href="{% url 'quiz:paper_swap_question_confirm' paper.id old_question.id candidate.id %}" 
+               class="flex-shrink-0 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold text-sm shadow-md">
+                Select & Swap
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-10 bg-gray-100 dark:bg-gray-800 rounded-xl border border-dashed border-gray-400 dark:border-gray-600">
+        <i class="fa-solid fa-triangle-exclamation text-4xl text-orange-500 mb-3"></i>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Matching Questions Found</h3>
+        <p class="text-gray-500 dark:text-gray-400">No other question meets all the required criteria (Marks: {{ criteria.Marks }}, Type: {{ criteria.Type }}, Chapter: {{ criteria.Chapter }}) that is not already in the paper.</p>
+    </div>
+{% endif %}
+
+<div class="pt-6 border-t border-gray-200 dark:border-gray-700">
+    <a href="{% url 'quiz:paper_detail' paper.id %}" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+        <i class="fa-solid fa-arrow-left mr-2"></i>Cancel and Return
+    </a>
+</div>
+
+
+</div>
+{% endblock %}

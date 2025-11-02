@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-card border border-border rounded-lg shadow-lg">
+            <div class="bg-muted/50 px-6 py-4 border-b border-border">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-primary">
+                        <i class="fas fa-envelope mr-2"></i>{{ message.subject }}
+                    </h2>
+                    {% if not message.is_read and message.recipient == request.user %}
+                        <span class="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm">New</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <span class="text-sm font-medium text-muted-foreground">From:</span>
+                            <p class="text-foreground">{{ message.sender.username }}</p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-muted-foreground">To:</span>
+                            <p class="text-foreground">{{ message.recipient.username }}</p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-muted-foreground">Date:</span>
+                            <p class="text-foreground">{{ message.created_at|date:"F d, Y H:i" }}</p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-muted-foreground">Status:</span>
+                            <p class="text-foreground">
+                                {% if message.is_read %}
+                                    <span class="text-green-600"><i class="fas fa-check-double mr-1"></i>Read</span>
+                                {% else %}
+                                    <span class="text-muted-foreground"><i class="fas fa-check mr-1"></i>Unread</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-muted/30 rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 text-foreground">Message Content</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-foreground whitespace-pre-wrap">{{ message.content }}</p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between">
+                    <a href="{% url 'message_list' %}" class="bg-secondary text-secondary-foreground px-6 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Messages
+                    </a>
+                    
+                    {% if message.recipient == request.user %}
+                        <a href="{% url 'send_message' %}?reply_to={{ message.sender.id }}&subject=Re: {{ message.subject }}" class="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors">
+                            <i class="fas fa-reply mr-2"></i>Reply
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

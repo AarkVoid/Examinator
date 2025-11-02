@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load form_tags %}
+{% load custom_filters %}
+
+{% block title %}Edit Permissions{% endblock %}
+
+{% block head %}
+<style>
+  body{
+    background: #22242fff;
+  }
+  .permissions-management-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #1e2241ff;
+    border-radius: 8px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .page-title {
+    color: #9cc0e3ff;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #3498db;
+  }
+
+  .section-title {
+    color: #3498db;
+    margin-bottom: 1.5rem;
+    font-size: 1.4rem;
+  }
+
+  /* Groups Section */
+  .groups-section {
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background: #372c52ff;
+    border-radius: 8px;
+  }
+
+  .groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+
+  .group-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    background:  rgba(31, 20, 44, 1);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .group-checkbox {
+    margin-right: 0.75rem;
+  }
+
+  .group-label {
+    font-weight: 500;
+    color: #6484bcff;
+    cursor: pointer;
+  }
+
+  .group-perm-count {
+    font-size: 0.8rem;
+    color: #718096;
+    margin-left: 0.5rem;
+  }
+
+  /* Permissions Section */
+  .permissions-section {
+    margin-bottom: 2rem;
+  }
+
+  .app-card {
+    margin-bottom: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #92c5b6ff;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .app-header h4 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.2rem;
+  }
+
+  .toggle-icon {
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+
+  .app-content {
+    padding: 1rem;
+  }
+
+  .models-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .model-card {
+    background: #233649ff;
+    border: 1px solid #edf2f7;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .model-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed #e2e8f0;
+  }
+
+  .model-header h5 {
+    margin: 0;
+    color: #c7e4f6ff;
+    font-size: 1.1rem;
+  }
+
+  .badge {
+    background: #e2e8f0;
+    color: #4a6768ff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .badge-group {
+    background: #bee3f8;
+    color: #2b6cb0;
+  }
+
+  .permissions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .permission-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .permission-item:last-child {
+    border-bottom: none;
+  }
+
+  .permission-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #80e2f3ff;
+    gap: 0.75rem;
+  }
+
+  .permission-checkbox {
+    cursor: pointer;
+  }
+
+  .permission-name {
+    flex-grow: 1;
+  }
+
+  .group-permission .permission-name {
+    color: #bdd7ffff;
+  }
+
+  /* Form Actions */
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+  }
+
+  .btn-save {
+    background: #3498db;
+    color: white;
+    border: none;
+  }
+
+  .btn-save:hover {
+    background: #2980b9;
+  }
+
+  .btn-cancel {
+    background: #f1f5f9;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+  }
+
+  .btn-cancel:hover {
+    background: #e2e8f0;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .permissions-management-container {
+      padding: 1rem;
+    }
+    
+    .groups-grid,
+    .models-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  h2{
+    color: #a5f9ffff;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Edit Permissions (Non-Auth) for <strong>{{ user.username }}</strong></h2>
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+
+    <div class="groups-section">
+      <h3 class="section-title">Group Memberships</h3>
+      <div class="groups-grid">
+        {% for group in groups %}
+          <div class="group-item">
+            <input type="checkbox" 
+                   id="group-{{ group.id }}" 
+                   name="groups" 
+                   value="{{ group.id }}"
+                   {% if group.id in user_group_ids %}checked{% endif %}
+                   class="group-checkbox">
+            <label for="group-{{ group.id }}" class="group-label">
+              {{ group.name }}
+              <span class="group-perm-count">({{ group.permissions.count }} permissions)</span>
+            </label>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="permissions-section">
+      <h3 class="section-title">Individual Permissions</h3>
+      <div class="permissions-accordion">
+        {% for app, models in app_perm_dict.items %}
+        <div class="app-card">
+          <div class="app-header" data-toggle="collapse" data-target="#app-{{ app|slugify }}">
+            <h4>{{ app|capfirst }} <span class="badge">{{ models|total_perms_in_app }} permissions</span></h4>
+            <span class="toggle-icon">+</span>
+        </div>
+          
+          <div id="app-{{ app|slugify }}" class="app-content collapse show">
+            <div class="models-grid">
+              {% for model in models %}
+                {% with perms=models|get_item:model %}
+                <div class="model-card">
+                    <div class="model-header">
+                    <h5>{{ model|capfirst }}</h5>
+                    <span class="badge">{{ perms|length }} permissions</span>
+                    </div>
+                    
+                    <ul class="permissions-list">
+                    {% for perm in perms %}
+                        {% with perm_codename=perm.content_type.app_label|stringformat:"s.%s"|add:perm.codename %}
+                        <li class="permission-item {% if perm_codename in group_permissions %}group-permission{% endif %}">
+                        <label class="permission-label">
+                            <input type="checkbox" 
+                                name="user_permissions" 
+                                value="{{ perm.id }}"
+                                {% if perm.id in user_permissions %}checked{% endif %}
+                                {% if perm_codename in group_permissions %}disabled checked{% endif %}
+                                class="permission-checkbox">
+                            
+                            <span class="permission-name">{{ perm.name }}</span>
+                            
+                            {% if perm_codename in group_permissions %}
+                            <span class="badge badge-group"> </span>
+                            {% endif %}
+                        </label>
+                        </li>
+                        {% endwith %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                
+                {% endwith %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">Update Permissions</button>
+    <a href="{% url 'manage_users' %}" class="btn btn-secondary mt-3 ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+
+
+<div class="flex items-start justify-center min-h-screen pt-12 pb-12 bg-gray-50 dark:bg-gray-900 font-sans">
+    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-10 border border-gray-200 dark:border-gray-700">
+        
+        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-2">
+            {{ page_title }}
+        </h1>
+        <p class="text-lg text-gray-500 dark:text-gray-400 mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
+            Create a **new client administrator account** and link them to a new or existing Organization Profile in one step.
+        </p>
+
+        <!-- Display Messages -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                <div class="p-4 rounded-xl text-sm 
+                    {% if message.tags == 'success' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                    {% elif message.tags == 'error' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300
+                    {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300
+                    {% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" class="space-y-10">
+            {% csrf_token %}
+
+            <!-- USER AND PROFILE DETAILS -->
+            <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                <h2 class="text-2xl font-semibold text-blue-500 mb-4 border-b pb-2">1. New Client Admin Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Hidden fields (like the role='admin' field) -->
+                    {% for field in user_form.hidden_fields %}
+                        {{ field }}
+                    {% endfor %}
+                    
+                    <!-- Name Fields -->
+                    <div>
+                        <label for="{{ user_form.Name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.Name.label }}</label>
+                        {{ user_form.Name }}
+                        {% if user_form.Name.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.Name.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ user_form.Surname.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.Surname.label }}</label>
+                        {{ user_form.Surname }}
+                        {% if user_form.Surname.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.Surname.errors|striptags }}</p>{% endif %}
+                    </div>
+                    
+                    <!-- Email Field (Primary Login ID) -->
+                    <div class="md:col-span-2">
+                        <label for="{{ user_form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.email.label }}</label>
+                        {{ user_form.email }}
+                        {% if user_form.email.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.email.errors|striptags }}</p>{% endif %}
+                    </div>
+
+                    <!-- Password Fields -->
+                    <div>
+                        <label for="{{ user_form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.password.label }}</label>
+                        {{ user_form.password }}
+                        {% if user_form.password.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.password.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ user_form.confirm_password.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.confirm_password.label }}</label>
+                        {{ user_form.confirm_password }}
+                        {% if user_form.confirm_password.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.confirm_password.errors|striptags }}</p>{% endif %}
+                    </div>
+                    
+                    <div class="col-span-2">
+                        {% if user_form.non_field_errors %}
+                            <div class="p-3 bg-red-100 text-red-700 rounded-lg dark:bg-red-900/30 dark:text-red-300">
+                                {{ user_form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">This user will automatically be created with the **'admin'** role, making them a client administrator.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ORGANIZATION ASSIGNMENT -->
+            <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                <h2 class="text-2xl font-semibold text-yellow-500 mb-4 border-b pb-2">2. Organization Assignment</h2>
+                
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Choose an existing client organization to link this admin to, OR create a new organization below.
+                </p>
+
+                <!-- Existing Organization Selection -->
+                <div class="mb-6 border-b pb-4 border-dashed border-gray-300 dark:border-gray-700">
+                    <label for="{{ org_assign_form.existing_organization.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ org_assign_form.existing_organization.label }}</label>
+                    {{ org_assign_form.existing_organization }}
+                    {% if org_assign_form.existing_organization.help_text %}
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ org_assign_form.existing_organization.help_text }}</p>
+                    {% endif %}
+                    {% if org_assign_form.existing_organization.errors %}<p class="text-red-500 text-xs mt-1">{{ org_assign_form.existing_organization.errors|striptags }}</p>{% endif %}
+                </div>
+
+                <!-- New Organization Creation -->
+                <p class="text-center font-bold text-gray-500 dark:text-gray-400 mb-4">— OR CREATE NEW ORGANIZATION —</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ org_assign_form.new_org_name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ org_assign_form.new_org_name.label }}</label>
+                        {{ org_assign_form.new_org_name }}
+                        {% if org_assign_form.new_org_name.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ org_assign_form.new_org_name.help_text }}</p>
+                        {% endif %}
+                        {% if org_assign_form.new_org_name.errors %}<p class="text-red-500 text-xs mt-1">{{ org_assign_form.new_org_name.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ org_assign_form.new_billing_email.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ org_assign_form.new_billing_email.label }}</label>
+                        {{ org_assign_form.new_billing_email }}
+                        {% if org_assign_form.new_billing_email.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ org_assign_form.new_billing_email.help_text }}</p>
+                        {% endif %}
+                        {% if org_assign_form.new_billing_email.errors %}<p class="text-red-500 text-xs mt-1">{{ org_assign_form.new_billing_email.errors|striptags }}</p>{% endif %}
+                    </div>
+                </div>
+
+                <!-- Global Form Errors for Organization Assignment -->
+                {% if org_assign_form.non_field_errors %}
+                    <div class="mt-4 p-3 bg-red-100 text-red-700 rounded-lg dark:bg-red-900/30 dark:text-red-300">
+                        {{ org_assign_form.non_field_errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="submit"
+                class="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-xl shadow-lg hover:bg-green-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50">
+                Create Client & Assign Organization
+            </button>
+        </form>
+    </div>
+</div>
+
+
+{% endblock %}

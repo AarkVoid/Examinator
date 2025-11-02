@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Remove Question - {{ paper.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div class="flex items-center mb-6">
+            <div class="w-12 h-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mr-4">
+                <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Remove Question</h1>
+                <p class="text-gray-600 dark:text-gray-400">From: {{ paper.title }}</p>
+            </div>
+        </div>
+
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p class="text-red-800 dark:text-red-200 font-medium mb-2">Are you sure you want to remove this question?</p>
+            <div class="bg-white dark:bg-gray-700 rounded p-3 border-l-4 border-blue-500">
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                    <span class="font-medium">Type:</span> {{ paper_question.question.get_question_type_display }}
+                </p>
+                <p class="text-gray-900 dark:text-white">{{ paper_question.question.question_text|truncatewords:20 }}</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <a href="{% url 'quiz:paper_detail' paper.id %}" 
+               class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                Cancel
+            </a>
+            <form method="post" class="inline">
+                {% csrf_token %}
+                <button type="submit" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Remove Question
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

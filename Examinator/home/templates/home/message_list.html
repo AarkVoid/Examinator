@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h2 class="text-3xl font-bold text-primary">Messages</h2>
+        <a href="{% url 'send_message' %}" class="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Send Message
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Received Messages -->
+        <div class="bg-card border border-border rounded-lg">
+            <div class="bg-muted/50 px-6 py-4 border-b border-border">
+                <h3 class="text-xl font-semibold text-primary">
+                    <i class="fas fa-inbox mr-2"></i>Received Messages
+                </h3>
+            </div>
+            <div class="p-6">
+                {% if received_messages %}
+                    <div class="space-y-4">
+                        {% for message in received_messages %}
+                        <div class="border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-semibold text-foreground">{{ message.subject }}</h4>
+                                {% if not message.is_read %}
+                                    <span class="bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs">New</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-muted-foreground text-sm mb-2">From: {{ message.sender.username }}</p>
+                            <p class="text-muted-foreground text-sm mb-3">{{ message.content|truncatewords:15 }}</p>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-muted-foreground">{{ message.created_at|date:"M d, Y H:i" }}</span>
+                                <a href="{% url 'message_detail' message.id %}" class="text-primary hover:text-primary/80 text-sm">
+                                    <i class="fas fa-eye mr-1"></i>Read
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-inbox text-4xl text-muted-foreground mb-4"></i>
+                        <p class="text-muted-foreground">No received messages</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sent Messages -->
+        <div class="bg-card border border-border rounded-lg">
+            <div class="bg-muted/50 px-6 py-4 border-b border-border">
+                <h3 class="text-xl font-semibold text-primary">
+                    <i class="fas fa-paper-plane mr-2"></i>Sent Messages
+                </h3>
+            </div>
+            <div class="p-6">
+                {% if sent_messages %}
+                    <div class="space-y-4">
+                        {% for message in sent_messages %}
+                        <div class="border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                            <h4 class="font-semibold text-foreground mb-2">{{ message.subject }}</h4>
+                            <p class="text-muted-foreground text-sm mb-2">To: {{ message.recipient.username }}</p>
+                            <p class="text-muted-foreground text-sm mb-3">{{ message.content|truncatewords:15 }}</p>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-muted-foreground">{{ message.created_at|date:"M d, Y H:i" }}</span>
+                                <div class="flex items-center space-x-2">
+                                    {% if message.is_read %}
+                                        <span class="text-green-600 text-xs"><i class="fas fa-check-double mr-1"></i>Read</span>
+                                    {% else %}
+                                        <span class="text-muted-foreground text-xs"><i class="fas fa-check mr-1"></i>Sent</span>
+                                    {% endif %}
+                                    <a href="{% url 'message_detail' message.id %}" class="text-primary hover:text-primary/80 text-sm">
+                                        <i class="fas fa-eye mr-1"></i>View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-paper-plane text-4xl text-muted-foreground mb-4"></i>
+                        <p class="text-muted-foreground">No sent messages</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

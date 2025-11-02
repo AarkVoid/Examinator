@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ node.name }} ({{ node.node_type }})</h1>
+<p>Path: {{ node.get_path_display }}</p>
+<p><a href="{% url 'hierarchy:edit' node.pk %}">Edit</a> | <a href="{% url 'hierarchy:create' %}">Create new node</a></p>
+
+<h3>Children</h3>
+<ul>
+  {% for c in children %}
+    <li><a href="{% url 'hierarchy:detail' c.pk %}">{{ c.name }} ({{ c.node_type }})</a></li>
+  {% empty %}
+    <li>No children</li>
+  {% endfor %}
+</ul>
+{% endblock %}

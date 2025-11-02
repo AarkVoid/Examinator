@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ page_title }} | EduGame
+{% endblock %}
+
+{% block head %}
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Google Fonts for a clean, professional look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom styles for the dropdown list */
+        .search-dropdown-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 0.75rem; /* rounded-xl */
+            border: 1px solid #374151; /* border-gray-700 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900 text-gray-200 p-4 md:p-8 flex items-center justify-center">
+    <div class="w-full max-w-3xl bg-gray-800 rounded-2xl p-6 md:p-10 shadow-xl border border-gray-700">
+        <!-- Header with Title -->
+        <div class="text-center mb-8 pb-6 border-b border-gray-700">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-2">{{ page_title }}</h2>
+            <p class="text-gray-400">Fill in the details to create or edit an institution.</p>
+        </div>
+        
+        <!-- Django Messages -->
+        {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                    <div class="p-3 rounded-lg text-sm text-center font-medium
+                        {% if message.tags == 'success' %}bg-green-700 text-green-200{% else %}bg-red-700 text-red-200{% endif %}">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Main Form Section -->
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Group Name Field -->
+           <div class="relative">
+                <label for="group_search" class="block text-sm font-medium text-gray-300 mb-2">Group Name</label>
+                <!-- This input is for user search and display -->
+                <input type="text" id="group_search" value="{{ data.Institute_group }}" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200" placeholder="Search for an institution group" autocomplete="off" {% if not request.user.is_superuser %} readonly {% endif %}>
+                <!-- This is the hidden input that will hold the final ID to be submitted -->
+                <input type="hidden" name="group_name" id="id_group_name" value="">
+
+                {% if errors.group %}
+                    <div class="text-red-400 text-xs mt-1">{{ errors.group }}</div>
+                {% endif %}
+                
+                <div id="group-options-container" class="mt-1 absolute w-full z-10 hidden">
+                    <ul class="search-dropdown-list bg-gray-700 text-gray-200">
+                        {% for group in InstituteGroup %}
+                            <li data-id="{{ group.id }}" data-name="{{ group.name }}" class="p-3 cursor-pointer hover:bg-gray-600 transition-colors duration-200 rounded-xl">{{ group.name }}</li>
+                        {% endfor %}
+                    </ul>
+
+                </div>
+            </div>
+
+            <!-- Name Field -->
+            <div>
+                <label for="id_name" class="block text-sm font-medium text-gray-300 mb-2">Institution Name</label>
+                <input type="text" name="name" id="id_name" value="{{ data.name }}" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200" placeholder="Enter institution name">
+                {% if errors.name %}
+                    <div class="text-red-400 text-xs mt-1">{{ errors.name }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Code Field -->
+            <div>
+                <label for="id_code" class="block text-sm font-medium text-gray-300 mb-2">Code</label>
+                <input type="text" name="code" id="id_code" value="{{ data.code }}" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200" placeholder="Enter institution code">
+                {% if errors.code %}
+                    <div class="text-red-400 text-xs mt-1">{{ errors.code }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Address Field -->
+            <div>
+                <label for="id_address" class="block text-sm font-medium text-gray-300 mb-2">Address</label>
+                <textarea name="address" id="id_address" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200" rows="4" placeholder="Enter institution address">{{ data.address }}</textarea>
+                {% if errors.address %}
+                    <div class="text-red-400 text-xs mt-1">{{ errors.address }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Country, State, Board Dropdowns -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Country -->
+                <div>
+                    <label for="id_country" class="block text-sm font-medium text-gray-300 mb-2">Country</label>
+                    <select name="country" id="id_country" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200">
+                        <option value="">Select a Country</option>
+                        {% for country in countries %}
+                            <option value="{{ country.id }}" {% if country.id|stringformat:"s" == data.country_id|stringformat:"s" %}selected{% endif %}>
+                                {{ country.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.country %}
+                        <div class="text-red-400 text-xs mt-1">{{ errors.country }}</div>
+                    {% endif %}
+                </div>
+                
+                <!-- State -->
+                <div>
+                    <label for="id_state" class="block text-sm font-medium text-gray-300 mb-2">State</label>
+                    <select name="state" id="id_state" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus-ring-blue-500 transition-colors duration-200" {% if not data.country_id %}disabled{% endif %}>
+                        <option value="">Select a State</option>
+                        {% for state in states %}
+                            <option value="{{ state.id }}" {% if state.id|stringformat:"s" == data.state_id|stringformat:"s" %}selected{% endif %}>
+                                {{ state.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.state %}
+                        <div class="text-red-400 text-xs mt-1">{{ errors.state }}</div>
+                    {% endif %}
+                </div>
+                
+                <!-- Board -->
+                <div>
+                    <label for="id_board" class="block text-sm font-medium text-gray-300 mb-2">Board</label>
+                    <select name="board" id="id_board" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200" {% if not data.state_id %}disabled{% endif %}>
+                        <option value="">Select a Board</option>
+                        {% for board in boards %}
+                            <option value="{{ board.id }}" {% if board.id|stringformat:"s" == data.board_id|stringformat:"s" %}selected{% endif %}>
+                                {{ board.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.board %}
+                        <div class="text-red-400 text-xs mt-1">{{ errors.board }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
+                <a href="{% url 'institution_list' %}" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 border border-gray-600 rounded-xl text-gray-300 hover:bg-gray-700 transition duration-200">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to List
+                </a>
+                <button type="submit" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition duration-200">
+                    <i class="fas fa-save"></i>
+                    Save Institution
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const countrySelect = document.getElementById('id_country');
+        const stateSelect = document.getElementById('id_state');
+        const boardSelect = document.getElementById('id_board');
+
+        const groupSearchInput = document.getElementById('group_search');
+        const groupOptionsContainer = document.getElementById('group-options-container');
+        const groupOptionsList = groupOptionsContainer.querySelector('ul');
+        const hiddenGroupIdInput = document.getElementById('id_group_name');
+
+        // Hide the dropdown list initially
+        groupOptionsContainer.classList.add('hidden');
+
+        // Filter the list as the user types
+        groupSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const listItems = groupOptionsList.querySelectorAll('li');
+
+            let matchFound = false;
+            listItems.forEach(item => {
+                const groupName = item.dataset.name.toLowerCase();
+                if (groupName.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    matchFound = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show the container if there's a search term and a match
+            if (searchTerm.length > 0 && matchFound) {
+                groupOptionsContainer.classList.remove('hidden');
+            } else {
+                groupOptionsContainer.classList.add('hidden');
+            }
+
+            // Clear the hidden ID if the user changes the text
+            hiddenGroupIdInput.value = searchTerm;
+        });
+
+        // Handle selection from the list
+        groupOptionsList.addEventListener('click', function(event) {
+            const listItem = event.target.closest('li');
+            if (listItem) {
+                const groupId = listItem.dataset.id;
+                const groupName = listItem.dataset.name;
+
+                // Set the input value and the hidden ID
+                groupSearchInput.value = groupName;
+                hiddenGroupIdInput.value = groupName;
+
+                // Hide the dropdown
+                groupOptionsContainer.classList.add('hidden');
+            }
+        });
+
+        // Hide the dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!groupOptionsContainer.contains(event.target) && event.target !== groupSearchInput) {
+                groupOptionsContainer.classList.add('hidden');
+            }
+        });
+
+        // Function to clear and add a default option to a select element
+        function resetSelect(selectElement, defaultText) {
+            selectElement.innerHTML = ''; // Clear existing options
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = defaultText;
+            selectElement.appendChild(defaultOption);
+            selectElement.disabled = true; // Disable until a parent is selected
+        }
+
+        // Initial state: disable state and board selects if no initial values
+        if (!countrySelect.value) {
+            resetSelect(stateSelect, 'Select a State');
+        } else {
+            stateSelect.disabled = false; // Enable if country is pre-selected
+        }
+        if (!stateSelect.value) {
+            resetSelect(boardSelect, 'Select a Board');
+        } else {
+            boardSelect.disabled = false; // Enable if state is pre-selected
+        }
+
+        // Event listener for Country select change
+        countrySelect.addEventListener('change', function() {
+            const countryId = this.value;
+            stateSelect.innerHTML = ''; // Clear states
+            boardSelect.innerHTML = ''; // Clear boards
+
+            if (countryId) {
+                // Fetch states for the selected country
+                fetch(`/location/get-states/?country_id=${countryId}`) // Use your actual API endpoint
+                    .then(response => response.json())
+                    .then(data => {
+                        // Access the 'states' array from the data object
+                        const statesData = data.states; 
+                        if (Array.isArray(statesData)) {
+                            resetSelect(stateSelect, 'Select a State'); // Add default option
+                            statesData.forEach(state => {
+                                const option = document.createElement('option');
+                                option.value = state.id;
+                                option.textContent = state.name;
+                                stateSelect.appendChild(option);
+                            });
+                            stateSelect.disabled = false; // Enable state select
+                            
+                            // If there was a pre-selected state (on update), set it
+                            const initialStateId = "{{ data.state_id }}";
+                            if (initialStateId && countryId === "{{ data.country_id }}") {
+                                stateSelect.value = initialStateId;
+                                // Trigger change event to load boards for this initial state
+                                stateSelect.dispatchEvent(new Event('change'));
+                            }
+                        } else {
+                            console.error('API for states did not return an array in "states" key:', data);
+                            resetSelect(stateSelect, 'Error loading states'); // Indicate error to user
+                        }
+                    })
+                    .catch(error => console.error('Error fetching states:', error));
+            } else {
+                // If no country selected, reset and disable state and board selects
+                resetSelect(stateSelect, 'Select a State');
+                resetSelect(boardSelect, 'Select a Board');
+            }
+        });
+
+        // Event listener for State select change
+        stateSelect.addEventListener('change', function() {
+            const stateId = this.value;
+            boardSelect.innerHTML = ''; // Clear boards
+
+            if (stateId) {
+                // Fetch boards for the selected state
+                fetch(`/education/get-boards/?state_id=${stateId}`) // Use your actual API endpoint
+                    .then(response => response.json())
+                    .then(data => {
+                        // Access the 'boards' array from the data object
+                        const boardsData = data.boards;
+                        if (Array.isArray(boardsData)) {
+                            resetSelect(boardSelect, 'Select a Board'); // Add default option
+                            boardsData.forEach(board => {
+                                const option = document.createElement('option');
+                                option.value = board.id;
+                                option.textContent = board.name;
+                                boardSelect.appendChild(option);
+                            });
+                            boardSelect.disabled = false; // Enable board select
+                            
+                            // If there was a pre-selected board (on update), set it
+                            const initialBoardId = "{{ data.board_id }}";
+                            if (initialBoardId && stateId === "{{ data.state_id }}") {
+                                boardSelect.value = initialBoardId;
+                            }
+                        } else {
+                            console.error('API for boards did not return an array in "boards" key:', data);
+                            resetSelect(boardSelect, 'Error loading boards'); // Indicate error to user
+                        }
+                    })
+                    .catch(error => console.error('Error fetching boards:', error));
+            } else {
+                // If no state selected, reset and disable board select
+                resetSelect(boardSelect, 'Select a Board');
+            }
+        });
+
+        // Trigger country change event on page load if a country is already selected
+        // This handles pre-populating states and boards when editing an existing institution
+        if (countrySelect.value) {
+            countrySelect.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

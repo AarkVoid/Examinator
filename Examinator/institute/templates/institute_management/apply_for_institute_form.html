@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}{{ page_title }} | EduGame{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables for the Dark Theme --- */
+    :root {
+        --primary-accent: #4A72EC; /* Professional Blue */
+        --secondary-accent: #6C8DFF; /* Lighter Blue */
+        --background-dark: #1F2937; /* Very dark gray for body background */
+        --card-background: #2D3748; /* Slightly lighter dark gray for cards */
+        --light-text: #E5E7EB; /* Very light gray for main text */
+        --medium-text: #9CA3AF; /* Muted gray for meta info */
+        --border-dark: #4B5563; /* Dark border color */
+        --success-color: #10B981; /* Green for success */
+        --error-color: #EF4444; /* Red for errors */
+        --warning-color: #FBBF24; /* Amber for warning */
+        --info-color: #0EA5E9; /* Blue for info */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark);
+        font-family: 'Inter', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card {
+        max-width: 800px;
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp var(--transition-speed) ease-out forwards;
+        transition: all var(--transition-speed) ease-in-out;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .card-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 2.5rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        padding-bottom: 1.8rem;
+        border-bottom: 2px solid var(--border-dark);
+    }
+    
+    /* --- Form Styling --- */
+    .form-control-custom {
+        background-color: #1F2937;
+        color: var(--light-text);
+        border: 1px solid var(--border-dark);
+        border-radius: 8px;
+        padding: 0.8rem 1rem;
+        transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+    .form-control-custom:focus {
+        border-color: var(--primary-accent);
+        box-shadow: 0 0 0 3px rgba(74, 114, 236, 0.2);
+        outline: none;
+        background-color: #1F2937;
+        color: var(--light-text);
+    }
+    .form-control-custom::placeholder {
+        color: var(--medium-text);
+    }
+    .form-label {
+        font-weight: 500;
+        color: var(--light-text);
+    }
+
+    /* --- Buttons --- */
+    .btn {
+        font-weight: 600;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        transition: all var(--transition-speed) ease-in-out;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+    }
+    .btn-primary-custom {
+        background-color: var(--primary-accent);
+        color: var(--light-text);
+        border: none;
+        box-shadow: 0 4px 15px rgba(74, 114, 236, 0.2);
+    }
+    .btn-primary-custom:hover {
+        transform: translateY(-2px);
+        background-color: var(--secondary-accent);
+        box-shadow: 0 8px 20px rgba(74, 114, 236, 0.3);
+    }
+    .btn-outline-secondary-custom {
+        border: 1px solid var(--border-dark);
+        color: var(--light-text);
+        background-color: transparent;
+    }
+    .btn-outline-secondary-custom:hover {
+        background-color: var(--border-dark);
+        color: var(--light-text);
+    }
+
+    /* --- Alerts and Messages --- */
+    .alert-custom {
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        border: none;
+        box-shadow: 0 4px 15px var(--shadow-medium);
+        font-size: 1.1rem;
+    }
+    .alert-info-custom {
+        background-color: rgba(14, 165, 233, 0.2);
+        color: #7DD3FC;
+        border-left: 5px solid var(--info-color);
+    }
+    .alert-warning-custom {
+        background-color: rgba(251, 191, 36, 0.2);
+        color: #FCD34D;
+        border-left: 5px solid var(--warning-color);
+    }
+    .alert-success-custom {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #34D399;
+        border-left: 5px solid var(--success-color);
+    }
+    .alert-danger-custom {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #FCA5A5;
+        border-left: 5px solid var(--error-color);
+    }
+    .alert-link-custom {
+        color: var(--secondary-accent);
+        text-decoration: underline;
+        font-weight: 500;
+    }
+    .alert-custom i {
+        font-size: 2rem;
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card { margin: 2rem; padding: 2.5rem; border-radius: 15px; }
+        .card-title { font-size: 2.2rem; }
+        .alert-custom { padding: 1rem; font-size: 1rem; gap: 1rem; }
+        .alert-custom i { font-size: 1.5rem; }
+        .btn { padding: 0.7rem 1.2rem; font-size: 0.95rem; }
+    }
+    @media (max-width: 480px) {
+        body { padding: 10px; }
+        .container-card { margin: 1rem; padding: 1.8rem; border-radius: 12px; }
+        .card-title { font-size: 1.8rem; }
+        .btn-lg { font-size: 1rem; padding: 0.6rem 1rem; }
+        .d-grid button, .d-grid a { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-card">
+    <h2 class="card-title text-center mb-4">{{ page_title }}</h2>
+    <hr class="mb-4" style="border-color: var(--border-dark);">
+
+    {% if current_institute %}
+        <div class="alert alert-info-custom" role="alert">
+            <i class="fas fa-university"></i>
+            <div>
+                You are currently associated with <strong>{{ current_institute.name }}</strong>. Applying to a new institution will update your association if approved.
+            </div>
+        </div>
+    {% endif %}
+
+    {% if pending_application %}
+        <div class="alert alert-warning-custom" role="alert">
+            <i class="fas fa-clock"></i>
+            <div>
+                You have a pending application to <strong>{{ pending_application.institution.name }}</strong>. Please wait for it to be reviewed.
+                <a href="{% url 'student_applications_status' %}" class="alert-link-custom">View your application status</a>.
+            </div>
+        </div>
+    {% endif %}
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}-custom alert-dismissible fade show" role="alert">
+                <i class="{% if message.tags == 'success' %}fas fa-check-circle{% elif message.tags == 'error' %}fas fa-exclamation-triangle{% else %}fas fa-info-circle{% endif %}"></i>
+                <div>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="mb-4">
+            {{ form.institution|as_crispy_field }}
+        </div>
+        <div class="mb-4">
+            {{ form.passkey_attempt|as_crispy_field }}
+        </div>
+        <div class="d-grid gap-2 mt-4">
+            <button type="submit" class="btn btn-primary-custom btn-lg">
+                <i class="fas fa-paper-plane"></i> Submit Application
+            </button>
+            <a href="{% url 'home' %}" class="btn btn-outline-secondary-custom">
+                <i class="fas fa-ban"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

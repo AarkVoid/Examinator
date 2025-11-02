@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load form_tags %} 
+{% load quiz_filters %}
+
+{% block title %}{{ question.question_text|truncatewords:8 }} - Edit Question{% endblock %}
+
+{% block breadcrumb %}Questions / Edit{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Edit Question
+        </h1>
+        <a href="{% url 'quiz:question_list' %}" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors shadow-sm">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back to Question Bank
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            {% if 'success' in message.tags %}
+                <div class="p-4 rounded-xl text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 shadow-sm border border-green-200 dark:border-green-800" role="alert">
+                    <i class="fa-solid fa-circle-check mr-2"></i> {{ message }}
+                </div>
+            {% elif 'error' in message.tags %}
+                <div class="p-4 rounded-xl text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 shadow-sm border border-red-200 dark:border-red-800" role="alert">
+                    <i class="fa-solid fa-circle-xmark mr-2"></i> {{ message }}
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6 space-y-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
+            <span class="text-blue-500 mr-2">1.</span> Core Question Details
+        </h2>
+        
+        <form method="post" id="core-question-form" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="core_details">
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {# Board Field #}
+                <div>
+                    {{ form.curriculum_board.label_tag }}
+                    {{ form.curriculum_board }}
+                    {% if form.curriculum_board.errors %}<p class="text-red-500 text-xs mt-1">{{ form.curriculum_board.errors }}</p>{% endif %}
+                </div>
+                
+                {# Subject Field #}
+                <div>
+                    {{ form.curriculum_subject.label_tag }}
+                    {{ form.curriculum_subject }}
+                    {% if form.curriculum_subject.errors %}<p class="text-red-500 text-xs mt-1">{{ form.curriculum_subject.errors }}</p>{% endif %}
+                </div>
+                
+                {# Chapter Field #}
+                <div>
+                    {{ form.curriculum_chapter.label_tag }}
+                    {{ form.curriculum_chapter }}
+                    {% if form.curriculum_chapter.errors %}<p class="text-red-500 text-xs mt-1">{{ form.curriculum_chapter.errors }}</p>{% endif %}
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {# Question Type (Display Only - Disabled by Form) #}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+                    {# The form's widget already applies the correct disabled styling #}
+                    {{ form.question_type }}
+                </div>
+                
+                {# Difficulty Field #}
+                <div>
+                    {{ form.difficulty.label_tag }}
+                    {{ form.difficulty }}
+                    {% if form.difficulty.errors %}<p class="text-red-500 text-xs mt-1">{{ form.difficulty.errors }}</p>{% endif %}
+                </div>
+                
+                {# Marks Field #}
+                <div>
+                    {{ form.marks.label_tag }}
+                    {{ form.marks }}
+                    {% if form.marks.errors %}<p class="text-red-500 text-xs mt-1">{{ form.marks.errors }}</p>{% endif %}
+                </div>
+            </div>
+            
+            {# Question Text Field #}
+            <div>
+                {{ form.question_text.label_tag }}
+                {{ form.question_text }}
+                {% if form.question_text.errors %}<p class="text-red-500 text-xs mt-1">{{ form.question_text.errors }}</p>{% endif %}
+            </div>
+            
+            <div class="pt-6 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 mt-6">
+                {# is_published Checkbox #}
+                <label class="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                    {{ form.is_published }}
+                    <span class="ml-2">{{ form.is_published.label }}</span>
+                </label>
+                
+                <button type="submit" class="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                    <i class="fa-solid fa-save mr-2"></i>Save Core Details
+                </button>
+            </div>
+            
+            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+        </form>
+    </div>
+
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6 space-y-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
+            <span class="text-orange-500 mr-2">2.</span> Answer Configuration ({{ question.get_question_type_display }})
+        </h2>
+
+        <form method="post" id="answer-form" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="answer_details">
+            
+            {% if is_formset %}
+                {# --- Render FormSet (MCQ, Fill-in-Blank, Match) --- #}
+                {{ answer_form_context.management_form }}
+                <div id="answer-container" class="space-y-4">
+                    {% for form in answer_form_context %}
+                        <div class="answer-item p-4 border rounded-xl bg-gray-50 dark:bg-gray-800 space-y-3 shadow-sm {% if form.errors %}border-red-500{% endif %}">
+                            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-2 flex justify-between items-center">
+                                Option/Answer #{{ forloop.counter }}
+                                {% if form.instance.pk %}
+                                    <label class="text-xs font-normal text-red-500 cursor-pointer flex items-center gap-1">
+                                        {{ form.DELETE }} Delete
+                                    </label>
+                                {% endif %}
+                            </h4>
+                            
+                            {% for field in form.visible_fields %}
+                                <div class="flex items-center gap-3">
+                                    <label for="{{ field.id_for_label }}" class="min-w-[100px] text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ field.label }}
+                                    </label>
+                                    <div class="flex-1 flex items-center">
+                                        {# Form widgets handle the styling now, so we render the field directly #}
+                                        {{ field }}
+                                    </div>
+                                    {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors }}</p>{% endif %}
+                                </div>
+                            {% endfor %}
+                            {{ form.id }}
+                            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    <i class="fa-solid fa-info-circle mr-1"></i> Add new options by filling the blank row. Leave rows blank to delete them upon saving.
+                </p>
+
+            {% else %}
+                {# --- Render Single Form (Short Answer, True/False) --- #}
+                <div class="space-y-4">
+                    {% for field in answer_form_context.visible_fields %}
+                        <div class="flex flex-col">
+                            {{ field.label_tag }}
+                            {# Form widgets handle the styling now, so we render the field directly #}
+                            {{ field }}
+                            {% if field.errors %}<p class="text-red-500 text-sm mt-1">{{ field.errors }}</p>{% endif %}
+                        </div>
+                    {% endfor %}
+                    {% for hidden in answer_form_context.hidden_fields %}{{ hidden }}{% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                    <i class="fa-solid fa-check mr-2"></i>Save Answers
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // We are using jQuery because your base.html includes it.
+    $(document).ready(function() {
+        const $board = $('#id_curriculum_board');
+        const $subject = $('#id_curriculum_subject');
+        const $chapter = $('#id_curriculum_chapter');
+        const csrftoken = $('input[name="csrfmiddlewaretoken"]').val();
+
+        // 1. Function to fetch and update dropdown options
+        function updateOptions(parentId, targetElement, nodeType) {
+            if (!parentId) {
+                targetElement.empty().append($('<option value="">---------</option>'));
+                return;
+            }
+
+            // You'll need an AJAX endpoint in Django to handle this.
+            // Assuming the endpoint is '/ajax/load-tree-nodes/' or similar.
+            $.ajax({
+                url: '/ajax/load-tree-nodes/', 
+                data: {
+                    'parent_id': parentId,
+                    'node_type': nodeType
+                },
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    targetElement.empty();
+                    targetElement.append($('<option value="">---------</option>'));
+                    $.each(data, function (key, value) {
+                        targetElement.append($('<option></option>').attr('value', key).text(value));
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    alert("Could not load options. Please refresh the page.");
+                }
+            });
+        }
+
+        // 2. Event Handlers for Cascading Logic
+
+        // Handle Board Change -> Update Subject
+        $board.change(function () {
+            const boardId = $(this).val();
+            // Clear subsequent fields
+            $subject.val('').trigger('change');
+            $chapter.val(''); 
+            
+            // Only update if a board is selected
+            if (boardId) {
+                updateOptions(boardId, $subject, 'subject');
+            } else {
+                $subject.empty().append($('<option value="">---------</option>'));
+            }
+        });
+
+        // Handle Subject Change -> Update Chapter
+        $subject.change(function () {
+            const subjectId = $(this).val();
+            $chapter.val(''); // Clear subsequent field
+            
+            // Only update if a subject is selected
+            if (subjectId) {
+                updateOptions(subjectId, $chapter, 'chapter');
+            } else {
+                $chapter.empty().append($('<option value="">---------</option>'));
+            }
+        });
+        
+        // 3. Trigger initial load if values are present (e.g., when viewing an existing question)
+        // Note: The Python form handles the initial load correctly, but this ensures the JS logic is ready.
+        // We skip the initial trigger to avoid redundant AJAX calls, relying on Python for initial state.
+        
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %} Create Question paper{% endblock %}
+
+
+{% block content %}
+
+<!-- Apply global dark/light background -->
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
+    <div class="max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-2xl dark:shadow-none rounded-xl p-8 lg:p-10 border border-gray-100 dark:border-gray-700 relative">
+        
+        <!-- Theme Toggle Button -->
+        <div class="absolute top-4 right-4">
+            <button id="theme-toggle" class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition duration-150 shadow-md" aria-label="Toggle dark mode">
+                <!-- Moon Icon (Dark Mode) -->
+                <svg id="moon-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <!-- Sun Icon (Light Mode) -->
+                <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.354 7.354l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </button>
+        </div>
+
+        <!-- Header -->
+        <h2 class="text-3xl font-extrabold mb-8 text-gray-900 dark:text-white border-b pb-4 border-blue-100 dark:border-blue-900 flex items-center">
+            <svg class="w-7 h-7 mr-3 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-5 4h4a2 2 0 002-2v-7a2 2 0 00-2-2h-4a2 2 0 00-2 2v7a2 2 0 002 2zM7 7h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z"></path></svg>
+            Generate Question Paper
+        </h2>
+
+        <form method="post" id="questionPaperForm">
+            {% csrf_token %}
+
+            <!-- Title & Pattern -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <!-- Title -->
+                <div class="md:col-span-2">
+                    <label for="title" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Paper Title *</label>
+                    <input type="text" name="title" id="title" required
+                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150"
+                           placeholder="Enter question paper title (e.g., Mid-Term Exam 2024)">
+                </div>
+                 <!-- Pattern -->
+                <div>
+                    <label for="pattern" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Paper Pattern</label>
+                    <select name="pattern" id="pattern"
+                            class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150 appearance-none bg-white">
+                        {% for value, label in pattern_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Root Node & Dynamic Hierarchy -->
+            <div class="mb-8 p-5 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-200 dark:border-blue-900">
+                <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-4">Curriculum Selection</h3>
+                
+                <!-- Root Node -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Select Board / Curriculum Root</label>
+                    <select id="root-node" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150 appearance-none bg-white">
+                        <option value="">Select Root Node</option>
+                        {% for node in root_nodes %}
+                            <option value="{{ node.id }}">{{ node.name }} ({{ node.node_type|title }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Dynamic Hierarchy -->
+                <div id="hierarchy-container" class="space-y-3 mb-6"></div>
+
+                <!-- Selected Subject Display -->
+                <div id="selected-subject-container" class="hidden p-4 bg-blue-200 dark:bg-blue-800 border border-blue-300 dark:border-blue-700 rounded-lg shadow-inner">
+                    <h4 class="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">Selected Subject:</h4>
+                    <div id="selected-subject" class="text-blue-800 dark:text-blue-100 text-xl font-extrabold"></div>
+                    <input type="hidden" id="curriculum_subject" name="curriculum_subject">
+                </div>
+            </div>
+
+            <!-- Chapters Selection -->
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 border-b pb-2">Select Chapters / Units for Paper</h3>
+                
+                <!-- Chapter Placeholder -->
+                <div id="chapterPlaceholder" class="text-gray-500 dark:text-gray-400 text-base p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-center">
+                    Please select a subject above to view available units and chapters.
+                </div>
+                
+                <!-- Chapter Tree -->
+                <div id="chapterTree" class="hidden p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-700 max-h-80 overflow-y-auto custom-scrollbar"> kabakjb </div>
+            </div>
+
+            <!-- Selected Chapters List -->
+            <div class="mb-8">
+                <h4 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Chapters & Units:</h4>
+                <div id="selectedItemsList" name="selectedItemsList" class="min-h-[5rem] bg-white dark:bg-gray-800 border border-dashed border-blue-300 dark:border-blue-700 rounded-xl p-4 shadow-sm transition duration-300 hover:border-blue-500 flex flex-wrap content-start gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                    No chapters selected
+                </div>
+                <div id="selected_chapters_hidden_inputs" > </div>
+            </div>
+
+            <!-- Total Marks + Duration -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <label for="total_marks" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Total Marks</label>
+                    <input type="number" id="total_marks" name="total_marks" value="100" min="0"
+                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150">
+                </div>
+                <div>
+                    <label for="duration_minutes" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Duration (minutes)</label>
+                    <input type="number" id="duration_minutes" name="duration_minutes" value="120" min="1"
+                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150">
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="mb-8">
+                <label for="instructions" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Instructions (Optional)</label>
+                <textarea id="instructions" name="instructions" rows="4"
+                          class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150"
+                          placeholder="Enter general instructions for the students..."></textarea>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold tracking-wide px-8 py-3 rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-800 transition duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-500/50">
+                    Create Question Paper
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  
+<script>
+const hierarchyContainer = document.getElementById("hierarchy-container");
+const selectedSubjectContainer = document.getElementById("selected-subject-container");
+const selectedSubjectDisplay = document.getElementById("selected-subject");
+const curriculumSubjectInput = document.getElementById("curriculum_subject");
+const chapterTree = document.getElementById("chapterTree");
+const chapterPlaceholder = document.getElementById("chapterPlaceholder");
+const selectedItemsList = document.getElementById("selectedItemsList");
+const selectedChaptersHiddenInputs = document.getElementById("selected_chapters_hidden_inputs");
+const themeToggle = document.getElementById('theme-toggle');
+const moonIcon = document.getElementById('moon-icon');
+const sunIcon = document.getElementById('sun-icon');
+const htmlEl = document.documentElement; // Get the <html> element
+
+let selectedChapters = new Set();
+let chapterNodeMap = {};
+
+// --- DARK MODE LOGIC ---
+
+// Function to set the theme classes and icon visibility
+function setTheme(mode) {
+    if (mode === 'dark') {
+        htmlEl.classList.add('dark');
+        moonIcon.classList.remove('hidden');
+        sunIcon.classList.add('hidden');
+        localStorage.setItem('theme', 'dark');
+    } else {
+        htmlEl.classList.remove('dark');
+        sunIcon.classList.remove('hidden');
+        moonIcon.classList.add('hidden');
+        localStorage.setItem('theme', 'light');
+    }
+}
+
+// Initialize theme based on local storage or system preference
+(function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        setTheme('dark');
+    } else {
+        setTheme('light');
+    }
+})();
+
+// Toggle event listener
+themeToggle.addEventListener('click', () => {
+    if (htmlEl.classList.contains('dark')) {
+        setTheme('light');
+    } else {
+        setTheme('dark');
+    }
+});
+
+// --- END DARK MODE LOGIC ---
+
+
+function getColor(type) {
+    const colors = {unit: 'purple', chapter: 'green', section: 'gray'};
+    return colors[type] || 'blue';
+}
+
+function updateSelectedItemsList() {
+    if (selectedChapters.size === 0) {
+        selectedItemsList.innerHTML = '<span class="text-gray-500 dark:text-gray-400 italic">No chapters selected</span>';
+        return;
+    }
+    let html = '';
+    selectedChapters.forEach(id => {
+        const data = chapterNodeMap[id];
+        // Using Tailwind color names for consistency
+        const colorClass = data.type === 'unit' ? 'purple' : data.type === 'chapter' ? 'green' : 'gray'; 
+        
+        // ADDED DARK MODE TAG STYLES for better contrast
+        html += `
+            <span class="inline-flex items-center bg-${colorClass}-100 dark:bg-${colorClass}-900 text-${colorClass}-800 dark:text-${colorClass}-300 rounded-full px-3 py-1 text-sm font-medium transition duration-150 shadow-sm">
+                ${data.name}
+                <button type="button" onclick="removeSelected('${id}')"
+                    class="ml-2 text-${colorClass}-600 dark:text-${colorClass}-400 hover:text-${colorClass}-900 dark:hover:text-${colorClass}-100 focus:outline-none focus:ring-2 focus:ring-${colorClass}-500 rounded-full h-4 w-4 flex items-center justify-center">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </span>`;
+    });
+    selectedItemsList.innerHTML = html;
+
+    selectedChaptersHiddenInputs.innerHTML = ''; 
+}
+
+function removeSelected(id) {
+    selectedChapters.delete(id);
+    delete chapterNodeMap[id];
+    const box = document.querySelector(`input.chapter-checkbox[value="${id}"]`);
+    if (box) box.checked = false;
+    updateSelectedItemsList();
+}
+
+function toggleChapterSelection(checkbox) {
+    const id = checkbox.value;
+    const name = checkbox.dataset.name;
+    const type = checkbox.dataset.type;
+    if (checkbox.checked) {
+        selectedChapters.add(id);
+        chapterNodeMap[id] = {name, type};
+    } else {
+        removeSelected(id);
+    }
+    updateSelectedItemsList();
+}
+
+function buildChapterTree(node) {
+    let html = `<div class="pl-4 mb-2">`;
+    const color = getColor(node.node_type);
+    const selectable = ['unit', 'chapter'].includes(node.node_type);
+    if (selectable) {
+        html += `
+        <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg p-1 transition duration-100">
+            <input type="checkbox" class="chapter-checkbox form-checkbox h-5 w-5 text-${color}-600 rounded"
+                   value="${node.id}" data-name="${node.name}" data-type="${node.node_type}"
+                   onchange="toggleChapterSelection(this)">
+            <span class="text-gray-700 dark:text-gray-200">${node.name}</span> <small class="text-${color}-500 dark:text-${color}-400 font-medium">(${node.node_type})</small>
+        </label>`;
+    } else {
+        html += `<p class="text-sm text-gray-800 dark:text-gray-100 font-semibold mt-2 mb-1">${node.name}</p>`;
+    }
+    if (node.children && node.children.length > 0) {
+        html += `<div class="ml-4 border-l border-gray-200 dark:border-gray-600 pl-3 mt-1">`;
+        node.children.forEach(child => {
+            html += buildChapterTree(child);
+        });
+        html += `</div>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+function loadChapterTree(subjectId) {
+    chapterPlaceholder.innerHTML = 'Loading chapters...';
+    chapterPlaceholder.classList.remove('hidden');
+    chapterTree.classList.add('hidden');
+    selectedChapters.clear();
+
+    fetch(`/quiz/nodes/${subjectId}/curriculam`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.tree) {
+                chapterTree.innerHTML = buildChapterTree(data.tree);
+                chapterTree.classList.remove('hidden');
+                chapterPlaceholder.classList.add('hidden');
+            } else {
+                chapterPlaceholder.innerHTML = 'No chapters found.';
+            }
+        })
+        .catch(() => chapterPlaceholder.innerHTML = 'Error loading chapters.');
+}
+
+function createSelect(parentId, level) {
+    fetch(`/quiz/nodes/${parentId}/children/`)
+        .then(res => res.json())
+        .then(data => {
+            const deeperSelects = hierarchyContainer.querySelectorAll(`select[data-level]`);
+            deeperSelects.forEach(sel => {
+                if (parseInt(sel.dataset.level) > level) sel.parentElement.remove();
+            });
+
+            // ✅ Fixed condition
+            if (data.children && data.children.length > 0) {
+                const nextLevel = level + 1;
+                const div = document.createElement('div');
+                const select = document.createElement('select');
+                // Added dark mode classes for consistency
+                select.className = "w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 mt-2 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150 appearance-none bg-white";
+                select.dataset.level = nextLevel;
+                select.innerHTML = `<option value="">Select ${data.children[0].node_type}</option>`;
+                data.children.forEach(child => {
+                    select.innerHTML += `<option value="${child.id}" data-type="${child.node_type}">${child.name}</option>`;
+                });
+
+                select.addEventListener('change', function() {
+                    const nodeType = this.options[this.selectedIndex].dataset.type;
+                    if (nodeType === 'subject') {
+                        const id = this.value;
+                        const name = this.options[this.selectedIndex].text;
+                        selectedSubjectContainer.classList.remove('hidden');
+                        selectedSubjectDisplay.textContent = name;
+                        curriculumSubjectInput.value = id;
+                        loadChapterTree(id);
+                        // Hide subsequent select boxes if a subject is chosen mid-hierarchy
+                        const deeperSelects = hierarchyContainer.querySelectorAll(`select[data-level]`);
+                        deeperSelects.forEach(sel => {
+                             if (parseInt(sel.dataset.level) > nextLevel) sel.parentElement.remove();
+                        });
+                    } else {
+                        selectedSubjectContainer.classList.add('hidden');
+                        chapterTree.classList.add('hidden');
+                        chapterPlaceholder.classList.remove('hidden');
+                        curriculumSubjectInput.value = '';
+                        selectedChapters.clear();
+                        chapterNodeMap = {};
+                        updateSelectedItemsList();
+                        createSelect(this.value, nextLevel);
+                    }
+                });
+
+                div.appendChild(select);
+                hierarchyContainer.appendChild(div);
+            }
+        })
+        .catch(() => console.error('Error loading child nodes.'));
+}
+
+document.getElementById('root-node').addEventListener('change', function() {
+    hierarchyContainer.innerHTML = '';
+    selectedSubjectContainer.classList.add('hidden');
+    chapterTree.classList.add('hidden');
+    chapterPlaceholder.classList.remove('hidden');
+    
+    selectedChapters.clear();
+    chapterNodeMap = {};
+    updateSelectedItemsList();
+    curriculumSubjectInput.value = '';
+
+    if (this.value) createSelect(this.value, 0);
+
+});
+
+questionPaperForm.addEventListener('submit', function(e) {
+    // 1. Clear any previous hidden inputs
+    selectedChaptersHiddenInputs.innerHTML = '';
+    
+    // 2. Iterate over the JavaScript Set of selected IDs
+    selectedChapters.forEach(id => {
+        // 3. Create a new hidden input for each ID
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        
+        // IMPORTANT: The name MUST match what Django expects (request.POST.getlist('selectedItemsList'))
+        input.name = 'selectedItemsList'; 
+        input.value = id;
+        
+        // 4. Append the input to the hidden container
+        selectedChaptersHiddenInputs.appendChild(input);
+    });
+
+    // Note: No need to prevent default (e.preventDefault()) unless you need custom 
+    // AJAX submission, but this ensures the hidden fields are added before the POST occurs.
+});
+
+</script>
+
+{% endblock %}

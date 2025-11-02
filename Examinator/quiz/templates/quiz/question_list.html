@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Questions - Examinator{% endblock %}
+
+{% block content %}
+
+<!-- === Dashboard Stats Section (Now rendered directly by Django) === -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  
+  <!-- Question Type Counts Container -->
+  <div class="p-6 rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-700">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 border-gray-200 dark:border-gray-700">
+      Question Type Counts
+    </h3>
+    <div id="type-counts-grid" class="grid grid-cols-2 gap-4">
+      {% for title, count in json_type_count.items %}
+            <div class="p-3 rounded-xl shadow-sm border-l-4 border-indigo-500 
+                        bg-gray-50 dark:bg-gray-700 hover:shadow-lg transition-shadow duration-300">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ title|title }}</p>
+                <p class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">{{ count }}</p>
+            </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Root Node Counts Container -->
+  <div class="p-6 rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-green-200 dark:border-green-700">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 border-gray-200 dark:border-gray-700">
+      Root Node Question Counts
+    </h3>
+    <div id="root-counts-grid" class="grid grid-cols-2 gap-4">
+      {% for title, count in json_root_count.items %}
+        {% if count > 0 %}
+            <div class="p-3 rounded-xl shadow-sm border-l-4 border-green-500 
+                        bg-gray-50 dark:bg-gray-700 hover:shadow-lg transition-shadow duration-300">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ title|title }}</p>
+                <p class="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-1">{{ count }}</p>
+            </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+<!-- === END Dashboard Stats Section === -->
+
+
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Questions</h2>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Manage your question bank</p>
+    </div>
+    <!-- Action Buttons Grouped -->
+    <div class="flex gap-4">
+        <a href="{% url 'quiz:bulk_upload_questions' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm md:text-base shadow-md">
+            <i class="fas fa-file-upload"></i>Upload CSV
+        </a>
+        <a href="{% url 'quiz:question_create' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm md:text-base shadow-md">
+            <i class="fas fa-plus"></i>Create Question
+        </a>
+    </div>
+</div>
+
+
+<form method="get" id="filter-form" 
+      class="space-y-4 mb-6 p-4 rounded-xl shadow-lg 
+             bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+
+  <div class="flex flex-wrap items-center gap-4">
+
+    <select name="filter" 
+            class="px-4 py-2 border rounded-lg text-sm 
+                   bg-gray-50 dark:bg-gray-700 
+                   border-gray-300 dark:border-gray-600 
+                   text-gray-900 dark:text-gray-100 
+                   focus:ring-blue-500 focus:border-blue-500 transition-colors">
+      <option value="all" {% if filter_type == 'all' %}selected{% endif %}>All Types</option>
+      {% for value, label in question_types %}
+        <option value="{{ value }}" {% if filter_type == value %}selected{% endif %}>
+          {{ label }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <select id="root-node" name="node" 
+            class="px-4 py-2 border rounded-lg text-sm 
+                   bg-gray-50 dark:bg-gray-700 
+                   border-gray-300 dark:border-gray-600 
+                   text-gray-900 dark:text-gray-100 
+                   focus:ring-blue-500 focus:border-blue-500 transition-colors">
+      <option value="">Select Board/Exam</option>
+      {% for node in root_nodes %}
+        <option value="{{ node.id }}" {% if selected_node_id|slugify == node.id|slugify %}selected{% endif %}>
+          {{ node.name }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <div id="child-filters" class="flex flex-wrap gap-4">
+        </div>
+
+    <input type="text" name="q" placeholder="Search questions..."
+           value="{{ search_query }}"
+           class="flex-1 min-w-[200px] px-4 py-2 border rounded-lg text-sm 
+                  bg-gray-50 dark:bg-gray-700 
+                  border-gray-300 dark:border-gray-600 
+                  text-gray-900 dark:text-gray-100 
+                  focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                  
+    <button type="submit" 
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+      Filter
+    </button>
+  </div>
+</form>
+
+<ul class="divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg bg-white dark:bg-gray-800">
+  {% for q in questions %}
+    <li class="py-4 px-6 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        <!-- Question Details -->
+        <div>
+            <div class="flex items-center flex-wrap">
+                <span class="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 max-w-lg">{{ q.question_text }}</span>
+                <span class="ml-3 text-sm font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    {{ q.get_question_type_display }}
+                </span>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {% if q.curriculum_board %}
+                    <i class="fas fa-bookmark text-gray-400 mr-1"></i>{{ q.curriculum_board.name }} 
+                {% endif %}
+                {% if q.curriculum_subject %}
+                    <i class="fas fa-chevron-right mx-1 text-gray-400 text-xs"></i>{{ q.curriculum_subject.name }} 
+                {% endif %}
+                {% if q.curriculum_chapter %}
+                    <i class="fas fa-chevron-right mx-1 text-gray-400 text-xs"></i>{{ q.curriculum_chapter.name }}
+                {% endif %}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">
+                Created on : {{ q.created|date:"M d, Y" }} | Last modified : {{ q.updated|date:"M d, Y" }}
+                | Is Published: {{ q.is_published|yesno:"Yes,No" }}
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex items-center gap-3 ml-4">
+            <!-- EDIT Button (Added back for functionality) -->
+            <a href="{% url 'quiz:question_edit' q.id %}" 
+               class="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors flex items-center gap-1">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            
+            <!-- DELETE Button -->
+            <form method="post" action="{% url 'quiz:question_delete' q.id %}" onsubmit="return confirm('Are you sure you want to delete this question?');" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                  class="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors shadow-sm">
+                  <i class="fas fa-trash-alt"></i> Delete
+                </button>
+            </form>
+        </div>
+    </li>
+  {% empty %}
+    <li class="py-4 px-6 text-gray-500 dark:text-gray-400">No questions found matching the current filters.</li>
+  {% endfor %}
+</ul>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const rootSelect = document.getElementById("root-node");
+  const childContainer = document.getElementById("child-filters");
+  const form = document.getElementById("filter-form");
+  
+  const CHILD_URL = "/quiz/nodes/"; 
+  
+  // Get the initial selected node ID from Django for cascade rebuild
+  const initialSelectedNodeId = '{{ selected_node_id|default:""|safe }}';
+
+  // --- Utility Functions ---
+
+  /**
+   * Removes all subsequent select elements after the one that triggered the change.
+   * @param {HTMLElement} startElement - The element (select) to start removing from.
+   */
+  function clearFromElement(startElement) {
+      let current = startElement;
+      while (current) {
+          const next = current.nextElementSibling;
+          if (current.classList.contains('dynamic-node-select')) {
+              current.remove();
+          }
+          current = next;
+      }
+  }
+
+  // Function to create and append cascading selects dynamically
+  function createSelect(parentId, nodeToSelect) {
+    // 1. Fetch data
+    fetch(`${CHILD_URL}${parentId}/children/`)
+      .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok.");
+        return res.json();
+      })
+      .then(data => {
+        
+        // Remove all siblings of the existing children that come after the parentId.
+        // This is done implicitly by checking for `existingSelect` below.
+        
+        if (data.children && data.children.length > 0) {
+          // 2. Create the new select element
+          let select = document.createElement("select");
+          // FIX 1: ADDED 'dynamic-node-select' class
+          select.className = "px-4 py-2 border rounded-lg text-sm bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 transition-colors dynamic-node-select"; 
+          select.setAttribute("data-parent-id", parentId);
+          
+          let firstType = data.children[0].node_type;
+          let label = firstType.charAt(0).toUpperCase() + firstType.slice(1);
+          
+          select.innerHTML = `<option value="">Select ${label}</option>`;
+          
+          let nextNodeToSelect = null;
+          
+          data.children.forEach(child => {
+            // FIX 3 (Implicit): We rely on the view to provide the selected value via `child_and_types` if rebuilding is needed.
+            // Since this is a simple filter page, we only check if the current node needs to be pre-selected.
+            const isSelected = nodeToSelect && (String(child.id) === String(nodeToSelect));
+            select.innerHTML += `<option value="${child.id}" ${isSelected ? 'selected' : ''}>${child.name}</option>`;
+
+            // Find the *next* node that needs to be selected in the cascade rebuild
+            if (isSelected) {
+                // Since the view only passes the deepest node ID, we can't reliably predict the next selection
+                // unless we change the view to pass the full hierarchy (which was discussed previously).
+                // For simplicity here, we assume if THIS node is the selected_node_id, the cascade stops.
+                // To support a deeper cascade rebuild, the `child_and_types` dict from the previous question is required.
+                // For now, we only support rebuilding the *immediate child* if its ID matches the selected_node_id.
+            }
+          });
+          
+          // 3. On change, fetch its children and append new dropdown
+          select.addEventListener("change", function() {
+            if (this.value) {
+              // Clear subsequent siblings and create next level
+              clearFromElement(this.nextElementSibling);
+              createSelect(this.value, null); // Start fresh cascade
+            } else {
+              // If selection is reset to "Select...", remove this select and all after it
+              const nextSibling = this.nextElementSibling;
+              this.remove(); 
+              clearFromElement(nextSibling);
+            }
+          });
+
+          // 4. Append the new select
+          childContainer.appendChild(select);
+          
+          // 5. Trigger the next level if a selection was made on load.
+          // This requires the view to pass the full hierarchy path (child_and_types).
+          // Since the view only passes 'selected_node_id' (the deepest node):
+          if (select.value && String(select.value) !== initialSelectedNodeId) {
+             // This is incomplete without the full hierarchy, but proceeds to load the next level if possible.
+             createSelect(select.value, null);
+          }
+        }
+      })
+      .catch(err => console.error("Error loading children:", err));
+  }
+
+  // --- EVENT HANDLERS ---
+
+  // 1. When root node changes, start cascade
+  rootSelect.addEventListener("change", function() {
+    childContainer.innerHTML = ""; // reset child filters
+    if (this.value) {
+      createSelect(this.value, null);
+    }
+  });
+  
+  // 2. Initialize Cascade on Page Load
+  if (rootSelect.value) {
+    // If the root node is selected, start the cascade with the selected_node_id
+    // passed from the Django view, allowing the first child to be pre-selected.
+    createSelect(rootSelect.value, initialSelectedNodeId);
+  }
+
+
+  // --- FORM SUBMISSION FIX ---
+  form.addEventListener("submit", function(e) {
+    // Ensure the root node's value is the fallback
+    let deepestNodeId = rootSelect.value; 
+    alert("Form submitted with root node ID: " + deepestNodeId);
+    
+    // Check all *correctly classed* dynamic selects for a value
+    /*const dynamicSelects = Array.from(childContainer.querySelectorAll('select.dynamic-node-select'));
+    // console.log("Dynamic selects found on submit:", dynamicSelects); // Use console for debugging
+
+    dynamicSelects.forEach(select => {
+      if (select.value) {
+        // Since we iterate in order, the last one with a value is the deepest.
+        deepestNodeId = select.value;
+      }
+    });*/
+
+    // Create a hidden input to ensure the view gets the deepest selected node 
+    // consistently under the name 'node'.
+    
+    // Remove any existing 'node' inputs to prevent duplicates
+    const existingNodeInput = form.querySelector('input[name="node"]');
+    if (existingNodeInput) {
+        existingNodeInput.remove();
+    }
+    
+    let hiddenInput = document.createElement("input");
+    hiddenInput.type = "hidden";
+    hiddenInput.name = "input_node"; // Use a different name to avoid conflict with root select
+    hiddenInput.value = deepestNodeId;
+    
+    // Append the new hidden input with the final, deepest node ID
+    form.appendChild(hiddenInput);
+  });
+});
+</script>
+{% endblock %}

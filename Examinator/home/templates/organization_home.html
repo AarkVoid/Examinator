@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Hub{% endblock %}
+
+{% block content %}
+<div classT="space-y-6">
+  <!-- Header -->
+  <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
+    <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+      {% if is_superuser %}
+        Superuser Admin Hub
+      {% else %}
+        Organization Admin Hub
+      {% endif %}
+    </h1>
+    <p class="text-gray-500 dark:text-gray-400 mt-2">
+      Quickly access all management tools for users, content, and system configurations.
+    </p>
+  </div>
+
+  <!-- Organization Overview Card (If not Superuser) -->
+  {% if organization %}
+  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-l-4 border-blue-600 my-6">
+    <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+      Managing: {{ organization.name }}
+    </h2>
+    <p class="text-gray-600 dark:text-gray-400">
+      Organization ID: <span class="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ organization.pk }}</span>
+    </p>
+  </div>
+  {% endif %}
+
+  <!-- === NEW TAB NAVIGATION === -->
+  <div class="mb-6">
+    <div class="border-b border-gray-200 dark:border-gray-700">
+      <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+        <!-- Tab 1: Admin Hub -->
+        <a href="?tab=hub" class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+          {% if current_tab == 'hub' %}
+            border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400
+          {% else %}
+            border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600
+          {% endif %}">
+          <i class="fa-solid fa-compass mr-2"></i>
+          <span>Admin Hub</span>
+        </a>
+
+        <!-- Tab 2: License & Usage -->
+        <a href="?tab=license" class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+          {% if current_tab == 'license' %}
+            border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400
+          {% else %}
+            border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600
+          {% endif %}">
+          <i class="fa-solid fa-key mr-2"></i>
+          <span>License & Usage</span>
+        </a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- === TAB CONTENT === -->
+  <div>
+    
+    <!-- Tab Panel 1: Admin Hub (The original navigation grid) -->
+    <div id="tab-hub-content" class="{% if current_tab != 'hub' %}hidden{% endif %}">
+      <!-- Main Navigation Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- 1. USER MANAGEMENT SECTION -->
+        <div class="lg:col-span-1 space-y-4">
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">User Management</h2>
+          <div class="space-y-3">
+            <a href="{% if organization %}{% url 'view_organization_users_list' org_pk=org_pk %}{% else %}{% url 'manage_users' %}{% endif %}" class="admin-link-card">
+              <i class="fa-solid fa-users text-3xl text-indigo-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Manage Users</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">View, edit, and delete user accounts.</p>
+              </div>
+            </a>
+            <a href="{% if organization %}{% url 'create_user_by_admin' org_pk=org_pk %}{% else %}{% url 'register' %}{% endif %}" class="admin-link-card">
+              <i class="fa-solid fa-user-plus text-3xl text-indigo-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Create New User</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Register new accounts within your organization.</p>
+              </div>
+            </a>
+            <a href="{% url 'manage_groups' %}" class="admin-link-card">
+              <i class="fa-solid fa-layer-group text-3xl text-indigo-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Manage Groups & Permissions</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Define user roles and access groups.</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        
+        <!-- 2. CONTENT MANAGEMENT SECTION -->
+        <div class="lg:col-span-1 space-y-4">
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Content Management</h2>
+          <div class="space-y-3">
+            <a href="{% url 'quiz:paper_list' %}" class="admin-link-card">
+              <i class="fa-solid fa-file-lines text-3xl text-green-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Quiz Papers</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">View and manage drafts and published papers.</p>
+              </div>
+            </a>
+            <a href="{% url 'quiz:question_list' %}" class="admin-link-card">
+              <i class="fa-solid fa-question text-3xl text-green-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Question Bank</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Manage all individual questions.</p>
+              </div>
+            </a>
+            <a href="{% url 'curritree:curriculum_list' %}" class="admin-link-card">
+              <i class="fa-solid fa-sitemap text-3xl text-green-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Curriculum Tree</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Manage subjects, chapters, and topics hierarchy.</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        
+        <!-- 3. COMMUNICATIONS & SUPPORT -->
+        <div class="lg:col-span-1 space-y-4">
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Communications</h2>
+          <div class="space-y-3">
+            <a href="{% url 'message_list' %}" class="admin-link-card">
+              <i class="fa-solid fa-envelope text-3xl text-yellow-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Internal Messages</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">View direct messages between users.</p>
+              </div>
+            </a>
+            <a href="{% url 'view_comments' %}" class="admin-link-card">
+              <i class="fa-solid fa-comment-dots text-3xl text-yellow-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">User Comments</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Manage user feedback and discussion comments.</p>
+              </div>
+            </a>
+            <a href="{% url 'view_contact_messages' %}" class="admin-link-card">
+              <i class="fa-solid fa-headset text-3xl text-yellow-500 mr-4"></i>
+              <div>
+                <p class="font-semibold">Contact Requests</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Review and reply to public contact form submissions.</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        
+        <!-- 4. SYSTEM & SAAS MANAGEMENT (Superuser Only) -->
+        {% if is_superuser %}
+        <div class="lg:col-span-3 space-y-4 mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h2 class="text-2xl font-bold text-red-600 dark:text-red-400">System Management (Superuser Only)</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <a href="{% url 'saas:organization_list' %}" class="admin-link-card bg-red-50 dark:bg-red-900/20 hover:ring-red-500">
+              <i class="fa-solid fa-building text-3xl text-red-600 mr-4"></i>
+              <div>
+                <p class="font-semibold">Manage Organizations</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Manage all client organizations.</p>
+              </div>
+            </a>
+            <a href="{% url 'saas:license_dashboard' %}" class="admin-link-card bg-red-50 dark:bg-red-900/20 hover:ring-red-500">
+              <i class="fa-solid fa-key text-3xl text-red-600 mr-4"></i>
+              <div>
+                <p class="font-semibold">License Dashboard</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">View and manage system licenses and usage.</p>
+              </div>
+            </a>
+            <a href="{% url 'saas:create_ClientOrgination' %}" class="admin-link-card bg-red-50 dark:bg-red-900/20 hover:ring-red-500">
+              <i class="fa-solid fa-handshake text-3xl text-red-600 mr-4"></i>
+              <div>
+                <p class="font-semibold">New Client Setup</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Create client organization and admin.</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Tab Panel 2: License & Usage -->
+    <div id="tab-license-content" class="{% if current_tab != 'license' %}hidden{% endif %} space-y-8">
+      
+      <!-- License Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Question Papers Remaining (Total) -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-between border-l-4 border-green-500">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Papers Remaining</p>
+            <p class="text-4xl font-bold text-green-600 dark:text-green-400">{{ remaining_papers|default:"0" }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+              {{ current_papers_count }} used of {{ total_max_papers }} total
+            </p>
+          </div>
+          <div class="w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-file-circle-plus text-2xl text-green-600 dark:text-green-400"></i>
+          </div>
+        </div>
+
+        <!-- Usage Limits (if set) -->
+        {% if usage_limit %}
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-between border-l-4 border-indigo-500">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Max Users</p>
+            <p class="text-4xl font-bold text-indigo-600 dark:text-indigo-400">{{ usage_limit.max_users }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+              {{ org_metrics.total_org_users }} current users
+            </p>
+          </div>
+          <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-users-line text-2xl text-indigo-600 dark:text-indigo-400"></i>
+          </div>
+        </div>
+
+        <!-- Remaining Draft Papers (UPDATED CARD) -->
+        <div classs="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-between border-l-4 border-yellow-500">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Remaining Draft Slots</p>
+            <p class="text-4xl font-bold text-yellow-600 dark:text-yellow-400">{{ remaining_draft_papers|default:"0" }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+              {{ current_draft_papers_count }} used of {{ usage_limit.max_question_papers_drafts }} total
+            </p>
+          </div>
+          <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/50 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-folder-open text-2xl text-yellow-600 dark:text-yellow-400"></i>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- License Grants Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">Active License Grants</h2>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">License ID</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Licensed Nodes</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max Papers</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Purchased On</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valid Until</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {% for grant in license_grants %}
+                <tr>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ grant.id }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                    <div class="flex flex-wrap gap-1">
+                      {% for node in grant.curriculum_node.all %}
+                        <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-0.5 rounded-full">{{ node.name }}</span>
+                      {% empty %}
+                        <span class="text-xs italic text-gray-400">All</span>
+                      {% endfor %}
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ grant.max_question_papers }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ grant.purchased_on|date:"M d, Y" }}</td>
+                  <td classThis="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                    {% if grant.valid_until %}
+                      {{ grant.valid_until|date:"M d, Y" }}
+                    {% else %}
+                      <span class="italic text-gray-400">No Expiry</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No license grants found for this organization.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<style>
+/* Custom styles for the Admin Link Cards */
+.admin-link-card {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow-lg */
+  transition: all 0.3s ease-in-out;
+  border: 1px solid rgb(229 231 235);
+}
+
+.admin-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  border-color: #2563EB; /* blue-600 */
+  z-index: 10;
+  position: relative;
+  background-color: #f7f9fe;
+}
+
+/* Dark Mode Adjustments */
+.dark .admin-link-card {
+  background-color: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-color: rgb(55 65 81); /* dark:border-gray-700 */
+}
+.dark .admin-link-card:hover {
+  background-color: rgb(17 24 39); /* darker background on hover */
+  border-color: #60A5FA; /* blue-400 */
+}
+</style>
+{% endblock %}
+

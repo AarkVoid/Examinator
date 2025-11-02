@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load quiz_filters %}
+
+{% block title %}{{ paper.title }} - Examinator{% endblock %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto space-y-6">
+<!-- Header -->
+<div class="flex items-center justify-between">
+<div>
+<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-50">{{ paper.title }}</h1>
+<p class="text-gray-500 dark:text-gray-400 mt-1">
+{{ paper.curriculum_subject.name }} • Created by {{ paper.created_by.username }}
+</p>
+</div>
+<div class="flex items-center space-x-3">
+<a href="{% url 'quiz:paper_list' %}" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+<i class="fa-solid fa-arrow-left mr-2"></i>Back to Papers
+</a>
+{% if paper.created_by == request.user or request.user.is_staff %}
+<a href="{% url 'quiz:edit_question_paper' paper.id %}" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
+<i class="fa-solid fa-edit mr-2"></i>Edit Paper Details
+</a>
+{% endif %}
+</div>
+</div>
+
+<!-- Paper Info Cards (Duration, Marks, Questions, Pattern) -->
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+<div class="flex items-center justify-between">
+<div>
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</p>
+<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ paper.duration_minutes }} min</p>
+</div>
+<i class="fa-solid fa-clock text-2xl text-blue-500"></i>
+</div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Official Marks</p>
+      <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ paper.total_marks }}</p>
+    </div>
+    <i class="fa-solid fa-star text-2xl text-green-500"></i>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Questions</p>
+      <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ paper_questions|length }}</p>
+    </div>
+    <i class="fa-solid fa-question-circle text-2xl text-purple-500"></i>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Pattern</p>
+      <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">{{ paper.get_pattern_display }}</p>
+    </div>
+    <i class="fa-solid fa-chart-line text-2xl text-orange-500"></i>
+  </div>
+</div>
+
+
+</div>
+
+<!-- NEW: MARKS SYNCHRONIZATION AND BOARD DETAILS -->
+<div class="bg-white dark:bg-gray-800 shadow-xl rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-3 border-gray-100 dark:border-gray-700">Marks & Curriculum Status</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm mb-6">
+        <div class="flex flex-col p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <span class="text-gray-500 dark:text-gray-400 font-medium">Actual Question Sum</span>
+            <span class="text-3xl font-extrabold {% if paper.total_marks != total_current_marks %}text-red-600 dark:text-red-400{% else %}text-green-600 dark:text-green-400{% endif %} mt-1">
+                {{ total_current_marks }}
+            </span>
+            <span class="text-xs text-gray-400 mt-1">Total of all questions currently in the paper.</span>
+        </div>
+        
+        <div class="flex flex-col p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <span class="text-gray-500 dark:text-gray-400 font-medium">Board / Curriculum</span>
+            <span class="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-1">{% for ancestor in  board_detail %}
+                Type : {{ ancestor.node_type }} , Name : {{ ancestor.name }} <br>
+              {% endfor %}
+            </span>
+        </div>
+        
+        <div class="flex flex-col p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <span class="text-gray-500 dark:text-gray-400 font-medium">Subject</span>
+            <span class="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-1">{{ paper.curriculum_subject.name }}</span>
+        </div>
+        <div class="flex flex-col p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <span class="text-gray-500 dark:text-gray-400 font-medium">Chapters </span>{{ paper.curriculum_chapters }}
+            {% for chaps in paper.curriculum_chapters.all %}
+              <span class="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-1">1 {{ chaps.name }}</span>
+            {% endfor %}
+      
+        </div>
+    </div>
+
+    <!-- Mark Synchronization Section -->
+    {% if paper.total_marks != total_current_marks %}
+        <div class="mt-4 p-4 bg-red-50 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <div class="flex items-center mb-3 sm:mb-0">
+                <i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-300 text-xl mr-3"></i>
+                <p class="text-red-800 dark:text-red-200 font-medium">
+                    Marks Mismatch: Official ({{ paper.total_marks }}) ≠ Actual Sum ({{ total_current_marks }}).
+                </p>
+            </div>
+            
+            <form method="POST" action="{% url 'quiz:paper_detail' paper.id %}" class="w-full sm:w-auto">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_total_marks">
+                <button type="submit" 
+                        class="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors font-bold text-sm">
+                    Set Official Marks to {{ total_current_marks }}
+                </button>
+            </form>
+        </div>
+    {% elif paper.total_marks == total_current_marks %}
+        <div class="mt-4 p-3 bg-green-50 dark:bg-green-900/50 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700 rounded-lg">
+            <i class="fa-solid fa-check-circle mr-2"></i> The Official Max Marks and Actual Question Sum are perfectly synchronized.
+        </div>
+    {% endif %}
+
+</div>
+
+<!-- OLD: Curriculum Details Section (Adjusted to remove Board/Subject if already shown above, but keeping Org/Class) -->
+<!-- If the above block is sufficient, this entire block can be removed. I'm keeping it concise below. -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Other Curriculum Filters</h3>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+
+{% if paper.organization and paper.organization.name %}
+<div class="flex flex-col">
+<span class="font-medium text-gray-500 dark:text-gray-400">Organization</span>
+<span class="text-gray-800 dark:text-gray-200 font-semibold">{{ paper.organization.name }}</span>
+</div>
+{% endif %}
+{% if Class_name %}
+<div class="flex flex-col">
+<span class="font-medium text-gray-500 dark:text-gray-400">Class/Grade Level</span>
+<span class="text-gray-800 dark:text-gray-200 font-semibold">{{ Class_name.name }}</span>
+</div>
+{% endif %}
+<!-- Board and Subject are now prominently displayed in the Mark Status section above -->
+{% if not paper.organization and not Class_name %}
+<p class="text-gray-500 dark:text-gray-400">No additional curriculum filters applied.</p>
+{% endif %}
+</div>
+</div>
+
+
+<!-- Paper Instructions -->
+
+{% if paper.instructions %}
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Instructions</h3>
+<p class="text-gray-700 dark:text-gray-300">{{ paper.instructions }}</p>
+</div>
+{% endif %}
+
+<!-- Questions List -->
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+<div class="p-6 border-b border-gray-200 dark:border-gray-700">
+<div class="flex items-center justify-between">
+<h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Questions ({{ paper_questions|length }})</h3>
+{% if paper.created_by == request.user or request.user.is_staff %}
+<div class="flex space-x-3">
+<a href="{% url 'quiz:paper_add_questions' paper.id %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+<i class="fa-solid fa-plus mr-2"></i>Select Questions
+</a>
+<a href="{% url 'quiz:paper_add_random_questions' paper.id %}"
+class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+<i class="fa-solid fa-dice mr-2"></i>Add Random Questions
+</a>
+</div>
+{% endif %}
+</div>
+</div>
+
+<div class="p-6">
+  {% if paper_questions %}
+    <div class="space-y-6">
+      {% for pq in paper_questions %}
+      <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-5 border border-gray-200 dark:border-gray-600">
+        <div class="flex items-start justify-between">
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium shadow-md">
+                Q{{ forloop.counter }} (Order {{ pq.order }})
+              </span>
+              <!-- UPDATED: Use question's actual marks for display -->
+              <span class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm font-semibold">
+                {{ pq.question.marks }} Marks
+              </span>
+              <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm">
+                {{ pq.question.get_question_type_display }}
+              </span>
+
+              <!-- NEW: Chapter/Topic Tags -->
+              {% if pq.question.curriculum_chapter %}
+              <span class="text-xs text-gray-700 dark:text-gray-300 px-2 py-1 rounded border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 shadow-sm">
+                <i class="fa-solid fa-layer-group mr-1 text-yellow-500"></i>
+                Chapter: {{ pq.question.curriculum_chapter.name }}
+              </span>
+              {% endif %}
+            </div>
+
+            <!-- Question Text -->
+            <h4 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3 whitespace-pre-wrap">{{ pq.question.question_text }}</h4>
+            
+            <!-- Answer Display (Unchanged) -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Answer Details:</p>
+              <!-- All the answer type display logic remains here -->
+              {% if pq.question.question_type == 'mcq' %}
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Options:</p>
+                <div class="space-y-2">
+                  {% for option in pq.question.mcq_options.all %}
+                  <div class="flex items-center space-x-3">
+                    <span class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium {% if option.is_correct %}bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:border-green-400 dark:text-green-300{% else %}border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400{% endif %}">
+                      {{ forloop.counter|to_letter }}
+                    </span>
+                    <span class="{% if option.is_correct %}text-green-700 dark:text-green-300 font-medium{% else %}text-gray-700 dark:text-gray-300{% endif %}">{{ option.option_text }}</span>
+                    {% if option.is_correct %}
+                      <i class="fa-solid fa-check text-green-500 text-sm"></i>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+              {% elif pq.question.question_type == 'fill_blank' %}
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Correct Answers:</p>
+                <div class="flex flex-wrap gap-2">
+                  {% for answer in pq.question.fill_blank_answers.all %}
+                    <span class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium">
+                      {{ answer.correct_answer }}
+                      {% if answer.is_case_sensitive %}<span class="text-xs ml-1">(case sensitive)</span>{% endif %}
+                    </span>
+                  {% endfor %}
+                </div>
+              {% elif pq.question.question_type == 'true_false' %}
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Correct Answer:</p>
+                <div class="flex items-center gap-3">
+                  <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-2 rounded-lg font-medium">
+                    {% if pq.question.true_false_answer.correct_answer %}True{% else %}False{% endif %}
+                  </span>
+                  {% if pq.question.true_false_answer.explanation %}
+                    <span class="text-gray-600 dark:text-gray-400 text-sm">{{ pq.question.true_false_answer.explanation|truncatewords:10 }}</span>
+                  {% endif %}
+                </div>
+              {% elif pq.question.question_type == 'short_answer' %}
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sample Answer:</p>
+                <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                  <p class="text-gray-700 dark:text-gray-300 text-sm">{{ pq.question.short_answer.sample_answer }}</p>
+                  <p class="text-gray-500 dark:text-gray-400 text-xs mt-2">Max words: {{ pq.question.short_answer.max_words }}</p>
+                </div>
+              {% elif pq.question.question_type == 'match' %}
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Matching Pairs:</p>
+                <div class="space-y-2">
+                  {% for pair in pq.question.match_pairs.all %}
+                  <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                    <span class="text-gray-700 dark:text-gray-300 text-sm">{{ pair.left_item }}</span>
+                    <i class="fa-solid fa-arrows-left-right text-gray-400"></i>
+                    <span class="text-gray-700 dark:text-gray-300 text-sm">{{ pair.right_item }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          
+          {% if paper.created_by == request.user or request.user.is_staff %}
+          <!-- Action buttons for the question -->
+          <div class="flex flex-col space-y-2 ml-4 flex-shrink-0">
+            <a href="{% url 'quiz:paper_remove_question' paper.id pq.question.id %}" 
+               title="Remove Question"
+               class="w-8 h-8 flex items-center justify-center text-red-500 bg-red-100 rounded-full hover:bg-red-200 transition-colors">
+              <i class="fa-solid fa-trash text-sm"></i>
+            </a>
+            
+            <!-- Placeholder for the Swap Question feature -->
+            <a href="{% url 'quiz:paper_swap_question_select' paper.id pq.question.id %}" 
+               title="Swap Question"
+               class="w-8 h-8 flex items-center justify-center text-orange-500 bg-orange-100 rounded-full hover:bg-orange-200 transition-colors">
+              <i class="fa-solid fa-shuffle text-sm"></i>
+            </a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-12">
+      <i class="fa-solid fa-question-circle text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Questions Added</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">This quiz paper doesn't have any questions yet.</p>
+      {% if paper.created_by == request.user or request.user.is_staff %}
+      <a href="{% url 'quiz:paper_add_questions' paper.id %}" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <i class="fa-solid fa-plus mr-2"></i>Select First Question
+      </a>
+      <a href="{% url 'quiz:paper_add_random_questions' paper.id %}" 
+        class="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ml-4">
+          <i class="fa-solid fa-dice mr-2"></i>Add Random Questions
+      </a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+
+</div>
+
+<!-- Action Buttons -->
+
+<div class="flex items-center justify-center space-x-4 py-6">
+{% if paper_questions %}
+<button class="px-8 py-3 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-full font-bold text-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-xl">
+<i class="fa-solid fa-play mr-3"></i>Start Quiz
+</button>
+<a href="{% url 'quiz:paper_print' paper.id %}" target="_blank" class="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+<i class="fa-solid fa-print mr-2"></i>Print Paper
+</a>
+{% endif %}
+
+{% if paper.created_by == request.user or request.user.is_staff %}
+<a href="{% url 'quiz:paper_delete' paper.id %}" class="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">
+  <i class="fa-solid fa-trash mr-2"></i>Delete Paper
+</a>
+{% endif %}
+
+
+</div>
+</div>
+{% endblock %}

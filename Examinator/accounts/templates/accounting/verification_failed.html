@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Verification Failed{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;70s0&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    /* Custom dark theme styling */
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #1f2937; /* A dark gray background */
+        color: #e5e7eb; /* Light gray text for readability */
+    }
+    .card-container {
+        background-color: #374151; /* A lighter gray for the card */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .error-icon {
+        color: #ef4444; /* Vibrant red for the error icon */
+    }
+    .main-title {
+        color: #ef4444; /* Red color for the title */
+    }
+    .action-button {
+        background-color: #2dd4bf; /* Vibrant teal for the button */
+        color: #1f2937;
+    }
+    .action-button:hover {
+        background-color: #14b8a6; /* A slightly darker teal on hover */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-md px-6 py-10 rounded-xl text-center card-container">
+        <i class="fas fa-times-circle text-6xl mb-6 error-icon"></i>
+        <h2 class="text-3xl font-bold mb-4 main-title">Verification Failed</h2>
+        <p class="text-gray-400 mb-8">This link is either expired or invalid. Please try registering again.</p>
+        <a href="{% url 'register' %}" class="inline-block py-3 px-8 rounded-lg font-semibold action-button transition duration-200 hover:scale-105">
+            Try Again
+        </a>
+    </div>
+</div>
+{% endblock %}

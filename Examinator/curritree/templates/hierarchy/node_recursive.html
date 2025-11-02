@@ -1,0 +1,61 @@
+<li>
+  <div class="flex items-center justify-between px-4 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition group">
+    
+    <div class="flex items-center gap-2 w-full">
+      
+      {# 1. TOGGLE BUTTON (No change) #}
+      {% if node.children.exists %}
+        <button type="button" aria-label="Toggle children"
+          class="focus:outline-none text-gray-500 dark:text-gray-400 group-hover:text-blue-600"
+          onclick="this.closest('li').querySelector('.child-list').classList.toggle('hidden')">
+          <i class="fa-solid fa-caret-down"></i>
+        </button>
+      {% else %}
+        <div class="w-4"></div>
+      {% endif %}
+      
+      {# 2. MAIN NODE NAME (No change) #}
+      <a href="{% url 'curritree:curriculum_detail' node.pk %}"
+         class="text-lg font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 flex-grow">
+        {{ node.name }}
+        <span class="text-xs font-normal text-gray-500 ml-2 py-0.5 px-2 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
+            {{ node.get_node_type_display }}
+        </span>
+      </a>
+      
+    </div>
+    
+    {# 3. USER-FRIENDLY ACTIONS #}
+    <div class="flex gap-2 ml-4 flex-shrink-0">
+      
+      {# Add Child Button - Now Dynamic #}
+      <a href="{% url 'curritree:create_child_node' node.pk %}"
+         class="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition"
+         aria-label="Add Child">
+        <i class="fa-solid fa-plus mr-1"></i> 
+        {% if node.node_type == 'board' %}Class{% elif node.node_type == 'competitive' %}Subject{% else %}Child{% endif %}
+      </a>
+      
+      {# Edit/Delete (No change) #}
+      <a href="{% url 'curritree:curriculum_edit' node.pk %}"
+         class="px-2 py-1 text-xs rounded bg-yellow-500 text-white hover:bg-yellow-600 transition"
+         aria-label="Edit">
+        <i class="fa-solid fa-pen"></i>
+      </a>
+      <a href="{% url 'curritree:curriculum_delete' node.pk %}"
+         class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700 transition"
+         aria-label="Delete">
+        <i class="fa-solid fa-trash"></i>
+      </a>
+    </div>
+  </div>
+
+  {# 4. RECURSIVE CHILDREN LIST (No change) #}
+  {% if node.children.exists %}
+    <ul class="child-list ml-6 border-l-2 border-gray-200 dark:border-gray-700 pl-4 space-y-1 hidden">
+      {% for child in node.children.all %}
+        {% include "hierarchy/node_recursive.html" with node=child %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+</li>

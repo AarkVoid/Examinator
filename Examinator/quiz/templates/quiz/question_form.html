@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Examinator{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {{ title }}
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-1">
+                Enter the question content, curriculum mapping, and answer options.
+            </p>
+        </div>
+        <a href="{% url 'quiz:question_list' %}" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back to Question Bank
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+        <span class="font-medium">Error!</span> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
+        <!-- FIX 1: Changed method to POST and added correct ID -->
+        <form method="post" class="space-y-8 form" id="question-form">
+            {% csrf_token %}
+
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-3">
+                Curriculum Mapping & Basics
+            </h3>
+
+            <!-- Curriculum Selection -->
+            <div class="space-y-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select Curriculum Path
+              </label>
+              
+              <div class="flex flex-wrap items-center gap-4" id="curriculum-path-container">
+                  
+                  <select id="root-node" name="root_node" 
+                          class="px-4 py-2 border rounded-lg text-sm 
+                                bg-gray-50 dark:bg-gray-700 
+                                border-gray-300 dark:border-gray-600 
+                                text-gray-900 dark:text-gray-100 
+                                focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                      <option value="">Select Board/Exam</option>
+                      {% for node in board_nodes %}
+                          <option value="{{ node.id }}" 
+                              {% if child_and_types.board == node.id|stringformat:"i" %}selected{% endif %}>
+                              {{ node.name }} ({{ node.node_type}})
+                          </option>
+                      {% endfor %}
+                  </select>
+
+                  <div id="child-filters" class="flex flex-wrap gap-4">
+                      </div>
+              </div>
+          </div>
+
+            <!-- Question Basics -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label for="id_question_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Type <span class="text-red-500">*</span>
+                    </label>
+                    <select name="question_type" id="id_question_type" required class="select-field">
+                        <option value="">--- Select Type ---</option>
+                        {% for value, label in QUESTION_TYPES %}
+                            <option value="{{ value }}" 
+                                {% if question.question_type == value or posted.question_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="id_difficulty" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Difficulty <span class="text-red-500">*</span>
+                    </label>
+                    <select name="difficulty" id="id_difficulty" required class="select-field">
+                        <option value="">--- Select Difficulty ---</option>
+                        {% for value, label in DIFFICULTY_LEVELS %}
+                            <option value="{{ value }}" 
+                                {% if question.difficulty == value or posted.difficulty == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="id_marks" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Marks <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" step="0.5" name="marks" id="id_marks" required class="input-field" 
+                           value="{% firstof question.marks posted.marks '' %}"
+                           placeholder="Enter marks" min="0">
+                </div>
+            </div>
+
+            <!-- Question Content -->
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-3">
+                Question Content
+            </h3>
+            
+            <div>
+                <label for="id_question_text" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Question Text <span class="text-red-500">*</span>
+                </label>
+                <textarea name="question_text" id="id_question_text" required class="textarea-field" rows="5"
+                          placeholder="Enter the main question text.">{% firstof question.question_text posted.question_text '' %}</textarea>
+            </div>
+            
+            <!-- Answer Options -->
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-3">
+                Answer Options (MCQ)
+            </h3>
+            
+            <div class="space-y-4 text-gray-700 dark:text-gray-300 p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                <p>Option fields and correct answer radio buttons/checkboxes would be inserted here.</p>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'quiz:question_list' %}" class="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                    <i class="fa-solid fa-save mr-2"></i>
+                    {% if question %}Update Question{% else %}Create Question{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Your existing CSS remains the same */
+.form .input-field, .form .select-field, .form .textarea-field {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: white;
+  font-size: 0.875rem;
+}
+
+.dark .form .input-field, .dark .form .select-field, .dark .form .textarea-field {
+  background-color: #374151;
+  border-color: #4b5563; 
+  color: white;
+}
+
+.form .input-field:focus, .form .select-field:focus, .form .textarea-field:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form .textarea-field {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form .select-field:disabled {
+    background-color: #f3f4f6;
+    cursor: not-allowed;
+}
+.dark .form .select-field:disabled {
+    background-color: #4b5563;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const rootSelect = document.getElementById("root-node");
+  const childContainer = document.getElementById("child-filters");
+  const form = document.getElementById("question-form"); // FIX 2: Correct form ID
+
+  let child_and_types = {}; // Store the hierarchy
+  
+  const CHILD_URL = "/quiz/nodes/"; 
+  
+  function clearDescendantSelects(changedNodeId) {
+    const allDynamicSelects = Array.from(childContainer.querySelectorAll('select.dynamic-node-select'));
+    
+    // Find the select element that represents the node that was just changed.
+    // NOTE: This assumes the dynamic selects are ordered sequentially in the DOM.
+    let parentIndex = -1;
+    let found = false;
+
+    // First, find the index of the select element corresponding to the changedNodeId.
+    // Since the root node is NOT a 'dynamic-node-select', we iterate through the children.
+    allDynamicSelects.forEach((el, index) => {
+        if (String(el.value) === String(changedNodeId)) {
+            parentIndex = index;
+            found = true;
+        }
+    });
+
+    // If the changedNodeId is the root node, we start clearing from index 0.
+    if (String(rootSelect.value) === String(changedNodeId) && !found) {
+        parentIndex = -1; // Start clearing from the beginning of the child selects
+    } else if (!found) {
+        // If the element wasn't found (e.g., cleared option), we might need to rely on parentId
+        // This is complex, so the simplest fix is to clear elements *after* the one being cleared.
+        // We will stick to the logic of clearing all elements that are children of the parent
+        // whose ID is passed to the original function call.
+    }
+    
+    // If we are clearing a node, we want to remove the node *after* it in the list.
+    const startIndex = parentIndex + 1;
+
+    // Remove all select elements starting from the one immediately following the changed node.
+    if (startIndex >= 0 && startIndex <= allDynamicSelects.length) {
+        for (let i = startIndex; i < allDynamicSelects.length; i++) {
+            allDynamicSelects[i].remove();
+        }
+    }
+}
+
+  function createSelect(parentId, nodeType) {
+    fetch(`${CHILD_URL}${parentId}/children/`)
+      .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok.");
+        return res.json();
+      })
+      .then(data => {
+        clearDescendantSelects(parentId);
+
+        if (data.children && data.children.length > 0) {
+          let select = document.createElement("select");
+          select.className = "px-4 py-2 border rounded-lg text-sm bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 transition-colors dynamic-node-select";
+          select.setAttribute("data-parent-id", parentId);
+          
+          let firstChild = data.children[0];
+          let nodeType = firstChild.node_type;
+          let label = nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+          
+          select.innerHTML = `<option value="">Select ${label}</option>`;
+          data.children.forEach(child => {
+            select.innerHTML += `<option value="${child.id}">${child.name}</option>`;
+          });
+
+          select.addEventListener("change", function() {
+            if (this.value) {
+              // Store in child_and_types object
+              child_and_types[nodeType] = this.value;
+              console.log("Current hierarchy:", child_and_types);
+              createSelect(this.value, nodeType);
+            } else {
+              // Remove from hierarchy and clear deeper selects
+              delete child_and_types[nodeType];
+              let nextSiblings = Array.from(childContainer.querySelectorAll(`[data-parent-id]`));
+              nextSiblings.forEach(el => {
+                if (parseInt(el.dataset.parentId) >= parseInt(parentId)) {
+                  el.remove();
+                }
+              });
+            }
+          });
+
+          childContainer.appendChild(select);
+        }
+      })
+      .catch(err => console.error("Error loading children:", err));
+  }
+
+  // Root node change handler
+  rootSelect.addEventListener("change", function() {
+    childContainer.innerHTML = "";
+    child_and_types = {}; // Reset hierarchy
+    if (this.value) {
+      child_and_types["board"] = this.value;
+      createSelect(this.value, ""); 
+    }
+  });
+  
+  // Initialize if root already selected
+  if (rootSelect.value) {
+      child_and_types["board"] = rootSelect.value;
+      createSelect(rootSelect.value, "");
+  }
+  
+  // Form submission
+  form.addEventListener("submit", function(e) {
+    let deepestNodeId = rootSelect.value; 
+    
+    const dynamicSelects = childContainer.querySelectorAll('select.dynamic-node-select');
+    dynamicSelects.forEach(select => {
+      if (select.value) {
+        deepestNodeId = select.value;
+      }
+    });
+
+    // Remove existing hidden inputs
+    const existingHiddenInputs = form.querySelectorAll('input[name="node"], input[name="child_and_types"]');
+    existingHiddenInputs.forEach(input => input.remove());
+
+    // Create hidden input for final node
+    let nodeInput = document.createElement("input");
+    nodeInput.type = "hidden";
+    nodeInput.name = "node";
+    nodeInput.value = deepestNodeId;
+    form.appendChild(nodeInput);
+
+    // Create hidden input for hierarchy data
+    let hierarchyInput = document.createElement("input");
+    hierarchyInput.type = "hidden";
+    hierarchyInput.name = "child_and_types";
+    hierarchyInput.value = JSON.stringify(child_and_types);
+    form.appendChild(hierarchyInput);
+
+    console.log("Submitting - Node:", deepestNodeId, "Hierarchy:", child_and_types);
+  });
+});
+</script>
+{% endblock %}

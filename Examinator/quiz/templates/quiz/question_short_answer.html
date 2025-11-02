@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Short Answer - {{ question.question_text|truncatewords:5 }} - Examinator{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-50">Short Answer Details</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">{{ question.subject.name }} • {{ question.get_difficulty_display }}</p>
+    </div>
+    <a href="{% url 'quiz:question_list' %}" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+      <i class="fa-solid fa-arrow-left mr-2"></i>Back to Questions
+    </a>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+    <div class="mb-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Question:</h3>
+      <p class="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">{{ question.question_text }}</p>
+    </div>
+
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+      
+      <div>
+        <label for="{{ form.sample_answer.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Sample Answer <span class="text-red-500">*</span>
+        </label>
+        {{ form.sample_answer }}
+        {% if form.sample_answer.errors %}
+          <p class="mt-1 text-sm text-red-600">{{ form.sample_answer.errors.0 }}</p>
+        {% endif %}
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Provide a sample answer that demonstrates the expected response format and content.
+        </p>
+      </div>
+
+      <div>
+        <label for="{{ form.max_words.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Maximum Words
+        </label>
+        {{ form.max_words }}
+        {% if form.max_words.errors %}
+          <p class="mt-1 text-sm text-red-600">{{ form.max_words.errors.0 }}</p>
+        {% endif %}
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Set the maximum number of words allowed in the student's answer.
+        </p>
+      </div>
+
+      <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <a href="{% url 'quiz:question_list' %}" class="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+          Cancel
+        </a>
+        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <i class="fa-solid fa-save mr-2"></i>Save Details
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.form input, .form textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: white;
+  font-size: 0.875rem;
+}
+
+.dark .form input, .dark .form textarea {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: white;
+}
+
+.form input:focus, .form textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form');
+  form.classList.add('form');
+});
+</script>
+{% endblock %}

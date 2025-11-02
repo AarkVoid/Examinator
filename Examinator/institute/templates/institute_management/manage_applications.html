@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }} | EduGame{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables for the Dark Theme --- */
+    :root {
+        --primary-accent: #4A72EC; /* Professional Blue */
+        --secondary-accent: #6C8DFF; /* Lighter Blue */
+        --background-dark: #1F2937; /* Very dark gray for body background */
+        --card-background: #2D3748; /* Slightly lighter dark gray for cards */
+        --light-text: #E5E7EB; /* Very light gray for main text */
+        --medium-text: #9CA3AF; /* Muted gray for meta info */
+        --border-dark: #4B5563; /* Dark border color */
+        --success-color: #10B981; /* Green for success */
+        --error-color: #EF4444; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark);
+        font-family: 'Inter', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card {
+        max-width: 1200px; /* Wider for the application table */
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp var(--transition-speed) ease-out forwards;
+        transition: all var(--transition-speed) ease-in-out;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .card-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 2.5rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        padding-bottom: 1.8rem;
+        border-bottom: 2px solid var(--border-dark);
+    }
+    
+    /* --- Table Styling --- */
+    .table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--border-dark);
+        box-shadow: 0 5px 20px var(--shadow-medium);
+    }
+
+    .table-custom {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 0;
+        text-align: left;
+    }
+
+    .table-custom thead th {
+        background-color: var(--primary-accent);
+        color: var(--light-text);
+        padding: 15px 20px;
+        border-bottom: 2px solid var(--border-dark);
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .table-custom tbody tr {
+        border-bottom: 1px solid var(--border-dark);
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .table-custom tbody tr:nth-child(even) { background-color: rgba(45, 55, 72, 0.5); }
+    .table-custom tbody tr:nth-child(odd) { background-color: var(--card-background); }
+    .table-custom tbody tr:last-child { border-bottom: none; }
+
+    .table-custom tbody tr:hover {
+        background-color: #374151;
+        transform: scale(1.005);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 2;
+    }
+
+    .table-custom tbody td {
+        padding: 15px 20px;
+        font-size: 1rem;
+        color: var(--light-text);
+        vertical-align: middle;
+    }
+    
+    /* --- Action Buttons --- */
+    .btn {
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all var(--transition-speed) ease-in-out;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .btn-approve {
+        background-color: var(--success-color);
+        color: var(--background-dark);
+        border: none;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+    }
+    .btn-approve:hover {
+        transform: translateY(-2px);
+        background-color: #059669;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .btn-reject {
+        background-color: var(--error-color);
+        color: var(--light-text);
+        border: none;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+    }
+    .btn-reject:hover {
+        transform: translateY(-2px);
+        background-color: #DC2626;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+    .btn-detail {
+        color: var(--primary-accent);
+        text-decoration: underline;
+        font-weight: 500;
+    }
+    .btn-detail:hover {
+        color: var(--secondary-accent);
+    }
+
+    /* --- No data message --- */
+    .no-data-message {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        background-color: var(--card-background);
+        border-radius: 12px;
+        border: 2px dashed var(--border-dark);
+        margin-top: 30px;
+        box-shadow: 0 2px 10px var(--shadow-medium);
+    }
+    .no-data-message i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 1024px) {
+        .container-card { max-width: 900px; padding: 2.5rem; }
+        .table-custom thead th, .table-custom tbody td { padding: 12px 15px; font-size: 0.9rem; }
+    }
+    @media (max-width: 768px) {
+        .container-card { margin: 2rem; padding: 2.5rem; border-radius: 15px; }
+        .card-title { font-size: 2.2rem; }
+        .btn { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+        .table-custom thead th, .table-custom tbody td { padding: 10px 12px; font-size: 0.85rem; }
+        .no-data-message { padding: 30px; font-size: 1rem; }
+    }
+    @media (max-width: 480px) {
+        body { padding: 10px; }
+        .container-card { margin: 1rem; padding: 1.8rem; border-radius: 12px; }
+        .card-title { font-size: 1.8rem; }
+        .table-custom thead th, .table-custom tbody td { padding: 8px 10px; font-size: 0.75rem; }
+        .no-data-message { padding: 25px; font-size: 0.9rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-card">
+    <h2 class="card-title text-center mb-4">{{ page_title }}</h2>
+    <hr class="mb-4" style="border-color: var(--border-dark);">
+
+    {% if applications %}
+        <div class="table-container">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Applicant Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Class</th>
+                        <th>Applying To</th>
+                        <th>Applied On</th>
+                        <th>Actions</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td>{{ app.user.profile.Name|default:"N/A" }} {{ app.user.profile.MiddleName|default:"N/A" }} {{ app.user.profile.Surname|default:"N/A" }}</td>
+                        <td>{{ app.user.username }}</td>
+                        <td>{{ app.user.email }}</td>
+                        <td>{{ app.user.profile.class_field }}</td>
+                        <td>{{ app.institution.name }}</td>
+                        <td>{{ app.applied_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <form action="{% url 'approve_application' app.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                            </form>
+                            <form action="{% url 'reject_application' app.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-reject">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </form>
+                        </td>
+                        <td><a href="{% url 'application_detail' app.pk %}" class="btn-detail">Details</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="no-data-message">
+            <i class="fas fa-info-circle"></i>
+            <p>No pending applications to review.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

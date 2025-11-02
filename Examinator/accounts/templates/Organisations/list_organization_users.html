@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}User Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-7xl mx-auto">
+        
+        {# Header and Actions #}
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-50 mb-4 md:mb-0">
+                <i class="fa-solid fa-users mr-3 text-blue-600 dark:text-blue-400"></i> Users in {{ org.name }}
+            </h1>
+            <div class="flex space-x-3">
+                <a href="{% url 'create_user_by_admin' org.pk %}" 
+                   class="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-lg shadow-green-500/50 transition duration-300 transform hover:-translate-y-0.5 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> Create New User
+                </a>
+            </div>
+        </div>
+
+        {# User List Table/Card View #}
+        {% if page_obj.object_list %}
+        
+            {# Desktop Table View #}
+            <div class="hidden md:block bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700/70">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for user in page_obj.object_list %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition duration-150">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {{ user.username }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                    {{ user.profile.Name }} {{ user.profile.Surname }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        {% if user.role == 'admin' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300
+                                        {% elif user.role == 'teacher' %}bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300
+                                        {% else %}bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300{% endif %}">
+                                        {{ user.role|default:"student"|title }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                    {{ user.email|default:"N/A" }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    {# Placeholder for Edit User URL #}
+                                    <a href="{% url 'view_organization_users_edit' user_pk=user.id org_pk=org.pk %}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+                                        <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
+                                    </a>
+                                    {# Placeholder for Reset Password #}
+                                    <a href="#" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors">
+                                        <i class="fa-solid fa-key mr-1"></i> Reset
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No users found for this organization.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {# Mobile Card View #}
+            <div class="md:hidden space-y-4">
+                {% for user in page_obj.object_list %}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 border border-gray-200 dark:border-gray-700">
+                    <div class="flex justify-between items-start mb-3 border-b pb-2">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">{{ user.username }}</h3>
+                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if user.role == 'admin' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300
+                            {% elif user.role == 'teacher' %}bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300
+                            {% else %}bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300{% endif %}">
+                            {{ user.role|default:"student"|title }}
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                        <span class="font-medium">Name:</span> {{ user.profile.Name }} {{ user.profile.Surname }}
+                    </p>
+                    <p class="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                        <span class="font-medium">Email:</span> {{ user.email|default:"N/A" }}
+                    </p>
+                    <div class="flex justify-end space-x-3 text-sm">
+                        <a href="#" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                        </a>
+                        <a href="#" class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
+                            <i class="fa-solid fa-key"></i> Reset
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {# Pagination #}
+            {% if page_obj.has_other_pages %}
+                {% include "pagination_snippet.html" %} 
+            {% endif %}
+
+        {% else %}
+            {# Empty State #}
+            <div class="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl">
+                <i class="fa-solid fa-user-tag text-7xl text-gray-400 dark:text-gray-600 mb-6"></i>
+                <p class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">No users found in {{ org.name }}.</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Start by adding teachers or students to this organization.</p>
+                <a href="{% url 'create_user_by_admin' org.pk %}" 
+                    class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/50 transition duration-200">
+                    <i class="fa-solid fa-plus mr-2"></i> Create First User
+                </a>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{# Assuming pagination_snippet.html is available or we create the content here #}
+{% if page_obj.has_other_pages %}
+<div class="flex justify-center mt-8">
+    <nav class="relative z-0 inline-flex rounded-xl shadow-lg" aria-label="Pagination">
+        {# Previous Page Link #}
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-l-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <span class="sr-only">Previous</span>
+            <i class="fa-solid fa-chevron-left h-4 w-4"></i>
+        </a>
+        {% endif %}
+
+        {# Page Numbers #}
+        {% for i in page_obj.paginator.page_range %}
+            {% if page_obj.number == i %}
+                <span aria-current="page" class="relative inline-flex items-center px-4 py-2 border border-blue-600 bg-blue-600 text-sm font-bold text-white shadow-inner">
+                    {{ i }}
+                </span>
+            {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+                <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    {{ i }}
+                </a>
+            {% endif %}
+        {% endfor %}
+        
+        {# Next Page Link #}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-r-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <span class="sr-only">Next</span>
+            <i class="fa-solid fa-chevron-right h-4 w-4"></i>
+        </a>
+        {% endif %}
+    </nav>
+</div>
+{% endif %}
+{% endblock %}

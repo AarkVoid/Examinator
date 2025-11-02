@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Hierarchy (Roots)</h1>
+<a href="{% url 'hierarchy:create' %}">Create node</a>
+<ul>
+  {% for r in roots %}
+    <li><a href="{% url 'hierarchy:detail' r.pk %}">{{ r.name }} ({{ r.node_type }})</a></li>
+  {% empty %}
+    <li>No roots yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

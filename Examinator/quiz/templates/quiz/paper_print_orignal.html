@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ paper.title }} - Print</title>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { font-size: 12pt; line-height: 1.4; }
+        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .paper-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .section { margin-bottom: 30px; }
+        .section-title { font-weight: bold; font-size: 14pt; margin-bottom: 15px; border-bottom: 1px solid #ccc; }
+        .question { margin-bottom: 20px; page-break-inside: avoid; }
+        .question-header { font-weight: bold; margin-bottom: 8px; }
+        .question-text { margin-bottom: 10px; }
+        .options { margin-left: 20px; }
+        .option { margin-bottom: 5px; }
+        .answer-key { background: #f0f0f0; padding: 8px; margin-top: 10px; border-left: 3px solid #007bff; }
+        .marks { float: right; font-weight: bold; }
+        .controls { margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; }
+        .controls label { margin-right: 15px; }
+    </style>
+</head>
+<body>
+    <div class="controls no-print">
+        <h3>Print Options</h3>
+        <form method="get">
+            <label><input type="checkbox" name="answers" value="true" {% if show_answers %}checked{% endif %}> Show Answers</label>
+            <label><input type="checkbox" name="marks" value="true" {% if show_marks %}checked{% endif %}> Show Marks</label>
+            <label><input type="checkbox" name="instructions" value="true" {% if show_instructions %}checked{% endif %}> Show Instructions</label>
+            <label><input type="checkbox" name="sections" value="true" {% if group_by_section %}checked{% endif %}> Group by Sections</label>
+            <label><input type="checkbox" name="types" value="true" {% if group_by_type %}checked{% endif %}> Group by Question Types</label>
+            <button type="submit">Update</button>
+            <button type="button" onclick="window.print()">Print</button>
+        </form>
+    </div>
+
+    <div class="header">
+        <h1>{{ paper.title }}</h1>
+        <p>{{ paper.subject.name }}</p>
+    </div>
+
+    <div class="paper-info">
+        <div><strong>Duration:</strong> {{ paper.duration_minutes }} minutes</div>
+        <div><strong>Total Marks:</strong> {{ paper.total_marks }}</div>
+        <div><strong>Questions:</strong> {{ paper.paper_questions.count }}</div>
+    </div>
+
+    {% if show_instructions and paper.instructions %}
+    <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd;">
+        <strong>Instructions:</strong><br>
+        {{ paper.instructions }}
+    </div>
+    {% endif %}
+
+    {% for section_name, questions in sections.items %}
+    <div class="section">
+        {% if group_by_section and sections|length > 1 or group_by_type and sections|length > 1 %}
+        <div class="section-title">{{ section_name }}</div>
+        {% endif %}
+
+        {% for pq in questions %}
+        <div class="question">
+            <div class="question-header">
+                Q{{ pq.display_number }}. 
+                {% if show_marks %}
+                <span class="marks">[{{ pq.marks }} marks]</span>
+                {% endif %}
+            </div>
+            <div class="question-text">{{ pq.question.question_text }}</div>
+
+            {% if pq.question.question_type == 'mcq' %}
+                <div class="options">
+                    {% for option in pq.question.mcq_options.all %}
+                    <div class="option">
+                        {% if forloop.counter == 1 %}A{% elif forloop.counter == 2 %}B{% elif forloop.counter == 3 %}C{% elif forloop.counter == 4 %}D{% endif %}. {{ option.option_text }}
+                        {% if show_answers and option.is_correct %}
+                        <strong> ✓</strong>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% elif pq.question.question_type == 'fill_blank' %}
+                {% if show_answers %}
+                <div class="answer-key">
+                    <strong>Answers:</strong>
+                    {% for answer in pq.question.fill_blank_answers.all %}
+                        {{ answer.correct_answer }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% elif pq.question.question_type == 'true_false' %}
+                <div class="options">
+                    <div class="option">A. True</div>
+                    <div class="option">B. False</div>
+                </div>
+                {% if show_answers %}
+                <div class="answer-key">
+                    <strong>Answer:</strong> {% if pq.question.true_false_answer.correct_answer %}True{% else %}False{% endif %}
+                    {% if pq.question.true_false_answer.explanation %}
+                    <br><strong>Explanation:</strong> {{ pq.question.true_false_answer.explanation }}
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% elif pq.question.question_type == 'short_answer' %}
+                <div style="border-bottom: 1px solid #ccc; height: 60px; margin-top: 10px;"></div>
+                {% if show_answers %}
+                <div class="answer-key">
+                    <strong>Sample Answer:</strong> {{ pq.question.short_answer.sample_answer }}
+                    <br><strong>Max Words:</strong> {{ pq.question.short_answer.max_words }}
+                </div>
+                {% endif %}
+            {% elif pq.question.question_type == 'match' %}
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="width: 45%;">
+                        <strong>Column A</strong>
+                        {% for pair in pq.question.match_pairs.all %}
+                        <div>{{ forloop.counter }}. {{ pair.left_item }}</div>
+                        {% endfor %}
+                    </div>
+                    <div style="width: 45%;">
+                        <strong>Column B</strong>
+                        {% for pair in pq.question.match_pairs.all %}
+                        <div>{% if forloop.counter == 1 %}A{% elif forloop.counter == 2 %}B{% elif forloop.counter == 3 %}C{% elif forloop.counter == 4 %}D{% endif %}. {{ pair.right_item }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if show_answers %}
+                <div class="answer-key">
+                    <strong>Answers:</strong>
+                    {% for pair in pq.question.match_pairs.all %}
+                        {{ forloop.counter }}-{% if forloop.counter == 1 %}A{% elif forloop.counter == 2 %}B{% elif forloop.counter == 3 %}C{% elif forloop.counter == 4 %}D{% endif %}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <script>
+        // Auto-print if requested
+        if (new URLSearchParams(window.location.search).get('auto_print') === 'true') {
+            window.onload = function() { window.print(); }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}
+    Confirm Delete Institution | EduGame
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables for the Light Theme --- */
+    :root {
+        --primary-accent: #007BFF; /* Professional Blue */
+        --background-light: #F8F9FA; /* Very light gray for body background */
+        --card-background: #FFFFFF; /* White for cards */
+        --dark-text: #212529; /* Very dark gray for main text */
+        --muted-text: #6C757D; /* Muted gray for meta info */
+        --border-light: #DEE2E6; /* Light gray border color */
+        --error-color: #DC3545; /* Red for errors */
+        --shadow-light: rgba(0, 0, 0, 0.1);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-light);
+        font-family: 'Inter', sans-serif;
+        line-height: 1.6;
+        color: var(--dark-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card {
+        max-width: 600px;
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-light);
+        border: 1px solid var(--border-light);
+        animation: fadeInScaleUp var(--transition-speed) ease-out forwards;
+        transition: all var(--transition-speed) ease-in-out;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .card-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 2.5rem;
+        color: var(--dark-text);
+        margin: 0;
+        font-weight: 700;
+        padding-bottom: 1.8rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+    
+    .warning-message {
+        font-size: 1.1rem;
+        color: var(--dark-text);
+        margin-bottom: 2rem;
+        line-height: 1.8;
+    }
+    .warning-message strong {
+        color: var(--error-color);
+    }
+    
+    .callout-box {
+        background-color: #F8D7DA;
+        border-left: 4px solid var(--error-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        color: #721C24;
+    }
+
+    /* --- Buttons --- */
+    .btn {
+        font-weight: 600;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        transition: all var(--transition-speed) ease-in-out;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+    }
+
+    .btn-danger-custom {
+        background-color: var(--error-color);
+        color: #FFFFFF;
+        border: none;
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.2);
+    }
+    .btn-danger-custom:hover {
+        transform: translateY(-2px);
+        background-color: #C82333;
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-secondary-custom {
+        border: 1px solid var(--border-light);
+        color: var(--dark-text);
+        background-color: transparent;
+    }
+    .btn-secondary-custom:hover {
+        background-color: var(--border-light);
+        color: var(--dark-text);
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-start;
+        gap: 1rem;
+        margin-top: 2.5rem;
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+        .card-title {
+            font-size: 2rem;
+        }
+        .warning-message {
+            font-size: 1rem;
+        }
+        .btn {
+            font-size: 0.9rem;
+            padding: 0.7rem 1.2rem;
+        }
+    }
+    @media (max-width: 480px) {
+        body { padding: 10px; }
+        .container-card {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .card-title {
+            font-size: 1.8rem;
+        }
+        .form-actions {
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-card">
+    <div class="header text-center">
+        <h2 class="card-title">{{ page_title }}</h2>
+    </div>
+
+    <div class="content-section mt-5">
+        <div class="callout-box">
+            <h4><i class="fas fa-exclamation-triangle me-2"></i> Irreversible Action</h4>
+            <p class="mb-0">
+                Are you sure you want to delete the institution "<strong>{{ object.name }}</strong>"? This action cannot be undone.
+            </p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger-custom">
+                    <i class="fas fa-trash-alt"></i> Confirm Delete
+                </button>
+                <a href="{% url 'institution_detail' object.pk %}" class="btn btn-secondary-custom">
+                    <i class="fas fa-ban"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock content %}

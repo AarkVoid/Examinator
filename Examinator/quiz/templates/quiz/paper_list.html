@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quiz Papers - Examinator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Header & Tabs -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-3">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-50">Quiz Papers</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">Browse and manage available quizzes.</p>
+    </div>
+    <a href="{% url 'quiz:add_question_paper' %}" class="px-6 py-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors text-center md:w-auto w-full">
+      <i class="fa-solid fa-plus mr-2"></i>Create New Paper
+    </a>
+  </div>
+
+  {% if organization and not request.user.is_superuser %}
+  <!-- Usage Limits Summary (New Section) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+    <!-- Published Papers Limit -->
+    <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-graduation-cap text-2xl text-green-500"></i>
+        <div>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Published Papers Limit</p>
+            {% if total_max_papers > 0 %}
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {{ remaining_papers }} remaining
+                    <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ total_max_papers }} max</span>
+                </p>
+            {% else %}
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Unlimited
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Draft Papers Limit -->
+    <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-pencil text-2xl text-yellow-500"></i>
+        <div>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Draft Papers Limit</p>
+            {% if remaining_draft_papers >= 0 %}
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {{ remaining_draft_papers }} remaining
+                    <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ draft_count|add:remaining_draft_papers }} max</span>
+                </p>
+            {% else %}
+                <p class="text-lg font-semibold text-red-600 dark:text-red-400">
+                    Limit Exceeded!
+                </p>
+            {% endif %}
+        </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Tab Navigation -->
+  <div class="flex border-b border-gray-200 dark:border-gray-700">
+    <a href="?tab=published"
+       class="py-2 px-4 font-semibold text-lg {% if current_tab == 'published' %}text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400{% else %}text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200{% endif %} transition-colors">
+      Published <span class="ml-1 text-sm rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700">({{ published_count }})</span>
+    </a>
+    <a href="?tab=drafts"
+       class="py-2 px-4 font-semibold text-lg {% if current_tab == 'drafts' %}text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400{% else %}text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200{% endif %} transition-colors">
+      Drafts <span class="ml-1 text-sm rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700">({{ draft_count }})</span>
+    </a>
+  </div>
+
+  <!-- Quiz Papers Grid -->
+  {% if current_tab == 'published' %}
+    <h2 class="text-xl font-bold text-gray-700 dark:text-gray-300">Published Papers</h2>
+  {% else %}
+    <h2 class="text-xl font-bold text-gray-700 dark:text-gray-300">Draft Papers</h2>
+  {% endif %}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for paper in papers %}
+  <div class="relative group">
+    <!-- Clickable Overlay -->
+    <a href="{% url 'quiz:paper_detail' paper.id %}" 
+       class="absolute inset-0 z-10"
+       aria-label="View Paper Details">
+    </a>
+
+    <!-- Card -->
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2 dark:group-hover:ring-offset-gray-900">
+      
+      <!-- Paper Header -->
+      <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white">
+        <h3 class="text-xl font-bold mb-2">{{ paper.title }}</h3>
+        <div class="flex items-center justify-between text-sm opacity-90">
+          <span><i class="fa-solid fa-clock mr-1"></i>{{ paper.duration_minutes }} min</span>
+          <span><i class="fa-solid fa-star mr-1"></i>{{ paper.total_marks }} marks</span>
+        </div>
+      </div>
+
+      <!-- Paper Content -->
+      <div class="p-4 space-y-3">
+        <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+          <i class="fa-solid fa-book mr-2 text-blue-500"></i>
+          <span>{{ paper.curriculum_subject.name }}</span>
+        </div>
+
+        <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+          <i class="fa-solid fa-user mr-2 text-green-500"></i>
+          <span>By {{ paper.created_by.username }}</span>
+        </div>
+
+        <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+          <i class="fa-solid fa-calendar mr-2 text-purple-500"></i>
+          <span>{{ paper.created|date:"M d, Y" }}</span>
+        </div>
+
+        {% if paper.instructions %}
+        <p class="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{{ paper.instructions }}</p>
+        {% endif %}
+
+        <div class="flex items-center justify-between pt-2">
+          <span class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
+            {{ paper.paper_questions.count }} Questions
+          </span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">
+            Pattern: {{ paper.get_pattern_display }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Paper Actions -->
+      <div class="p-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 relative z-20">
+        <div class="flex gap-2">
+          {% if current_tab == 'published' %}
+            <a href="{% url 'quiz:paper_detail' paper.id %}" class="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium z-20 relative">
+              <i class="fa-solid fa-eye"></i> Take Quiz
+            </a>
+            {% if paper.created_by == request.user %}
+              <a href="{% url 'quiz:edit_question_paper' paper.id %}" class="bg-yellow-500 text-white py-2 px-3 rounded-lg hover:bg-yellow-600 transition-colors z-20 relative">
+                <i class="fa-solid fa-edit"></i>
+              </a>
+            {% endif %}
+          {% else %}
+            <a href="{% url 'quiz:edit_question_paper' paper.id %}" class="flex-1 bg-yellow-500 text-white text-center py-2 px-4 rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium z-20 relative">
+              <i class="fa-solid fa-edit"></i> Edit Draft
+            </a>
+            {% if paper.created_by == request.user %}
+              <a href="{% url 'quiz:publish_paper' paper.id %}" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center z-20 relative">
+                <i class="fa-solid fa-upload mr-1"></i> Publish
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-span-full text-center py-12">
+    <div class="max-w-md mx-auto">
+      <i class="fa-solid fa-file-alt text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+        {% if current_tab == 'drafts' %} No Draft Papers {% else %} No Published Papers Yet {% endif %}
+      </h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">
+        {% if current_tab == 'drafts' %}
+          Create a new paper to start drafting.
+        {% else %}
+          Once you publish a draft, it will appear here.
+        {% endif %}
+      </p>
+      <a href="{% url 'quiz:add_question_paper' %}" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <i class="fa-solid fa-plus mr-2"></i>Create New Paper
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+  <!-- Pagination -->
+  {% if papers.has_other_pages %}
+  <div class="flex justify-center mt-8">
+    <nav class="flex items-center space-x-2">
+      {% if papers.has_previous %}
+        <a href="?tab={{ current_tab }}&page={{ papers.previous_page_number }}" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <i class="fa-solid fa-chevron-left"></i>
+        </a>
+      {% endif %}
+      
+      {% for num in papers.paginator.page_range %}
+        {% if papers.number == num %}
+          <span class="px-3 py-2 bg-blue-600 text-white rounded-lg">{{ num }}</span>
+        {% else %}
+          <a href="?tab={{ current_tab }}&page={{ num }}" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      
+      {% if papers.has_next %}
+        <a href="?tab={{ current_tab }}&page={{ papers.next_page_number }}" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <i class="fa-solid fa-chevron-right"></i>
+        </a>
+      {% endif %}
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

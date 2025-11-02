@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ page_title }} | EduGame
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables for the Light Theme --- */
+    :root {
+        --primary-accent: #4A72EC; /* Professional Blue */
+        --secondary-accent: #6C8DFF; /* Lighter Blue */
+        --background-dark: #1F2937; /* Very dark gray for body background */
+        --card-background: #2D3748; /* Slightly lighter dark gray for cards */
+        --light-text: #E5E7EB; /* Very light gray for main text */
+        --medium-text: #9CA3AF; /* Muted gray for meta info */
+        --border-dark: #4B5563; /* Dark border color */
+        --success-color: #10B981; /* Green for success */
+        --error-color: #EF4444; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark); /* Use the new dark background */
+        font-family: 'Lato', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text); /* Use light text on dark background */
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card { /* Main wrapper for the content, similar to the form */
+        max-width: 950px; /* Wider for table content */
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp 0.6s ease-out forwards;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .container-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 35px 70px -15px var(--shadow-dark);
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .header { /* Styling for the page title */
+        border-bottom: 2px solid var(--border-dark);
+        padding-bottom: 1.8rem;
+        margin-bottom: 3rem;
+        text-align: center;
+    }
+
+    .header h2 { /* Targeting the h2 for the title */
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.8rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* Django Messages Styling (adapted for dark theme) */
+    .messages {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .messages li {
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 0.8rem;
+        font-weight: 600;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .messages .success {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: var(--success-color);
+        border: 1px solid var(--success-color);
+    }
+
+    .messages .error {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: var(--error-color);
+        border: 1px solid var(--error-color);
+    }
+
+    .messages .info {
+        background-color: rgba(74, 114, 236, 0.2);
+        color: var(--primary-accent);
+        border: 1px solid var(--primary-accent);
+    }
+
+    /* Action Button (Add New Institution) */
+    .action-button {
+        transition: all 0.2s ease-in-out;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .bg-blue-600 { /* Add New Institution button */
+        background: linear-gradient(45deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
+        color: var(--background-dark); /* Dark text for contrast */
+    }
+    .hover\:bg-blue-700:hover {
+        background: linear-gradient(45deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+    }
+
+    /* Table Styling */
+    .table-container {
+        overflow-x: auto; /* Allows horizontal scrolling on small screens */
+        border-radius: 12px;
+        border: 1px solid var(--border-dark);
+        box-shadow: 0 5px 20px var(--shadow-medium);
+    }
+
+    .table-custom {
+        width: 100%;
+        border-collapse: separate; /* Allows border-radius on cells */
+        border-spacing: 0;
+        margin: 0;
+        text-align: left;
+    }
+
+    .table-custom thead th {
+        background-color: #2D3748; /* Slightly lighter dark for header */
+        color: var(--medium-text);
+        padding: 15px 20px;
+        border-bottom: 2px solid var(--border-dark);
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .table-custom tbody tr {
+        border-bottom: 1px solid var(--border-dark);
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .table-custom tbody tr:nth-child(even) {
+        background-color: rgba(45, 55, 72, 0.5); /* Semi-transparent card background for even rows */
+    }
+
+    .table-custom tbody tr:nth-child(odd) {
+        background-color: var(--card-background); /* Card background for odd rows */
+    }
+
+    .table-custom tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .table-custom tbody tr:hover {
+        background-color: #374151; /* Darker slate on hover */
+        transform: scale(1.005);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 2;
+    }
+
+    .table-custom tbody td {
+        padding: 15px 20px;
+        font-size: 1rem;
+        color: var(--light-text);
+        vertical-align: middle;
+    }
+
+    /* Action links within the table */
+    .table-action-link {
+        font-weight: 600;
+        text-decoration: none;
+        margin-right: 1rem;
+        transition: color 0.2s ease;
+    }
+    .table-action-link:last-child {
+        margin-right: 0;
+    }
+
+    .table-action-link.view { color: var(--primary-accent); }
+    .table-action-link.view:hover { color: var(--secondary-accent); }
+
+    .table-action-link.edit { color: #FBBF24; /* Amber */ }
+    .table-action-link.edit:hover { color: #FCD34D; }
+
+    .table-action-link.delete { color: var(--error-color); }
+    .table-action-link.delete:hover { color: #EF4444; }
+
+    /* No data message */
+    .no-data-message {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        background-color: var(--card-background);
+        border-radius: 12px;
+        border: 2px dashed var(--border-dark);
+        margin-top: 30px;
+        box-shadow: 0 2px 10px var(--shadow-dark);
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+
+        .header h2 {
+            font-size: 2.2rem;
+        }
+        
+        .action-button {
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+        }
+
+        .table-custom thead th,
+        .table-custom tbody td {
+            padding: 12px 15px;
+            font-size: 0.9rem;
+        }
+        .table-action-link {
+            margin-right: 0.8rem;
+        }
+        .no-data-message {
+            padding: 30px;
+            font-size: 1rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        .container-card {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .header h2 {
+            font-size: 2rem;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+        .action-button {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+        }
+        .table-container {
+            border-radius: 8px;
+        }
+        .table-custom thead th,
+        .table-custom tbody td {
+            padding: 10px;
+            font-size: 0.85rem;
+        }
+        .table-action-link {
+            margin-right: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .no-data-message {
+            padding: 25px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-br from-slate-900 via-gray-800 to-slate-900 text-slate-200 min-h-screen flex items-center justify-center p-4">
+    <div class="container-card relative">
+        <div class="header">
+            <h2>{{ page_title }}</h2>
+        </div>
+        
+        {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                    <div class="p-3 rounded-lg text-sm text-center 
+                        {% if message.tags == 'success' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="flex justify-end mb-6">
+            <a href="{% url 'institution_create' %}" class="action-button bg-blue-600 text-white">
+                <i class="fas fa-plus-circle"></i>
+                <span>Add New Institution</span>
+            </a>
+        </div>
+
+        {% if institutions %}
+            <div class="table-container">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Group</th>
+                            <th>Board</th>
+                            <th>Code</th>
+                            <th>Address</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for institution in institutions %}
+                            <tr>
+                                <td>{{ institution.name }}</td>
+                                <td>{{ institution.group.name }}</td>
+                                <td>{{ institution.board.name }}</td>
+                                <td>{{ institution.code }}</td>
+                                <td>{{ institution.address|truncatechars:50 }}</td>
+                                <td>{{ institution.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'institution_detail' institution.pk %}" class="table-action-link view">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{% url 'institution_update' institution.pk %}" class="table-action-link edit">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <a href="{% url 'institution_delete' institution.pk %}" class="table-action-link delete">
+                                        <i class="fas fa-trash-alt"></i> Delete
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="no-data-message">
+                <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                <p>No institutions found. Click "Add New Institution" to create one.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}

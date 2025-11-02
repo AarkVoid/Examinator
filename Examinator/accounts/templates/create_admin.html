@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    Create Admin | EduGame
+{% endblock %}
+
+{% block head %}
+
+<style>
+    /* --- CSS Variables (True Dark Theme) --- */
+    :root {
+        --primary-accent: #00BFFF; /* Bright Sky Blue */
+        --secondary-accent: #5EDDFF; /* Lighter Sky Blue */
+        --background-dark: #121212; /* Very dark gray for body background */
+        --card-background: #1F2937; /* Slightly lighter dark gray for cards */
+        --light-text: #E5E7EB; /* Very light gray for main text */
+        --medium-text: #9CA3AF; /* Muted gray for meta info */
+        --border-dark: #374151; /* Dark border color */
+        --success-color: #2ECC71; /* Green for success */
+        --error-color: #E74C3C; /* Red for errors */
+        --shadow-dark: rgba(0, 0, 0, 0.4);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles --- */
+    body {
+        background-color: var(--background-dark); /* Use the new dark background */
+        font-family: 'Lato', sans-serif;
+        line-height: 1.6;
+        color: var(--light-text); /* Use light text on dark background */
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container-card { /* Renamed from .container to avoid conflict if .container is used elsewhere */
+        max-width: 850px; /* Increased max-width for a more spacious form */
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-dark);
+        border: 1px solid var(--border-dark);
+        animation: fadeInScaleUp 0.6s ease-out forwards;
+        transition: all 0.3s ease-in-out; /* Kept existing transition */
+    }
+
+    .container-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 35px 70px -15px var(--shadow-dark); /* Adjusted hover shadow */
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .header { /* Styling for the form's main title */
+        border-bottom: 2px solid var(--border-dark);
+        padding-bottom: 1.8rem;
+        margin-bottom: 3rem;
+        text-align: center;
+    }
+
+    .header h2 { /* Targeting the h2 for the title */
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.8rem;
+        color: var(--light-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* Django Messages Styling (adapted for dark theme) */
+    .messages {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .messages li {
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 0.8rem;
+        font-weight: 600;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .messages .success {
+        background-color: rgba(46, 204, 113, 0.2);
+        color: var(--success-color);
+        border: 1px solid var(--success-color);
+    }
+
+    .messages .error {
+        background-color: rgba(231, 76, 60, 0.2);
+        color: var(--error-color);
+        border: 1px solid var(--error-color);
+    }
+
+    .messages .info {
+        background-color: rgba(52, 152, 219, 0.2);
+        color: #3498db;
+        border: 1px solid #3498db;
+    }
+
+    /* Form Group and Label Styling */
+    .space-y-6 > div { /* Target direct children of space-y-6 for consistent margin */
+        margin-bottom: 1.5rem; /* Slightly tighter spacing for form fields */
+    }
+    .space-y-6 > div:last-child {
+        margin-bottom: 0; /* Remove bottom margin for the last element */
+    }
+
+    label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        display: block; /* Ensure labels are visible */
+        margin-bottom: 0.8rem;
+        color: var(--light-text); /* Light text for labels */
+        font-size: 1.1rem;
+    }
+
+    /* Custom class for consistent input styling */
+    .form-input-field {
+        width: 100%;
+        padding: 1rem 1.2rem;
+        font-size: 1rem;
+        border: 1px solid var(--border-dark); /* Dark border */
+        border-radius: 10px; /* Rounded corners */
+        transition: all var(--transition-speed) ease;
+        background-color: #2D3748; /* Slightly lighter dark background for inputs */
+        color: var(--light-text); /* Light text for input content */
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* Subtle inner shadow */
+        placeholder-color: var(--medium-text); /* Placeholder color */
+    }
+
+    .form-input-field:focus {
+        border-color: var(--primary-accent); /* Accent color on focus */
+        box-shadow: 0 0 0 4px rgba(0, 191, 255, 0.25); /* Glow effect on focus */
+        outline: none;
+        background-color: var(--card-background); /* Card background on focus */
+    }
+    textarea.form-input-field {
+        min-height: 180px;
+        resize: vertical;
+    }
+
+    /* Action Buttons (Back and Save) */
+    .action-button {
+        transition: all 0.2s ease-in-out;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .text-blue-400 { /* Back to List button */
+        color: var(--primary-accent);
+    }
+    .hover\:text-blue-300:hover {
+        color: var(--secondary-accent);
+    }
+    .bg-blue-600 { /* Save button */
+        background: linear-gradient(45deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
+        color: #121212; /* Dark text for contrast */
+    }
+    .hover\:bg-blue-700:hover {
+        background: linear-gradient(45deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+    }
+
+    .error-message {
+        color: var(--error-color); /* Red for errors */
+        font-size: 0.875rem; /* text-sm */
+        margin-top: 0.25rem; /* mt-1 */
+        animation: fadeIn 0.4s ease-out;
+        font-weight: 600;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container-card {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+
+        .header h2 {
+            font-size: 2.2rem;
+        }
+        
+        label {
+            font-size: 1rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .form-input-field {
+            padding: 0.9rem 1rem;
+        }
+
+        textarea.form-input-field {
+            min-height: 150px;
+        }
+
+        .action-button {
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+        }
+
+        .flex-wrap { /* Ensure buttons wrap on small screens */
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .flex-wrap > * {
+            flex: 1 1 auto; /* Allow items to grow and shrink */
+            margin: 0.5rem; /* Add some margin between wrapped items */
+        }
+    }
+
+    @media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        .container-card {
+            margin: 1rem;
+            padding: 1.8rem;
+            border-radius: 12px;
+        }
+        .header h2 {
+            font-size: 2rem;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+        .space-y-6 > div {
+            margin-bottom: 1.2rem;
+        }
+        label {
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+        .form-input-field {
+            padding: 0.8rem 1rem;
+            font-size: 0.9rem;
+            border-radius: 8px;
+        }
+        textarea.form-input-field {
+            min-height: 120px;
+        }
+        .action-button {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            gap: 0.5rem;
+        }
+        .error-message {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-card relative">
+    <div class="header">
+        <h2>{{ titel }}</h2>
+    </div>
+    
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li class="{{ message.tags }}">
+                    <p>{{ message }}</p>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- This is where the form fields will be rendered. -->
+        <!-- We use form.as_p to render the fields, and then use a small script -->
+        <!-- to apply the custom form-input-field class. -->
+        {{ form.as_p }}
+        
+        <div class="flex justify-between items-center mt-8">
+            <a href="{% url 'manage_users' %}" class="action-button text-blue-400 hover:text-blue-300">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to Users</span>
+            </a>
+            <button type="submit" class="action-button bg-blue-600">
+                Create Admin
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // This script dynamically adds the custom CSS class to the form elements
+        const formFields = document.querySelectorAll('form p input, form p select');
+        formFields.forEach(field => {
+            field.classList.add('form-input-field');
+        });
+    });
+</script>
+{% endblock %}

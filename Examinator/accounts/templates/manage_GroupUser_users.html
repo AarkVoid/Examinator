@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Users{% endblock %}
+
+{# Custom styles for this page #}
+{% block head %}
+<style>
+    /* Ensure the body background is applied consistently across pages */
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: url("{% static 'image/background.jpg' %}") no-repeat center center fixed;
+        background-size: cover;
+    }
+
+    /* Header for the page, similar to profile_update */
+    .page-header {
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 40px 0;
+        text-align: center;
+        margin-bottom: 30px;
+        backdrop-filter: blur(4px);
+        border-bottom-left-radius: 50px;
+        border-bottom-right-radius: 50px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .page-header h1 {
+        color: rgba(1, 166, 254, 0.93);
+        font-size: 2.2rem;
+        font-weight: bold;
+    }
+
+    /* Container for the table, reusing transparent card style */
+    .manage-users-container {
+        background: rgba(30, 32, 85, 0.78);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        color: #fff; /* Default text color for content inside */
+    }
+
+    /* Table specific styling */
+    .manage-users-container .table {
+        color: #fff; /* Text color for table content */
+        background: rgba(255, 255, 255, 0.05); /* Very slight transparency for table itself */
+        border-radius: 15px; /* Rounded corners for the table */
+        overflow: hidden; /* Ensures rounded corners are visible */
+        margin-bottom: 0; /* Remove default table bottom margin if present */
+    }
+
+    .manage-users-container .table thead th {
+        border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+        color: #e0f2f7; /* Header text color */
+        font-weight: 600;
+        vertical-align: middle;
+        padding: 12px 15px;
+        background: rgba(255, 255, 255, 0.1); /* Slightly more opaque header background */
+    }
+
+    .manage-users-container .table tbody tr {
+        transition: background-color 0.3s ease;
+    }
+
+    .manage-users-container .table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.15); /* Hover effect for rows */
+        color: rgb(158, 231, 244);
+    }
+
+    .manage-users-container .table tbody tr td {
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 12px 15px;
+        vertical-align: middle;
+    }
+
+    /* Style for action buttons (Edit/Delete) */
+    .manage-users-container .btn-action-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        margin-right: 8px; /* Spacing between buttons */
+        white-space: nowrap; /* Prevents buttons from wrapping */
+        text-decoration: none; /* Remove underline from links */
+        display: inline-flex; /* Align icon and text */
+        align-items: center;
+        justify-content: center;
+        gap: 5px; /* Space between icon and text */
+    }
+
+    .btn-info {
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+        color: #fff;
+    }
+    .btn-info:hover {
+        background-color: #138496;
+        border-color: #117a8b;
+        color: #fff;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+        color: #fff;
+    }
+
+    /* Status Badges */
+    .badge-status {
+        padding: 0.5em 0.75em;
+        border-radius: 0.5rem;
+        font-weight: bold;
+        display: inline-block; /* Ensures consistent padding */
+        min-width: 70px; /* Give badges a consistent width */
+        text-align: center;
+    }
+    .badge-active {
+        background-color: #28a745; /* Green */
+        color: #fff;
+    }
+    .badge-inactive {
+        background-color: #ffc107; /* Yellow */
+        color: #343a40; /* Dark text for yellow background */
+    }
+
+    /* Style for the "Create New Admin" button */
+    .create-admin-btn-container {
+        text-align: center;
+        margin-top: 30px;
+    }
+    .create-admin-btn {
+        padding: 12px 25px;
+        font-size: 1.1rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #28a745, #218838); /* Green gradient */
+        border: none;
+        color: #fff;
+        transition: 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .create-admin-btn:hover {
+        background: linear-gradient(135deg, #218838, #1e7e34);
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Manage Users</h1>
+</div>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="manage-users-container">
+                <div class="table-responsive"> {# Makes table scrollable on small screens #}
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Board</th>
+                                <th>Group</th>
+                                <th>Institution</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.role|title }}</td> {# Capitalize role for better display #}
+                                <td>{{ user.profile.board }}</td>
+                                <td>{{ user.profile.institute_group }}</td>
+                                <td>{{ user.profile.institute }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge-status badge-active">Active</span>
+                                    {% else %}
+                                        <span class="badge-status badge-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'edit_user' user.id %}" class="btn-action-sm btn-info">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <a href="{% url 'delete_user' user.id %}" class="btn-action-sm btn-danger" onclick="return confirm('Are you sure you want to delete user {{ user.username }}?');">
+                                        <i class="fas fa-trash-alt"></i> Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center p-4">No other users to display.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="create-admin-btn-container">
+                <a href="{% url 'create_group_admin' %}" class="btn create-admin-btn">
+                    <i class="fas fa-plus-circle"></i> Create New Group Admin
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block Script %}
+{% endblock %}

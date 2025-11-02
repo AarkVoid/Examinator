@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reply to {{ original_message.name }} | EduPlatform{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<!-- Google Fonts: Poppins for headings/bold text, Lato for body text -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    /* --- CSS Variables (Consistent with previous design) --- */
+    :root {
+        --primary-accent: #6C63FF; /* A vibrant, yet calm blue-purple */
+        --secondary-accent: #8D7BFF; /* Lighter shade of primary */
+        --background-light: #F0F2F5; /* Soft, light gray background */
+        --card-background: #FFFFFF; /* White for cards */
+        --dark-text: #2C3E50; /* Deep charcoal for headings/main text */
+        --medium-text: #7F8C8D; /* Muted gray for meta info */
+        --border-light: #E0E6ED; /* Light border color */
+        --success-color: #2ECC71; /* Green for success */
+        --error-color: #E74C3C; /* Red for errors */
+        --shadow-light: rgba(0, 0, 0, 0.05);
+        --shadow-medium: rgba(0, 0, 0, 0.1);
+        --transition-speed: 0.3s;
+    }
+
+    /* --- Base Styles (Consistent with previous design) --- */
+    body {
+        background-color: var(--background-light);
+        font-family: 'Lato', sans-serif;
+        line-height: 1.6;
+        color: var(--dark-text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 950px;
+        margin: 3rem auto;
+        padding: 3.5rem;
+        background-color: var(--card-background);
+        border-radius: 18px;
+        box-shadow: 0 15px 40px var(--shadow-medium);
+        border: 1px solid var(--border-light);
+        animation: fadeInScaleUp 0.6s ease-out forwards;
+    }
+
+    @keyframes fadeInScaleUp {
+        from { opacity: 0; transform: scale(0.98) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .header {
+        border-bottom: 2px solid var(--border-light);
+        padding-bottom: 1.8rem;
+        margin-bottom: 3rem;
+        text-align: center;
+    }
+
+    .header h1 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.8rem;
+        color: var(--dark-text);
+        margin: 0;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .header p {
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        margin-top: 0.8rem;
+    }
+
+    .message-section {
+        margin-bottom: 3rem;
+        border: 1px solid var(--border-light);
+        background-color: var(--background-light);
+        padding: 2.5rem;
+        border-radius: 15px;
+    }
+    
+    .message-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px dashed var(--border-light);
+        margin-bottom: 1.5rem;
+    }
+    
+    .message-section-header h2 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .message-info {
+        font-size: 1rem;
+        color: var(--medium-text);
+        text-align: right;
+    }
+    
+    .original-subject {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0 0 1rem 0;
+    }
+    
+    .original-body {
+        white-space: pre-line;
+        color: var(--medium-text);
+        line-height: 1.8;
+        font-size: 1rem;
+    }
+    
+    .reply-form-section h2 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+    
+    form .form-group {
+        margin-bottom: 2rem;
+    }
+    
+    label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        display: none; /* Hide labels since placeholders are used */
+        margin-bottom: 0.8rem;
+        color: var(--dark-text);
+        font-size: 1.1rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 1rem 1.2rem;
+        font-size: 1rem;
+        border: 1px solid var(--border-light);
+        border-radius: 10px;
+        transition: all var(--transition-speed) ease;
+        background-color: var(--background-light);
+        color: var(--dark-text);
+        box-shadow: inset 0 1px 3px var(--shadow-light);
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-accent);
+        box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.25);
+        outline: none;
+        background-color: var(--card-background);
+    }
+    
+    textarea.form-control {
+        min-height: 180px;
+        resize: vertical;
+    }
+    
+    .btn-submit {
+        background: linear-gradient(45deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
+        color: white;
+        font-weight: 600;
+        padding: 1rem 2.5rem;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8rem;
+        transition: all var(--transition-speed) ease;
+        box-shadow: 0 6px 20px rgba(108, 99, 255, 0.3);
+    }
+
+    .btn-submit:hover {
+        background: linear-gradient(45deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 10px 30px rgba(108, 99, 255, 0.4);
+    }
+    
+    .btn-submit:active {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 2px 10px rgba(108, 99, 255, 0.2);
+    }
+    
+    .error-message {
+        color: var(--error-color);
+        font-size: 0.9rem;
+        margin-top: 0.6rem;
+        animation: fadeIn 0.4s ease-out;
+        font-weight: 600;
+    }
+
+    /* --- Media Queries for Responsiveness --- */
+    @media (max-width: 768px) {
+        .container {
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 15px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+        }
+        
+        .message-section {
+            padding: 1.8rem;
+        }
+        
+        .message-section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .message-info {
+            text-align: left;
+        }
+        
+        .reply-form-section h2 {
+            font-size: 1.3rem;
+        }
+
+        .form-control {
+            padding: 0.9rem 1rem;
+        }
+        
+        textarea.form-control {
+            min-height: 150px;
+        }
+
+        .btn-submit {
+            padding: 0.8rem 2rem;
+            font-size: 1.1rem;
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Reply to Message</h1>
+        <p>Compose and send a response to a user's inquiry.</p>
+    </div>
+
+    <div class="message-section">
+        <div class="message-section-header">
+            <h2>Original Message from {{ original_message.name }}</h2>
+            <div class="message-info">
+                <p>To: **{{ original_message.email }}**</p>
+                <p>Date: {{ original_message.created_at|date:"F j, Y, P" }}</p>
+            </div>
+        </div>
+        
+        <div class="original-subject">{{ original_message.subject }}</div>
+        <div class="original-body">{{ original_message.message }}</div>
+    </div>
+    
+    <div class="reply-form-section">
+        <h2>Your Reply</h2>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                {{ form.subject }}
+                {% if form.subject.errors %}
+                    <div class="error-message">{{ form.subject.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                {{ form.message }}
+                {% if form.message.errors %}
+                    <div class="error-message">{{ form.message.errors }}</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="fas fa-paper-plane"></i> Send Reply
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

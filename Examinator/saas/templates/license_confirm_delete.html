@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Delete License{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-10 bg-white rounded-2xl shadow p-6">
+    
+    <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ Delete License</h2>
+    <p class="text-gray-700 mb-6">
+        Are you sure you want to <strong class="text-red-500">permanently delete</strong> this license for 
+        <span class="font-semibold">{{ organization.name }}</span>?
+    </p>
+
+    <div class="border rounded-lg p-4 bg-gray-50 mb-6">
+        <ul class="text-gray-800 space-y-2">
+            <li>
+                <strong>Curriculum:</strong>
+                {% for node in license_grant.curriculum_node.all %}
+                    <span class="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm">
+                        {{ node.name }}
+                    </span>
+                {% empty %}
+                    <span class="text-gray-500 italic">No nodes assigned</span>
+                {% endfor %}
+            </li>
+            <li><strong>Valid Until:</strong> {{ license_grant.valid_until|date:"F j, Y" }}</li>
+        </ul>
+    </div>
+
+    <form method="post" class="flex items-center justify-end gap-3">
+        {% csrf_token %}
+        <a href="{% url 'saas:organization_edit' organization.pk %}"
+           class="px-5 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition">
+            Cancel
+        </a>
+        <button type="submit"
+                class="px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition">
+            Delete License
+        </button>
+    </form>
+
+</div>
+{% endblock %}
