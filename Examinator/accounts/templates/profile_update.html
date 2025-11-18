@@ -1,438 +1,239 @@
 {% extends 'base.html' %}
+
 {% load static %}
 {% block title %}Update Profile{% endblock %}
 {% block breadcrumb %}Profile Update{% endblock %}
 
+{% load widget_tweaks %}
 {% block content %}
-<div class="max-w-6xl mx-auto my-10 px-4 md:px-6">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
-            <h1 class="text-3xl font-bold text-white">Update Your Profile</h1>
-            <p class="text-blue-100 mt-2">Keep your information up to date</p>
-        </div>
-
-        <div class="p-8">
-            <form method="POST" enctype="multipart/form-data" class="space-y-8">
-                {% csrf_token %}
-                
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+<div class="bg-gray-50 dark:bg-gray-900 min-h-screen py-12 px-4 md:px-6 font-sans">
+    <div class="max-w-6xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            
+            {# --- Top Banner/Header --- #}
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 md:p-10 flex flex-col md:flex-row items-center justify-between">
+                <div class="flex items-center space-x-6">
+                    {# Profile Picture Container #}
+                    <div class="group relative w-24 h-24 flex-shrink-0 cursor-pointer" onclick="document.getElementById('id_pic').click()">
+                        {% if profile.pic %}
+                            <img id="profile-pic-preview" src="{{ profile.pic.url }}" alt="Profile Picture" class="w-full h-full rounded-full object-cover border-4 border-white mx-auto transition-all duration-300 shadow-xl group-hover:opacity-75">
+                        {% else %}
+                            <div id="profile-pic-preview" class="w-full h-full rounded-full bg-indigo-500 flex items-center justify-center mx-auto border-4 border-white transition-all duration-300 shadow-xl group-hover:bg-indigo-600">
+                                <i class="fa-solid fa-user text-white text-3xl"></i>
+                            </div>
+                        {% endif %}
+                        <div class="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                            <i class="fa-solid fa-camera text-white text-xl"></i>
+                        </div>
+                    </div>
                     
-                    {# --- Left Column: Picture and Stats --- #}
-                    <div class="text-center space-y-6">
-                        <div class="group relative w-32 h-32 mx-auto">
-                            {% if profile.pic %}
-                                <img id="profile-pic-preview" src="{{ profile.pic.url }}" alt="Profile Picture" class="w-full h-full rounded-full object-cover border-4 border-blue-500 mx-auto cursor-pointer group-hover:border-blue-600 transition-colors shadow-lg">
-                            {% else %}
-                                <div id="profile-pic-preview" class="w-full h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto cursor-pointer group-hover:from-blue-600 group-hover:to-purple-700 transition-colors shadow-lg">
-                                    <i class="fa-solid fa-user text-white text-4xl"></i>
-                                </div>
-                            {% endif %}
-                            <div class="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none">
-                                <span class="text-white text-sm font-semibold">Change</span>
-                            </div>
-                        </div>
-                        
-                        <input type="file" id="id_pic" name="pic" class="hidden" accept="image/*">
-                        <p class="text-sm text-gray-600 dark:text-gray-400">Click image to change</p>
-                        
-                        {# Score Card #}
-                        <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800 shadow-md">
-                            <h4 class="text-lg font-semibold text-green-800 dark:text-green-300 mb-2">Total Score</h4>
-                            <p class="text-3xl font-extrabold text-green-600 dark:text-green-400">{{ score }}</p>
-                        </div>
-
-                        {# Rank Card #}
-                        <div class="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800 shadow-md">
-                            <h4 class="text-lg font-semibold text-purple-800 dark:text-purple-300 mb-2">Your Rank</h4>
-                            <p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400">{{ rank }}</p>
-                            {% if not request.user.is_superuser and profile.institute %}
-                                <small class="text-xs text-purple-600 dark:text-purple-400 block mt-1">(Among your institution)</small>
-                            {% elif rank != "N/A" %}
-                                <small class="text-xs text-purple-600 dark:text-purple-400 block mt-1">(Global rank)</small>
-                            {% endif %}
-                        </div>
+                    <div>
+                        <h1 class="text-3xl font-extrabold text-white">Edit Profile</h1>
+                        <p class="text-indigo-200 mt-1">Review and update your personal and academic information.</p>
                     </div>
+                </div>
 
-                    {# --- Right Column: Form Fields --- #}
-                    <div class="lg:col-span-3 space-y-8">
+                {# Score and Rank Cards (Moved from left column for cleaner layout) #}
+            </div>
+
+            {# --- Form Content Area --- #}
+            <form method="POST" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 dark:divide-gray-700">
+                {% csrf_token %}
+
+                {# Hidden File Input for Pic #}
+                <div class="hidden">
+                    {{ form.pic }}
+                </div>
+                
+                {# --- Column 1: Personal Information --- #}
+                <div class="p-8 lg:col-span-2 space-y-8">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b pb-3 border-gray-200 dark:border-gray-700">Personal Information</h2>
+
+                    {# Form Errors #}
+                    {% if form.non_field_errors %}
+                        <div class="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl border border-red-300">
+                            <p class="font-semibold">Please correct the following errors:</p>
+                            <ul class="list-disc ml-5 mt-1">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         
-                        {# Personal Information Section #}
+                        {# First Name (NOW form.first_name) #}
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
-                                <i class="fa-solid fa-user text-blue-600"></i>
-                                Personal Information
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                
-                                {# First Name #}
-                                <div>
-                                    <label for="id_FirstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
-                                    <input type="text" id="id_FirstName" name="FirstName" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" value="{{ profile.Name|default_if_none:'' }}">
-                                </div>
-                                
-                                {# Surname #}
-                                <div>
-                                    <label for="id_Surname" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Surname</label>
-                                    <input type="text" id="id_Surname" name="Surname" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" value="{{ profile.Surname|default_if_none:'' }}">
-                                </div>
-                                
-                                {# Middle Name #}
-                                <div>
-                                    <label for="id_MiddleName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Middle Name</label>
-                                    <input type="text" id="id_MiddleName" name="MiddleName" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" value="{{ profile.MiddleName|default_if_none:'' }}">
-                                </div>
-                                
-                                {# Date of Birth #}
-                                <div>
-                                    <label for="id_BirthDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date of Birth</label>
-                                    <input type="date" id="id_BirthDate" name="BirthDate" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" value="{{ profile.BirthDate|date:'Y-m-d' }}">
-                                </div>
-                                
-                                {# Contact #}
-                                <div>
-                                    <label for="id_contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contact (e.g., 12345-1234567-1)</label>
-                                    <input type="text" id="id_contact" name="contact" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" value="{{ profile.Contact|default_if_none:'' }}" pattern="[0-9]{5}[-][0-9]{7}[-][0-9]{1}">
-                                </div>
-                                
-                                {# Institute (Readonly) #}
-                                <div>
-                                    <label for="id_institute" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Institute</label>
-                                    <input type="text" id="id_institute" name="institute" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 cursor-not-allowed" value="{{ profile.organization_profile|default:'Not Set' }}" readonly>
-                                </div>
-                                
-                                <div>
-                                    <label for="id_institute" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Stream</label>
-                                    <input type="text" id="id_institute" name="institute" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 cursor-not-allowed" value="{{ profile.organization_profile|default:'Not Set' }}" readonly>
-                                </div>
-
-                                {# Address #}
-                                <div class="md:col-span-2">
-                                    <label for="id_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
-                                    <textarea id="id_address" name="address" rows="3" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">{{ profile.address|default_if_none:'' }}</textarea>
-                                </div>
-                            </div>
+                            <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.first_name.label }}</label>
+                            {% render_field form.first_name class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" placeholder="Your First Name" %}
+                            <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.first_name.errors }}</div>
+                        </div>
+                        
+                        {# Last Name (NOW form.last_name) #}
+                        <div>
+                            <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.last_name.label }}</label>
+                            {% render_field form.last_name class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" placeholder="Your Last Name" %}
+                            <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.last_name.errors }}</div>
+                        </div>
+                        
+                        {# MiddleName #}
+                        <div>
+                            <label for="{{ form.MiddleName.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.MiddleName.label }}</label>
+                            {% render_field form.MiddleName class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" placeholder="Optional Middle Name" %}
+                            <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.MiddleName.errors }}</div>
                         </div>
 
-                        {# Location & Address (Commented out, but with Tailwind classes) #}
-                        <!-- 
-                        <div class="space-y-6">
-                            <h3 class="text-xl font-semibold text-blue-700 dark:text-blue-300 mt-8 mb-4 border-b pb-2">
-                                Location & Address
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label for="country" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Country:</label>
-                                    <select id="country" name="country" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="">Select Country</option>
-                                        {% for country in countries %}
-                                            <option value="{{ country.id }}" {% if profile.country.id == country.id %}selected{% endif %}>{{ country.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="state" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">State:</label>
-                                    <select id="state" name="state" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        {% if states_options %}
-                                            {% for state in states_options %}
-                                                <option value="{{ state.id }}" {% if profile.state.id == state.id %}selected{% endif %}>{{ state.name }}</option>
-                                            {% endfor %}
-                                        {% else %}
-                                            <option value="">Select State</option>
-                                        {% endif %}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="city" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">City:</label>
-                                    <select id="city" name="city" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        {% if cities_options %}
-                                            {% for city in cities_options %}
-                                                <option value="{{ city.id }}" {% if profile.city.id == city.id %}selected{% endif %}>{{ city.name }}</option>
-                                            {% endfor %}
-                                        {% else %}
-                                            <option value="">Select City</option>
-                                        {% endif %}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="pincode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pincode:</label>
-                                    <select id="pincode" name="pincode" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        {% if pincodes_options %}
-                                            {% for pincode in pincodes_options %}
-                                                <option value="{{ pincode.id }}" {% if profile.pincode.id == pincode.id %}selected{% endif %}>{{ pincode.name }}</option>
-                                            {% endfor %}
-                                        {% else %}
-                                            <option value="">Select Pincode</option>
-                                        {% endif %}
-                                    </select>
-                                </div>
-                            </div>
+                        {# BirthDate #}
+                        <div>
+                            <label for="{{ form.BirthDate.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.BirthDate.label }}</label>
+                            {% render_field form.BirthDate class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" type="date" %}
+                            <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.BirthDate.errors }}</div>
                         </div>
-                        -->
-
-                        {# Education (Commented out, but with Tailwind classes) #}
-                        <!--
-                        <div class="space-y-6">
-                            <h3 class="text-xl font-semibold text-blue-700 dark:text-blue-300 mt-8 mb-4 border-b pb-2">
-                                Education
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                                <div>
-                                    <label for="board_country" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Board Country:</label>
-                                    <select id="board_country" name="board_country" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" {% if country_boards_id %} disabled {% endif %}>
-                                        <option value="">Select Board country</option>
-                                         {% for country in countries %}
-                                            <option value="{{ country.id }}" {% if country_boards_id|stringformat:"s" == country.id|stringformat:"s" %}selected{% endif %}>{{ country.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="state_board" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">State:</label>
-                                    <select id="state_board" name="state_board" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" {% if state_boards_id %} disabled {% endif %} >
-                                        {% if states_board %}
-                                            {% for state in states_board %}
-                                                <option value="{{ state.id }}" {% if state_boards_id|stringformat:"s" == state.id|stringformat:"s" %}selected{% endif %}>{{ state.name }}</option>
-                                            {% endfor %}
-                                        {% else %}
-                                            <option value="">Select State</option>
-                                        {% endif %}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="board" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Board:</label>
-                                    <select id="board" name="board" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" {% if board_id %} disabled {% endif %}>
-                                        <option value="">Select Board</option>
-                                        {% for board in boards %}
-                                            <option value="{{ board.id }}" {% if board_id|stringformat:"s" == board.id|stringformat:"s" %}selected{% endif %}>{{ board.name }}</option>
-                                        {% endfor %}
-                                    </select>
-
-                                    {% if board_id %}
-                                        <input type="hidden" name="board_hidden" value="{{ board_id }}">
-                                    {% endif %}
-                                </div>
-
-                                {% if request.user.role == 'student' %} 
-                                    <div>
-                                        <label for="class_field" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Class: </label>
-                                        <select id="class_field" name="class_field" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" {% if profile.class_field != none and profile.class_field in classes_options %} disabled {% endif %}>
-                                            {% if classes_options %}
-                                                <option value="">Select Class</option>
-                                                {% for class_obj in classes_options %}
-                                                    <option value="{{ class_obj.id }}" {% if profile.class_field.id == class_obj.id %}selected{% endif %}>{{ class_obj.name }}</option>
-                                                {% endfor %}
-                                            {% else %}
-                                                <option value="">Select Class</option>
-                                            {% endif %}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label for="div_field" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Div :</label>
-                                        <select id="div_field" name="div_field" class="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                            {% if divs_options %}
-                                                <option value="">Select Div</option>
-                                                {% for class_obj in divs_options %}
-                                                    <option value="{{ class_obj.id }}" {% if profile.division.id == class_obj.id %}selected{% endif %} {% if profile.division.id %} disabled {% endif %}>{{ class_obj.name }}</option>
-                                                {% endfor %}
-                                            {% else %}
-                                                <option value="">Select Div</option>
-                                            {% endif %}
-                                        </select>
-                                    </div>
-                                {% endif %}
-
-                            </div>
+                        
+                        {# Contact #}
+                        <div class="md:col-span-2">
+                            <label for="{{ form.Contact.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.Contact.label }}</label>
+                            {% render_field form.Contact class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" placeholder="e.g., +91 98765 43210" %}
+                            <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.Contact.errors }}</div>
                         </div>
-                        -->
-
-                        {# Action Buttons #}
-                        <div class="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700 space-x-4">
-                            <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 transition transform hover:scale-[1.02] duration-150">
-                                <i class="fa-solid fa-floppy-disk"></i> Update Profile
-                            </button>
-                            {% if not is_in_any_group %}
-                                <button type="button" onclick="addToStudentGroup({{ request.user.id }})" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 transition transform hover:scale-[1.02] duration-150">
-                                    <i class="fa-solid fa-graduation-cap"></i> Apply as Global Student
-                                </button>
-                            {% endif %}
+                        
+                        {# Address (Span 2 Columns) #}
+                        <div class="md:col-span-2">
+                            <label for="{{ form.address.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.address.label }}</label>
+                            {% render_field form.address class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm h-28 resize-none" placeholder="Your full residential address..." %}
+                            <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.address.errors }}</div>
                         </div>
+
                     </div>
+                </div>
+
+                {# --- Column 2: Academic Details and Actions --- #}
+                <div class="p-8 space-y-8 bg-gray-50 dark:bg-gray-800/50">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b pb-3 border-gray-200 dark:border-gray-700">Academic Details</h2>
+
+                    {# Institute (Readonly via organization_profile field which is disabled in form) #}
+                    <div>
+                        <label for="{{ form.organization_profile.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.organization_profile.label|default:"Institute / Organization" }}</label>
+                        {% render_field form.organization_profile class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-not-allowed shadow-sm" %}
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">This value is managed by an administrator and cannot be changed here.</p>
+                        <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.organization_profile.errors }}</div>
+                    </div>
+
+                    {# Academic Stream Selector (Disabled field in form) #}
+                    <div>
+                        <label for="{{ form.academic_stream.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ form.academic_stream.label }}</label>
+                        {% render_field form.academic_stream class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-not-allowed shadow-sm h-32" %}
+                        <div class="text-sm font-medium text-red-600 dark:text-red-400 mt-1">{{ form.academic_stream.errors }}</div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Your academic stream is set by an administrator for content control.</p>
+                    </div>
+                    
+                    {# Organization Groups (Disabled field in form - displaying as tags for clarity) #}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assigned Groups</label>
+                        <div class="flex flex-wrap gap-2 p-3 bg-white dark:bg-gray-700 rounded-xl border border-gray-300 dark:border-gray-600 shadow-sm cursor-not-allowed min-h-[44px]">
+                            {% for group in profile.organization_groups.all %}
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+                                    {{ group.name }}
+                                </span>
+                            {% empty %}
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Not assigned to any groups.</span>
+                            {% endfor %}
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">These groups are managed by your organization's admin.</p>
+                    </div>
+
+                    
+                    {# --- Action Buttons --- #}
+                    <div class="pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                        <button type="submit" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 transition transform hover:scale-[1.02] duration-150 focus:outline-none focus:ring-4 focus:ring-indigo-500/50">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Update Profile
+                        </button>
+                    </div>
+                    
                 </div>
             </form>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block Script %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{# --- Custom Message Modal (Replaces alert()) ---}
+<div id="message-modal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-20 bg-black bg-opacity-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden max-w-sm w-full mx-4 transform transition-all">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-100 dark:bg-blue-900/50 rounded-full p-2">
+                    <i class="fa-solid fa-circle-info text-blue-600 dark:text-blue-400 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100" id="modal-title">Notification</h3>
+                </div>
+            </div>
+            <div class="mt-4">
+                <p class="text-sm text-gray-600 dark:text-gray-300" id="modal-message-text">
+                    This is the message content.
+                </p>
+            </div>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 text-right">
+            <button type="button" id="close-modal-button" class="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Profile picture preview logic
-    document.getElementById('profile-pic-preview').addEventListener('click', function () {
-        document.getElementById('id_pic').click();
-    });
+    // JavaScript to link the image click with the hidden file input and handle preview
+    document.addEventListener('DOMContentLoaded', function() {
+        const picUpload = document.getElementById('id_pic'); 
 
-    document.getElementById('id_pic').addEventListener('change', function (event) {
-        if (event.target.files && event.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                // Check if the element is an image or a div and update accordingly
-                const previewElement = document.getElementById('profile-pic-preview');
-                if (previewElement.tagName === 'IMG') {
-                    previewElement.src = e.target.result;
-                } else {
-                    // If it's the default div, replace it with an image element
-                    const newImg = document.createElement('img');
-                    newImg.id = 'profile-pic-preview';
-                    newImg.src = e.target.result;
-                    newImg.alt = "Profile Picture";
-                    newImg.className = 'w-32 h-32 rounded-full object-cover border-4 border-blue-500 mx-auto cursor-pointer group-hover:border-blue-600 transition-colors shadow-lg';
-                    
-                    const parentDiv = previewElement.parentNode;
-                    parentDiv.replaceChild(newImg, previewElement);
-                    
-                    // Re-attach click listener to the new image element
-                    document.getElementById('profile-pic-preview').addEventListener('click', function () {
-                        document.getElementById('id_pic').click();
-                    });
+        if (picUpload) {
+            
+            // Event listener for file selection
+            picUpload.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const currentPreviewElement = document.getElementById('profile-pic-preview');
+                        if (currentPreviewElement.tagName === 'IMG') {
+                            // Update existing image source
+                            currentPreviewElement.src = e.target.result;
+                        } else {
+                            // If it was a div (placeholder), replace it with an image
+                            const container = currentPreviewElement.parentElement;
+                            const newImg = document.createElement('img');
+                            newImg.id = 'profile-pic-preview';
+                            newImg.src = e.target.result;
+                            newImg.alt = 'Profile Picture';
+                            // Classes match the original img element
+                            newImg.className = 'w-full h-full rounded-full object-cover border-4 border-white mx-auto transition-all duration-300 shadow-xl group-hover:opacity-75';
+                            
+                            // Replace the div with the new img element
+                            container.replaceChild(newImg, currentPreviewElement);
+                            
+                            // Re-append the overlay element which was sibling to the preview element
+                            const overlay = container.querySelector('.absolute');
+                            if (overlay) {
+                                container.appendChild(overlay);
+                            }
+                        }
+                    };
+                    reader.readAsDataURL(file);
                 }
-            };
-            reader.readAsDataURL(event.target.files[0]);
+            });
+        }
+
+        // Modal Logic (for displaying Django messages if you adapt this part)
+        const modal = document.getElementById('message-modal');
+        const closeModalButton = document.getElementById('close-modal-button');
+
+        if (closeModalButton) {
+            closeModalButton.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
         }
     });
-
-    // AJAX cascading logic for Location (if uncommented)
-    // IMPORTANT: Ensure jQuery is loaded in base.html if you use this.
-    $('#country').change(function () {
-        const id = $(this).val();
-        $('#state').html('<option>Loading...</option>');
-        $.get('/location/get-states/', { country_id: id }, function (data) {
-            let html = '<option value="">Select State</option>';
-            data.states.forEach(state => {
-                html += `<option value="${state.id}">${state.name}</option>`;
-            });
-            $('#state').html(html);
-            $('#city, #pincode').html('<option value="">Select</option>');
-        });
-    });
-
-    $('#state').change(function () {
-        const id = $(this).val();
-        $('#city').html('<option>Loading...</option>');
-        $.get('/location/get-cities/', { state_id: id }, function (data) {
-            let html = '<option value="">Select City</option>';
-            data.cities.forEach(city => {
-                html += `<option value="${city.id}">${city.name}</option>`;
-            });
-            $('#city').html(html);
-            $('#pincode').html('<option value="">Select</option>');
-        });
-    });
-
-    $('#city').change(function () {
-        const id = $(this).val();
-        $('#pincode').html('<option>Loading...</option>');
-        $.get('/location/get-pincodes/', { city_id: id }, function (data) {
-            let html = '<option value="">Select Pincode</option>';
-            data.pincodes.forEach(pincode => {
-                html += `<option value="${pincode.id}">${pincode.name}</option>`;
-            });
-            $('#pincode').html(html);
-        });
-    });
-
-
-    // AJAX cascading logic for Education (if uncommented)
-    $('#board_country').change(function () {
-        const id = $(this).val();
-        $('#state_board').html('<option>Loading...</option>');
-        $.get('/location/get-states/', { country_id: id }, function (data) {
-            let html = '<option value="">Select State</option>';
-            data.states.forEach(state => {
-                html += `<option value="${state.id}">${state.name}</option>`;
-            });
-            $('#state_board').html(html);
-            $('#board').html('<option value="">Select</option>');
-        });
-    });
-
-    $('#state_board').change(function () {
-        const id = $(this).val();
-
-        $('#board').html('<option>Loading...</option>');
-        $.get('/education/get-boards/', { state_id: id }, function (data) {
-            let html = '<option value="">Select Board</option>';
-            data.boards.forEach(board => {
-                html += `<option value="${board.id}">${board.name}</option>`;
-            });
-            $('#board').html(html);
-            $('#class_field').html('<option value="">Select</option>');
-        });
-
-    });
-
-    $('#board').change(function () {
-        const id = $(this).val();
-        $('#class_field').html('<option>Loading...</option>');
-        $.get('/education/get-classes/', { board_id: id }, function (data) {
-            let html = '<option value="">Select Class</option>';
-            data.classes.forEach(cls => {
-                html += `<option value="${cls.id}">${cls.name}</option>`;
-            });
-            $('#class_field').html(html);
-        });
-    });
-
-    $('#class_field').change(function () {
-        const id = $(this).val();
-        $('#div_field').html('<option>Loading...</option>');
-        $.get('/education/get-divisions/', { class_id: id }, function (data) {
-            let html = '<option value="">Select Div</option>';
-            data.divisions.forEach(div => {
-                html += `<option value="${div.id}">${div.name}</option>`;
-            });
-            $('#div_field').html(html);
-        });
-    });
-
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                // Does this cookie string begin with the name we want?
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    function addToStudentGroup(userId) {
-        fetch(`/accounts/add-to-student-group/${userId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            // NOTE: Replace alert() with a custom UI modal for better user experience
-            alert(data.message);
-        })
-        .catch(error => console.error('Error:', error));
-    }
-
 </script>
 {% endblock %}

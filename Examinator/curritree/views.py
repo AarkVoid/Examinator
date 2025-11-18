@@ -6,7 +6,13 @@ from .forms import NodeForm
 from django.views.decorators.http import require_http_methods
 from django.db import IntegrityError, transaction
 import json
+from django.contrib.auth.decorators import permission_required
+from accounts.views import staff_required, superuser_required
+from django.contrib.auth.decorators import login_required
 
+@login_required
+@staff_required
+@permission_required('curritree.view_treenode',login_url='profile_update')
 def index(request):
     # Fetch all root nodes
     all_roots = TreeNode.objects.filter(parent__isnull=True).order_by('order', 'name')
@@ -21,6 +27,9 @@ def index(request):
     }
     return render(request, 'hierarchy/curriculum_list.html', context)
 
+@login_required
+@staff_required
+@permission_required('curritree.view_treenode',login_url='profile_update')
 def detail(request, pk):
     node = get_object_or_404(TreeNode, pk=pk)
     children = node.children.all().order_by('order', 'name')
@@ -162,6 +171,9 @@ def _validate_and_save_node(data, instance=None):
 # ========================================================================
 
 @require_http_methods(["GET", "POST"])
+@login_required
+@staff_required
+@permission_required('curritree.add_treenode',login_url='profile_update')
 def create_node(request):
     """View to create a new root node."""
     initial_data = {}
@@ -194,6 +206,9 @@ def create_node(request):
 # ========================================================================
 
 @require_http_methods(["GET", "POST"])
+@login_required
+@staff_required
+@permission_required('curritree.add_treenode',login_url='profile_update')
 def create_child_node(request, parent_pk):
     """View to create a new child node under a given parent."""
     
@@ -237,6 +252,9 @@ def create_child_node(request, parent_pk):
 # ========================================================================
 
 @require_http_methods(["GET", "POST"])
+@login_required
+@staff_required
+@permission_required('curritree.change_treenode',login_url='profile_update')
 def edit_node(request, pk):
     """View to edit an existing node."""
     
@@ -275,6 +293,7 @@ def edit_node(request, pk):
     }
     return render(request, 'hierarchy/curriculum_form.html', context)
 
+@login_required
 def api_tree(request, root_id=None):
     depth = int(request.GET.get("depth", 3))  # default 3 levels
     def serialize(node, level=0):
@@ -292,7 +311,9 @@ def api_tree(request, root_id=None):
         roots = TreeNode.objects.filter(parent__isnull=True).order_by('order','name')
         return JsonResponse([serialize(r) for r in roots], safe=False)
 
-
+@login_required
+@staff_required
+@permission_required('curritree.delete_treenode',login_url='profile_update')
 def delete_node(request, pk):
     node = get_object_or_404(TreeNode, pk=pk)
     parent = node.parent

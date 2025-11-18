@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Organization Groups{% endblock %}
+
+{% block content %}
+<div class="min-h-screen w-full p-6 md:p-10">
+  <div class="max-w-7xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center 
+                bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-800">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100">Organization Groups</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1 text-sm">
+          Manage user groups, permissions, and members within your organization.
+        </p>
+      </div>
+      <a href="{% url 'group_create' %}" 
+         class="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition">
+        <i class="fa-solid fa-plus mr-2"></i> Add New Group
+      </a>
+    </div>
+
+    <!-- Groups Table -->
+    {% if groups %}
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <table class="min-w-full text-left">
+        <thead class="bg-gray-100 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 text-sm font-semibold uppercase tracking-wider">
+          <tr>
+            <th class="py-4 px-6">Group Name</th>
+            <th class="py-4 px-6">Organization</th>
+            <th class="py-4 px-6">Permissions</th>
+            <th class="py-4 px-6 text-center">Members</th>
+            <th class="py-4 px-6 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+          {% for group in groups %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+            <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-100">{{ group.name }}</td>
+            <td class="py-4 px-6 text-gray-600 dark:text-gray-400">{{ group.organization.name }}</td>
+            <td class="py-4 px-6 text-gray-600 dark:text-gray-400">{{ group.permissions.count }}</td>
+            <td class="py-4 px-6 text-center text-gray-600 dark:text-gray-400">{{ group.members.count }}</td>
+            <td class="py-4 px-6 text-center">
+              <div class="flex justify-center gap-3">
+                <a href="{% url 'group_update' group.pk %}" 
+                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+                  <i class="fa-solid fa-pen mr-1"></i> Edit
+                </a>
+                <a href="{% url 'group_delete' group.pk %}" 
+                   class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
+                   onclick="return confirm('Are you sure you want to delete {{ group.name }}?');">
+                  <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 shadow-xl">
+      <i class="fa-solid fa-layer-group text-4xl text-gray-400 dark:text-gray-500 mb-4"></i>
+      <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-2">No Groups Found</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">Click below to create your first group.</p>
+      <a href="{% url 'group_create' %}" 
+         class="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition">
+         <i class="fa-solid fa-plus mr-2"></i> Add New Group
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

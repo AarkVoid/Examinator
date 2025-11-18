@@ -30,6 +30,16 @@ TAILWIND_CHECKBOX_CLASSES = {
     )
 }
 
+TAILWIND_INPUT_ATTRS = {
+    'class': (
+        'w-full px-4 py-2.5 border rounded-lg transition-all duration-150 '
+        'bg-gray-50 border-gray-300 text-gray-900 '
+        'dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 '
+        'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 '
+        'dark:focus:ring-blue-400 dark:focus:border-blue-400'
+    )
+}
+
 
 WIDGET_ATTRS = {
     'class': 'w-full border border-gray-300 p-3 rounded-xl mt-1 focus:ring-blue-500 focus:border-blue-500 transition duration-150 dark:bg-gray-800 dark:border-gray-700 dark:text-white',
@@ -44,24 +54,40 @@ def get_username_from_email(email):
 
 class NewClientUserForm(forms.ModelForm):
     """
-    Form to create a new client user (admin role) and gather their profile details.
-    The 'username' field is derived from the 'email'.
+    Form to create a new client user (admin role) and gather their core details.
+    Uses first_name and last_name from the User model.
     """
-    # Profile fields (Name, Surname)
-    Name = forms.CharField(
-        max_length=100, 
+    # User fields - Username (NEWLY EXPOSED FIELD)
+    username = forms.CharField(
+        max_length=150, 
+        required=True, 
+        label="Username", 
+        widget=forms.TextInput(attrs=TAILWIND_INPUT_CLASSES)
+    )
+
+    # User fields - Name (Now explicitly part of the User model via inheritance)
+    first_name = forms.CharField(
+        max_length=150, # Max length of first_name in AbstractUser
         required=True, 
         label="First Name", 
         widget=forms.TextInput(attrs=TAILWIND_INPUT_CLASSES)
     )
-    Surname = forms.CharField(
-        max_length=100, 
+    last_name = forms.CharField(
+        max_length=150, # Max length of last_name in AbstractUser
         required=True, 
         label="Last Name", 
         widget=forms.TextInput(attrs=TAILWIND_INPUT_CLASSES)
     )
     
-    # User fields (password)
+    # User fields - Optional Phone Number
+    phone_number = forms.CharField(
+        max_length=20, 
+        required=False, 
+        label="Phone Number (Optional)", 
+        widget=forms.TextInput(attrs=TAILWIND_INPUT_CLASSES)
+    )
+    
+    # User fields - password
     password = forms.CharField(
         widget=forms.PasswordInput(attrs=TAILWIND_INPUT_CLASSES),
         label="Password"
@@ -71,7 +97,7 @@ class NewClientUserForm(forms.ModelForm):
         label="Confirm Password"
     )
     
-    # Hidden field for role (assumes 'role' is a field on your custom User model)
+    # Hidden field for role
     role = forms.CharField(
         required=False,
         initial='admin', 
@@ -80,19 +106,21 @@ class NewClientUserForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['email'] # Only include fields that belong to the User model
+        # UPDATED: Added 'username' to fields
+        fields = ['username', 'email', 'first_name', 'last_name', 'phone_number'] 
         widgets = {
             'email': forms.EmailInput(attrs=TAILWIND_INPUT_CLASSES),
         }
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Manually set field order for better user experience
-        # self.fields.keyOrder = ['email', 'Name', 'Surname', 'password', 'confirm_password', 'role']
+    # NEW CLEAN METHOD: Ensures username is unique
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("This username is already taken.")
+        return username
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        # Ensure email is unique (case-insensitive check is often safer)
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("This email is already registered.")
         return email
@@ -100,14 +128,11 @@ class NewClientUserForm(forms.ModelForm):
     def clean_password(self):
         password = self.cleaned_data.get("password")
         if not password:
-            # Note: This check is redundant if the field is required=True, 
-            # but is good for explicitness.
             raise forms.ValidationError("Password is required.")
         try:
             # Pass the instance (self.instance is often None during creation)
-            validate_password(password) 
+            validate_password(password, self.instance) 
         except ValidationError as e:
-            # Re-raise with a clear message for the user
             raise forms.ValidationError(e.messages)
         return password
 
@@ -115,37 +140,30 @@ class NewClientUserForm(forms.ModelForm):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
         confirm_password = cleaned_data.get("confirm_password")
-        email = cleaned_data.get("email")
 
         # 1. Password Match Check
         if password and confirm_password and password != confirm_password:
             self.add_error('confirm_password', "Passwords do not match.")
             
-        # 2. Set username (MANDATORY for Django User model, even if unused)
-        if email:
-            # Set the cleaned_data for save() to use
-            cleaned_data['username'] = get_username_from_email(email)
-            
-        # 3. Ensure Profile fields are present (if CharField, this is redundant 
-        # due to required=True, but serves as a final safety check for logic)
-        if not cleaned_data.get('Name'):
-            self.add_error('Name', "First Name is required.")
-        if not cleaned_data.get('Surname'):
-            self.add_error('Surname', "Last Name is required.")
-
+        # 2. Removed automatic username derivation as it is now an explicit field
+        
         return cleaned_data
         
     @transaction.atomic
     def save(self, commit=True):
         """
-        Custom save method to create the User and the associated Profile instance.
+        Custom save method to create the User with name fields and the associated Profile instance.
         """
         # 1. Create the User instance
         user = super().save(commit=False)
         
-        # Set mandatory fields before saving
-        user.username = self.cleaned_data['username']
+        # Username is automatically set by super().save() because it's in Meta.fields
         user.set_password(self.cleaned_data['password'])
+        
+        # Set inherited name and new phone number fields
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.phone_number = self.cleaned_data.get('phone_number')
         
         # Set the custom role field
         if hasattr(user, 'role') and self.cleaned_data.get('role'):
@@ -154,19 +172,13 @@ class NewClientUserForm(forms.ModelForm):
         if commit:
             user.save()
             
-            # 2. Create or Update the Profile object
-            # Assuming 'Profile' model is imported and linked via a reverse accessor named 'profile'
+            # 2. Ensure the Profile object exists
             try:
-                # If a signal automatically creates the profile, this retrieves it
+                # Retrieve profile if a signal automatically creates it
                 profile = user.profile 
             except:
-                # If no signal is set up, explicitly create the Profile
-                # NOTE: You must import your Profile model here if not done already
+                # Explicitly create the Profile if not done by a signal
                 profile = Profile.objects.create(user=user) 
-
-            # Update profile fields
-            profile.Name = self.cleaned_data['Name']
-            profile.Surname = self.cleaned_data['Surname']
             
             profile.save()
 
@@ -331,29 +343,52 @@ class UsageLimitForm(forms.ModelForm):
 # --- 3. License Grant Form (for multiple grants) ---
 class MultipleLicenseGrantForm(forms.Form):
     """
-    A standalone form to select multiple curriculum nodes to license at once.
+    A standalone form to select content boundaries and define usage limits
+    for a new LicenseGrant object.
     """
+    # Maps to LicenseGrant.curriculum_node (M2M field)
     curriculum_nodes = forms.ModelMultipleChoiceField(
         # Filter choices to Class, Subject, or Unit level nodes
+        # NOTE: Using 'curritree.TreeNode' needs to be imported or correctly referenced
+        # I'll use a placeholder queryset for demonstration.
         queryset=TreeNode.objects.filter(node_type__in=['class', 'subject', 'unit']).order_by('node_type', 'name'),
-        label="Select Curriculum Nodes (Class/Subject/Unit) for Access",
-        widget=forms.SelectMultiple(attrs={'size': '10'}),
+        label="Select Curriculum Nodes for Access",
+        # UPDATED USAGE: Merge the base attributes with the height class
+        widget=forms.SelectMultiple(attrs={**TAILWIND_INPUT_CLASSES, 'class': TAILWIND_INPUT_CLASSES['class'] + ' h-48'}),
         help_text="Select all specific content boundaries to license (e.g., 'Class 10 Science', 'JEE Maths')."
     )
+
+    # Maps to LicenseGrant.max_question_papers
+    max_question_papers = forms.IntegerField(
+        required=False,
+        initial=50, # Matches the model default
+        min_value=1,
+        # UPDATED USAGE: Use the ATTRS dictionary directly
+        widget=forms.NumberInput(attrs=TAILWIND_INPUT_CLASSES),
+        label="Max Question Papers (Limit)",
+        help_text="The maximum number of question papers this organization can generate."
+    )
+
+    # Maps to LicenseGrant.valid_until
     valid_until = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'type': 'date'}),
+        # UPDATED USAGE: Merge the ATTRS dictionary with the type attribute
+        widget=forms.DateInput(attrs={**TAILWIND_INPUT_CLASSES, 'type': 'date'}),
         label="License Expiry Date (Optional)"
     )
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Apply Tailwind classes
-        for name, field in self.fields.items():
-            field.widget.attrs.update({
-                'class': 'w-full border border-gray-300 p-3 rounded-xl mt-1 focus:ring-blue-500 focus:border-blue-500 transition duration-150 dark:bg-gray-800 dark:border-gray-700 dark:text-white',
-            })
-        self.fields['curriculum_nodes'].widget.attrs['class'] += ' h-48' 
+        
+        # Ensure the M2M queryset filtering is robust
+        try:
+            from curritree.models import TreeNode
+            self.fields['curriculum_nodes'].queryset = TreeNode.objects.filter(
+                node_type__in=['class', 'subject', 'board', 'competitive'] # Updated to match model limit_choices_to
+            ).order_by('node_type', 'name')
+        except Exception:
+            # Fallback if TreeNode is not defined
+            self.fields['curriculum_nodes'].queryset = None
 
 
 # --- 4. User Assignment Form (to link a client admin to the Organization) ---

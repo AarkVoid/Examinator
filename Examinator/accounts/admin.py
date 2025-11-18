@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Profile, EmailVerificationToken
+from .models import User, Profile, EmailVerificationToken,OrganizationGroup
 
 class ProfileInline(admin.StackedInline):
     model = Profile
@@ -29,3 +29,5 @@ admin.site.register(User, CustomUserAdmin)
 admin.site.register(Profile)
 
 admin.site.register(EmailVerificationToken)
+
+admin.site.register(OrganizationGroup)

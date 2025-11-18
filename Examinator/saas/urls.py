@@ -6,7 +6,7 @@ app_name = 'saas'
 urlpatterns = [
     # URL for the Organization's License and Usage Dashboard
     # Example access: /saas/dashboard/ or /account/licenses/
-    path('dashboard/', views.license_dashboard, name='license_dashboard'),
+    path('organization/licenses/', views.organization_license_overview, name='organization_license_overview'),
     path('Create/', views.create_license_view, name='create_dashboard'),
     path('license/<int:pk>/edit/', views.edit_license, name='license_edit'),
     path('license/<int:pk>/delete/', views.delete_license, name='license_delete'),

@@ -71,6 +71,12 @@ class LicenseGrant(models.Model):
         verbose_name="Maximum Question Papers",
         help_text="Maximum number of question papers this organization can generate."
     )
+
+    question_papers_created = models.PositiveIntegerField(
+        default=0, 
+        verbose_name="No Of Question Papers created",
+        help_text="number of question papers this organization has generate."
+    )
     
     purchased_on = models.DateField(auto_now_add=True)
     valid_until = models.DateField(null=True, blank=True, verbose_name="License Expiry Date", help_text="Optional date when the license will automatically expire.")

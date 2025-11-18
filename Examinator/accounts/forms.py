@@ -12,10 +12,14 @@ from django.utils.crypto import get_random_string
 # --- NEW IMPORTS for refactored data model ---
 from curritree.models import TreeNode
 from saas.models import OrganizationProfile
+from django.utils.text import capfirst
+
+from django.db import transaction
+from django.contrib.contenttypes.models import ContentType
 # --- REMOVED: from institute.models import Institution, InstitutionGroup
 # --- REMOVED: from education.models import Board, StudentClass, Division
 # ---------------------------------------------
-
+import re 
 User = get_user_model()
 
 
@@ -103,23 +107,7 @@ class RegistrationForm(forms.ModelForm):
         return user
 
 
-class ProfileForm(forms.ModelForm):
-    """
-    Simplified basic profile form using the new academic_stream.
-    """
-    class Meta:
-        model = Profile
-        # Updated fields: removed board, class_field. Added academic_stream.
-        fields = ['address', 'academic_stream']
-        widgets = {
-             'academic_stream': forms.Select(attrs={'class': 'form-control'}),
-        }
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['academic_stream'].queryset = TreeNode.objects.filter(
-            node_type__in=['board', 'competitive', 'class', 'subject']
-        ).order_by('node_type', 'name')
+
 
 
 TAILWIND_INPUT_CLASSES = (
@@ -140,8 +128,7 @@ TAILWIND_CHECKBOX_CLASSES = (
 class UserEditForm(forms.ModelForm):
     """
     Superuser form for editing user properties.
-    The 'user_permissions' field is automatically hidden/disabled for admin users
-    whose permissions are managed by the LicenseGrant signal.
+    NOTE: 'first_name' and 'last_name' have been removed and moved to ProfileEditForm.
     """
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
@@ -156,17 +143,18 @@ class UserEditForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'is_active', 'is_staff', 'is_superuser', 'role', 'groups', 'user_permissions']
+        fields = [
+            'username', 'email', 'phone_number', # Removed 'first_name', 'last_name'
+            'is_active', 'is_staff', 'is_superuser', 'role', 'groups', 'user_permissions'
+        ]
+        
         widgets = {
             'username': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
             'email': forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            
-            # Checkboxes
+            'phone_number': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
             'is_active': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
             'is_staff': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
             'is_superuser': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
-            
-            # Selects and M2M
             'role': forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
             'groups': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
             'user_permissions': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
@@ -178,59 +166,36 @@ class UserEditForm(forms.ModelForm):
         self.fields['groups'].queryset = Group.objects.all().order_by('name')
         self.fields['user_permissions'].queryset = Permission.objects.all().order_by('name')
 
+        is_license_managed = False
         if self.instance.pk:
             # Set initial values for M2M fields
             self.fields['groups'].initial = self.instance.groups.all()
             self.fields['user_permissions'].initial = self.instance.user_permissions.all()
             
-            self.fields['password'].initial = ''
-            self.fields['password_confirm'].initial = ''
-            
-            # 🚨 CRITICAL FIX: Disable user_permissions if managed by the signal
-            is_license_managed = False
+            # (Your logic to determine license management)
             try:
-                # Check if user has an organization profile and is an admin
-                if self.instance.profile.organization_profile and self.instance.role == 'admin':
+                if hasattr(self.instance, 'profile') and self.instance.role == 'admin':
                      is_license_managed = True
             except AttributeError:
-                # Handle case where profile might not exist yet (though view attempts to create it)
                 pass
 
-            if is_license_managed:
-                # Hide the field to prevent form data from overwriting signal changes
-                self.fields['user_permissions'].widget = forms.HiddenInput()
-                self.fields['user_permissions'].required = False 
-                
-                # Optional: Add a custom message to the groups field to explain why permissions are missing
-                # You might need to add a non-field error in the template for better visibility
-                # self.fields['groups'].help_text = (
-                #     "Permissions for Admin users are managed automatically by active licenses "
-                #     "and cannot be set manually here."
-                # )
-                
+        if is_license_managed:
+            # FIX: Use 'pop' to remove the field entirely if it shouldn't be processed.
+            self.fields.pop('user_permissions', None)
+            
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
         password_confirm = cleaned_data.get('password_confirm')
 
-        # Password validation logic (omitted for brevity, assume it's correct)
-        # ... 
-
+        # Password validation logic
         if password or password_confirm:
-            if not password:
-                self.add_error('password', "Please enter a new password.")
-            if not password_confirm:
-                self.add_error('password_confirm', "Please confirm your new password.")
-            
-            if password and password_confirm and password != password_confirm:
-                self.add_error('password_confirm', "Passwords do not match.")
-            
+            if not password: self.add_error('password', "Please enter a new password.")
+            if not password_confirm: self.add_error('password_confirm', "Please confirm your new password.")
+            if password and password_confirm and password != password_confirm: self.add_error('password_confirm', "Passwords do not match.")
             if password:
-                try:
-                    # NOTE: validate_password requires the user instance
-                    validate_password(password, self.instance) 
-                except ValidationError as e:
-                    self.add_error('password', e)
+                try: validate_password(password, self.instance) 
+                except ValidationError as e: self.add_error('password', e)
         
         return cleaned_data
 
@@ -243,111 +208,297 @@ class UserEditForm(forms.ModelForm):
         if commit:
             user.save()
             
-            # 💡 ROBUST M2M SAVE: Use .get() with empty list fallback to prevent issues
+            # Use .get() with empty list fallback
             groups_data = self.cleaned_data.get('groups', [])
             user_perms_data = self.cleaned_data.get('user_permissions', [])
-
+            
+            # Groups always get set (field is never removed)
             user.groups.set(groups_data)
             
-            # NOTE: We only set user_permissions if the field was visible/submitted
-            # If it's a HiddenInput, user_perms_data will likely be [] or the initial value,
-            # but we trust the signal to manage the correct list.
-            user.user_permissions.set(user_perms_data) 
+            # Permissions only get set IF the field was present in the form fields.
+            if 'user_permissions' in self.fields:
+                user.user_permissions.set(user_perms_data) 
 
         return user
 
+
 class ProfileEditForm(forms.ModelForm):
     """
-    Form for editing ALL profile details, including the M2M academic_stream field.
+    Form for editing Profile details including related User's first and last name.
     """
+    # --- MOVED FROM USER MODEL ---
+    first_name = forms.CharField(
+        max_length=150, 
+        required=False, 
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        label="First Name" # Added label for clarity
+    )
+    last_name = forms.CharField(
+        max_length=150, 
+        required=False, 
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        label="Last Name" # Added label for clarity
+    )
+    # -----------------------------
+    
     class Meta:
         model = Profile
         fields = [
-            'Name', 'Surname', 'MiddleName', 'Contact', 'BirthDate',
+            'MiddleName', 
+            'Contact',
+            'BirthDate',
             'address', 
-            'academic_stream', # M2M field
-            'organization_profile', 
+            'academic_stream',
+            'organization_profile',
+            'organization_groups',
             'pic'
         ]
         widgets = {
-            # --- Applying Tailwind Classes to all fields ---
-            'Name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'Surname': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
             'MiddleName': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'Contact': forms.NumberInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            
+            'Contact': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
             'BirthDate': forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'}),
-            
             'address': forms.Textarea(attrs={'class': TAILWIND_INPUT_CLASSES, 'rows': 3}),
-            
-            # M2M field needs SelectMultiple and extra height
             'academic_stream': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
-            
-            'organization_profile': forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}), 
+            'organization_profile': forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'organization_groups': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # 1. Set all fields to not required
+        # Set fields to not required (as per original requirements)
         for fieldName in self.fields:
             self.fields[fieldName].required = False 
+            
+        # Set initial values for first_name and last_name from related User instance
+        if self.instance and self.instance.pk:
+            self.fields['first_name'].initial = self.instance.user.first_name
+            self.fields['last_name'].initial = self.instance.user.last_name
 
-        # 2. Set the M2M queryset
-        if self.instance and self.instance.pk and self.instance.academic_stream.exists():
-            # RESTRICT: Show only currently selected nodes (plus ancestors if needed)
-            current_streams = self.instance.academic_stream.all()
-            self.fields['academic_stream'].queryset = current_streams
-        else:
-            # DEFAULT: Show all allowed options (for new users or when nothing is selected)
+        # --- Initialization Error Handling & Disabling Fields ---
+        
+        # Academic Stream Queryset & Disabling
+        try:
             self.fields['academic_stream'].queryset = TreeNode.objects.filter(
                 node_type__in=['board', 'competitive', 'class', 'subject']
             ).order_by('node_type', 'name')
+            self.fields['academic_stream'].disabled = True 
+        except Exception as e:
+            print(f"ERROR: Could not set academic_stream queryset. Details: {e}")
 
-        # 3. Set Queryset for FK (organization_profile)
+        # Organization Profile Queryset (usually read-only)
         try:
             self.fields['organization_profile'].queryset = OrganizationProfile.objects.all().order_by('name')
-        except NameError:
-            pass
+            self.fields['organization_profile'].disabled = True 
+        except Exception as e:
+            print(f"ERROR: Could not set organization_profile queryset. Details: {e}")
+            
+        # Organization Groups Queryset & Disabling
+        try:
+            self.fields['organization_groups'].queryset = OrganizationGroup.objects.all().order_by('name')
+            self.fields['organization_groups'].disabled = True 
+        except Exception as e:
+            print(f"ERROR: Could not set organization_groups queryset. Details: {e}")
+        # --- End Initialization Error Handling & Disabling Fields ---
 
-
-class GroupAdminUserCreationForm(forms.ModelForm):
-    """
-    Form for Superuser to create a Main Admin and link them to a top-level client OrganizationProfile.
-    """
-    password = forms.CharField(widget=forms.PasswordInput)
     
-    # Replaced instituteGroup with organization_profile
-    organization_profile = forms.ModelChoiceField(
-        queryset=OrganizationProfile.objects.all(), 
-        required=True,
-        label="Client Organization"
+    # ----------------------------------------------------------------
+    # Custom Field Validation: Clean methods handle field-specific errors
+    # ----------------------------------------------------------------
+    
+    def clean_Contact(self):
+        """
+        Custom validation for the Contact field.
+        """
+        contact = self.cleaned_data.get('Contact')
+        
+        if contact is None:
+            return None
+        
+        # 1. Clean the data (remove non-digits, allowing users to type '123-456-7890')
+        cleaned_contact = re.sub(r'\D', '', str(contact))
+        
+        # 2. Perform custom business logic validation
+        if cleaned_contact and len(cleaned_contact) < 10:
+            raise ValidationError(
+                'Contact number must contain at least 10 digits after removing symbols.',
+                code='invalid_length'
+            )
+        
+        # 3. Convert back to integer (which Django's BigIntegerField expects)
+        if cleaned_contact:
+            try:
+                return int(cleaned_contact)
+            except ValueError:
+                raise ValidationError(
+                    'Contact number must be a valid numerical sequence.',
+                    code='invalid_number'
+                )
+                
+        return None
+    
+    def save(self, commit=True):
+        """
+        Saves the Profile instance and updates the related User's first_name and last_name.
+        """
+        profile = super().save(commit=False)
+        
+        # Update related User fields
+        if profile.user:
+            user = profile.user
+            user.first_name = self.cleaned_data.get('first_name', '')
+            user.last_name = self.cleaned_data.get('last_name', '')
+            
+            if commit:
+                user.save()
+        
+        if commit:
+            profile.save()
+            
+        return profile
+
+
+
+
+
+    
+
+
+
+class OrganizationGroupForm(forms.ModelForm):
+    permissions = forms.ModelMultipleChoiceField(
+        # Pre-fetch content_type for display optimization
+        queryset=Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'name'),
+        widget=forms.SelectMultiple(attrs={'class': 'custom-permissions-select', 'size': 15}),
+        required=False,
+        label="Granted Permissions"
     )
 
     class Meta:
-        model = User
-        fields = ['username', 'email', 'password']
+        model = OrganizationGroup
+        fields = ['name', 'permissions']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input-field', 'placeholder': 'e.g., Sales Team, Managers'}),
+        }
 
-    def clean_username(self):
-        username = self.cleaned_data['username']
-        if User.objects.filter(username=username).exists():
-            raise ValidationError("A user with this username already exists.")
-        return username
+
+class OrgUserAdminForm(forms.ModelForm):
+    """
+    Form for Organization Admins to edit a standard user's core details.
+    Includes first name, last name, and now the primary phone number.
+    """
+    
+    new_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        required=False,
+        label="Set New Password",
+        help_text="Leave blank to keep the current password."
+    )
+    
+    class Meta:
+        model = User
+        # ✅ ADDED 'phone_number' to core fields
+        fields = ['username', 'first_name', 'last_name', 'email', 'phone_number', 'is_active', 'role']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'first_name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'last_name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'email': forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            # ✅ ADDED widget for phone_number
+            'phone_number': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'e.g., +15551234567'}),
+            'is_active': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
+            'role': forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        try:
+             # Assuming User.ROLE_CHOICES is defined
+             role_choices = [(r, label) for r, label in self.instance.ROLE_CHOICES if r not in ('admin', 'main_admin')]
+        except AttributeError:
+             role_choices = []
+        
+        # If the user being edited is an admin/main_admin, lock the role and active status
+        if self.instance.pk and self.instance.role in ('admin', 'main_admin'):
+             role_choices.append((self.instance.role, self.instance.get_role_display()))
+             self.fields['role'].widget.attrs['disabled'] = True
+             self.fields['is_active'].widget.attrs['disabled'] = True
+
+        self.fields['role'].choices = role_choices
+
+    def clean_new_password(self):
+        new_password = self.cleaned_data.get('new_password')
+        if new_password:
+            try:
+                validate_password(new_password, self.instance)
+            except ValidationError as e:
+                raise forms.ValidationError(e.messages)
+        return new_password
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_password(self.cleaned_data['password'])
-        user.role = 'main_admin'
+        
+        new_password = self.cleaned_data.get('new_password')
+        if new_password:
+            user.set_password(new_password)
 
         if commit:
+            if self.instance.pk and self.instance.role in ('admin', 'main_admin') and user.role != self.instance.role:
+                user.role = self.instance.role
+                user.is_active = self.instance.is_active
+            
             user.save()
-
-            selected_org = self.cleaned_data['organization_profile']
-            profile, created = Profile.objects.get_or_create(user=user)
-            profile.organization_profile = selected_org # Link to the OrganizationProfile
-            profile.save()
-
         return user
+
+
+class OrgProfileAdminForm(forms.ModelForm):
+    """
+    Form for Organization Admins to edit a user's Profile details.
+    """
+    class Meta:
+        model = Profile
+        fields = [
+             'MiddleName', 'Contact', 'BirthDate',
+            'address', 
+            'academic_stream', 
+            'organization_groups',
+            'pic'
+        ]
+        widgets = {
+            'MiddleName': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            # NOTE: Keeping Contact as NumberInput, but changing label in __init__
+            'Contact': forms.NumberInput(attrs={'class': TAILWIND_INPUT_CLASSES}), 
+            'BirthDate': forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'}),
+            'address': forms.Textarea(attrs={'class': TAILWIND_INPUT_CLASSES, 'rows': 3}),
+            'academic_stream': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
+            'organization_groups': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'})
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # ✅ UPDATED label for clarity, assuming OrgUserAdminForm now handles the primary phone number
+        self.fields['Contact'].label = "Secondary Contact Number"
+        
+        try:
+            self.fields['academic_stream'].queryset = TreeNode.objects.filter(
+                node_type__in=['board', 'competitive', 'class', 'subject']
+            ).order_by('node_type', 'name')
+        except:
+             self.fields['academic_stream'].queryset = TreeNode.objects.none()
+
+        try:
+            self.fields['organization_groups'].queryset = OrganizationGroup.objects.filter(
+                organization=self.instance.organization_profile
+            ).order_by('name')
+        except:
+             self.fields['organization_groups'].queryset = Group.objects.none() 
+
+        # Make all fields optional
+        for fieldName in self.fields:
+            self.fields[fieldName].required = False
+
 
 
 class AdminUserCreationForm(forms.ModelForm):
@@ -424,6 +575,7 @@ class AdminUserCreationForm(forms.ModelForm):
         return user
     
 
+
 class GroupForm(forms.ModelForm):
     permissions = forms.ModelMultipleChoiceField(
         queryset=Permission.objects.all(),
@@ -445,8 +597,180 @@ class GroupForm(forms.ModelForm):
         if commit:
             group.permissions.set(self.cleaned_data['permissions'])
         return group
-
     
+
+
+class UserPermissionForm(forms.Form):
+    """
+    Permissions form (no changes needed as it only uses auth models).
+    """
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+
+    enabled_permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Direct Permissions"
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user_instance', None)
+        super().__init__(*args, **kwargs)
+
+        if user:
+            self.fields['groups'].initial = user.groups.all()
+            self.fields['enabled_permissions'].queryset = Permission.objects.all()
+            self.fields['enabled_permissions'].initial = user.user_permissions.all()
+
+        # Group permissions by app and model for display (used in template)
+        self.permission_dict = self.get_grouped_permissions()
+
+    def get_grouped_permissions(self):
+        permission_qs = Permission.objects.all().select_related('content_type')
+        grouped = {}
+
+        for perm in permission_qs:
+            app = perm.content_type.app_label
+            model = perm.content_type.model
+            grouped.setdefault(app, {}).setdefault(model, []).append(perm)
+
+        return grouped
+    
+class GroupAdminUserCreationForm(forms.ModelForm):
+    """
+    Form for Superuser to create a Main Admin and link them to a top-level client OrganizationProfile.
+    """
+    password = forms.CharField(widget=forms.PasswordInput)
+    
+    # Replaced instituteGroup with organization_profile
+    organization_profile = forms.ModelChoiceField(
+        queryset=OrganizationProfile.objects.all(), 
+        required=True,
+        label="Client Organization"
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if User.objects.filter(username=username).exists():
+            raise ValidationError("A user with this username already exists.")
+        return username
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password'])
+        user.role = 'main_admin'
+
+        if commit:
+            user.save()
+
+            selected_org = self.cleaned_data['organization_profile']
+            profile, created = Profile.objects.get_or_create(user=user)
+            profile.organization_profile = selected_org # Link to the OrganizationProfile
+            profile.save()
+
+        return user
+
+class OrganizationUserCreationForm(forms.Form):
+    # --- User Model Fields ---
+    email = forms.EmailField(
+        label="Email (Used for Login)",
+        widget=forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES})
+    )
+    role = forms.ChoiceField(
+        # Uses the choices defined on your custom User model
+        choices=[(r, label) for r, label in User.ROLE_CHOICES if r in ['student', 'teacher', 'admin']],
+        widget=forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        initial='student'
+    )
+    
+    # --- Profile Model Fields ---
+    MiddleName = forms.CharField(
+        max_length=100, 
+        required=False,
+        label="Middle Name",
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES})
+    )
+    Contact = forms.CharField(
+        required=False,
+        label="Phone Number",
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES})
+    )
+    BirthDate = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'})
+    )
+    
+    # academic_stream - Model field, Queryset filtered in __init__
+    academic_stream = forms.ModelMultipleChoiceField(
+        # The queryset is initially empty and will be set in __init__
+        queryset=None, 
+        required=False,
+        label="Academic Stream Access (Content Boundaries)",
+        widget=forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES})
+    )
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Assuming TreeNode is imported and accessible
+        # Set the queryset for academic_stream based on the organization's supported curriculum
+        self.fields['academic_stream'].queryset = organization.supported_curriculum.all()
+
+        if not self.fields['academic_stream'].queryset.exists():
+            self.fields['academic_stream'].help_text = (
+                "The organization has no supported curriculum configured. "
+                "The user cannot be assigned content boundaries until they are."
+            )
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("A user with this email address already exists.")
+        return email
+
+    def save(self, organization):
+        # Generate a temporary, secure password (12 characters, letters and digits)
+        temp_password = get_random_string(12)
+        
+        # 1. Create User
+        # NOTE: Using email as the mandatory 'username' for the custom User model
+        user = User.objects.create_user(
+            username=self.cleaned_data['email'], 
+            email=self.cleaned_data['email'],
+            password=temp_password,
+            role=self.cleaned_data['role']
+        )
+        user.save()
+        
+        # 2. Create Profile
+        profile_data = {
+            'MiddleName': self.cleaned_data['MiddleName'], 
+            'Contact': self.cleaned_data['Contact'], 
+            'BirthDate': self.cleaned_data['BirthDate']
+        }
+        profile = Profile.objects.create(
+            user=user,
+            organization_profile=organization,
+            **profile_data
+        )
+        
+        # 3. Handle M2M field for Profile (academic_stream)
+        stream_nodes = self.cleaned_data.get('academic_stream')
+        if stream_nodes:
+            profile.academic_stream.set(stream_nodes)
+            
+        return user, temp_password
+    
+
+
+
 class TeacherCreationForm(forms.ModelForm):
     """
     Form for Admins to create Teachers, automatically linking them to their organization.
@@ -614,14 +938,13 @@ class InstituteProfileEditForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = [
-            'Name', 'Surname', 'MiddleName', 'Contact', 'BirthDate',
+             'MiddleName', 'Contact', 'BirthDate',
             'address', 
             'academic_stream', # NEW FIELD
             'pic'
         ]
         widgets = {
-            'Name': forms.TextInput(attrs={'class': 'form-control'}),
-            'Surname': forms.TextInput(attrs={'class': 'form-control'}),
+            
             'MiddleName': forms.TextInput(attrs={'class': 'form-control'}),
             'Contact': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., +919876543210'}),
             'BirthDate': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -647,274 +970,100 @@ class InstituteProfileEditForm(forms.ModelForm):
         
         # Removed all cascading education logic
 
-
-class UserPermissionForm(forms.Form):
+class ProfileForm(forms.ModelForm):
     """
-    Permissions form (no changes needed as it only uses auth models).
-    """
-    groups = forms.ModelMultipleChoiceField(
-        queryset=Group.objects.all(),
-        required=False,
-        widget=forms.CheckboxSelectMultiple
-    )
-
-    enabled_permissions = forms.ModelMultipleChoiceField(
-        queryset=Permission.objects.none(),
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
-        label="Direct Permissions"
-    )
-
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user_instance', None)
-        super().__init__(*args, **kwargs)
-
-        if user:
-            self.fields['groups'].initial = user.groups.all()
-            self.fields['enabled_permissions'].queryset = Permission.objects.all()
-            self.fields['enabled_permissions'].initial = user.user_permissions.all()
-
-        # Group permissions by app and model for display (used in template)
-        self.permission_dict = self.get_grouped_permissions()
-
-    def get_grouped_permissions(self):
-        permission_qs = Permission.objects.all().select_related('content_type')
-        grouped = {}
-
-        for perm in permission_qs:
-            app = perm.content_type.app_label
-            model = perm.content_type.model
-            grouped.setdefault(app, {}).setdefault(model, []).append(perm)
-
-        return grouped
-
-
-
-class OrganizationUserCreationForm(forms.Form):
-    # --- User Model Fields ---
-    email = forms.EmailField(
-        label="Email (Used for Login)",
-        widget=forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES})
-    )
-    role = forms.ChoiceField(
-        # Uses the choices defined on your custom User model
-        choices=[(r, label) for r, label in User.ROLE_CHOICES if r in ['student', 'teacher', 'admin']],
-        widget=forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
-        initial='student'
-    )
-    
-    # --- Profile Model Fields ---
-    Name = forms.CharField(
-        max_length=100,
-        label="First Name",
-        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES})
-    )
-    Surname = forms.CharField(
-        max_length=100, 
-        required=False,
-        label="Last Name",
-        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES})
-    )
-    MiddleName = forms.CharField(
-        max_length=100, 
-        required=False,
-        label="Middle Name",
-        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES})
-    )
-    Contact = forms.CharField(
-        required=False,
-        label="Phone Number",
-        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES})
-    )
-    BirthDate = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'})
-    )
-    
-    # academic_stream - Model field, Queryset filtered in __init__
-    academic_stream = forms.ModelMultipleChoiceField(
-        # The queryset is initially empty and will be set in __init__
-        queryset=None, 
-        required=False,
-        label="Academic Stream Access (Content Boundaries)",
-        widget=forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES})
-    )
-
-    def __init__(self, *args, organization=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Assuming TreeNode is imported and accessible
-        # Set the queryset for academic_stream based on the organization's supported curriculum
-        self.fields['academic_stream'].queryset = organization.supported_curriculum.all()
-
-        if not self.fields['academic_stream'].queryset.exists():
-            self.fields['academic_stream'].help_text = (
-                "The organization has no supported curriculum configured. "
-                "The user cannot be assigned content boundaries until they are."
-            )
-
-    def clean_email(self):
-        email = self.cleaned_data['email']
-        if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("A user with this email address already exists.")
-        return email
-
-    def save(self, organization):
-        # Generate a temporary, secure password (12 characters, letters and digits)
-        temp_password = get_random_string(12)
-        
-        # 1. Create User
-        # NOTE: Using email as the mandatory 'username' for the custom User model
-        user = User.objects.create_user(
-            username=self.cleaned_data['email'], 
-            email=self.cleaned_data['email'],
-            password=temp_password,
-            role=self.cleaned_data['role']
-        )
-        user.first_name = self.cleaned_data['Name']
-        user.last_name = self.cleaned_data['Surname'] or ''
-        user.save()
-        
-        # 2. Create Profile
-        profile_data = {
-            'Name': self.cleaned_data['Name'],
-            'Surname': self.cleaned_data['Surname'],
-            'MiddleName': self.cleaned_data['MiddleName'], 
-            'Contact': self.cleaned_data['Contact'], 
-            'BirthDate': self.cleaned_data['BirthDate']
-        }
-        profile = Profile.objects.create(
-            user=user,
-            organization_profile=organization,
-            **profile_data
-        )
-        
-        # 3. Handle M2M field for Profile (academic_stream)
-        stream_nodes = self.cleaned_data.get('academic_stream')
-        if stream_nodes:
-            profile.academic_stream.set(stream_nodes)
-            
-        return user, temp_password
-    
-
-
-
-class OrganizationGroupForm(forms.ModelForm):
-    permissions = forms.ModelMultipleChoiceField(
-        # Pre-fetch content_type for display optimization
-        queryset=Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'name'),
-        widget=forms.SelectMultiple(attrs={'class': 'custom-permissions-select', 'size': 15}),
-        required=False,
-        label="Granted Permissions"
-    )
-
-    class Meta:
-        model = OrganizationGroup
-        fields = ['name', 'permissions']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-input-field', 'placeholder': 'e.g., Sales Team, Managers'}),
-        }
-
-
-class OrgUserAdminForm(forms.ModelForm):
-    """
-    Form for Organization Admins to edit a standard user's core details.
-    Restricts role choices and adds a new password field.
-    """
-    
-    new_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-        required=False,
-        label="Set New Password",
-        help_text="Leave blank to keep the current password."
-    )
-    
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'is_active', 'role']
-        widgets = {
-            'username': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'email': forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'is_active': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
-            'role': forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        role_choices = [(r, label) for r, label in User.ROLE_CHOICES if r not in ('admin', 'main_admin')]
-        
-        # If the user being edited is an admin/main_admin, lock the role and active status
-        if self.instance.pk and self.instance.role in ('admin', 'main_admin'):
-             role_choices.append((self.instance.role, self.instance.get_role_display()))
-             self.fields['role'].widget.attrs['disabled'] = True
-             self.fields['is_active'].widget.attrs['disabled'] = True
-
-        self.fields['role'].choices = role_choices
-
-    def clean_new_password(self):
-        new_password = self.cleaned_data.get('new_password')
-        if new_password:
-            try:
-                # Validate password complexity
-                validate_password(new_password, self.instance)
-            except ValidationError as e:
-                raise forms.ValidationError(e.messages)
-        return new_password
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        
-        new_password = self.cleaned_data.get('new_password')
-        if new_password:
-            user.set_password(new_password)
-
-        if commit:
-            # Prevent privilege escalation/demotion if the user is a protected admin
-            if self.instance.pk and self.instance.role in ('admin', 'main_admin') and user.role != self.instance.role:
-                user.role = self.instance.role
-                user.is_active = self.instance.is_active
-            
-            user.save()
-        return user
-
-
-class OrgProfileAdminForm(forms.ModelForm):
-    """
-    Form for Organization Admins to edit a user's Profile details.
-    Includes personal info and the academic stream M2M field.
+    Simplified basic profile form using the new academic_stream.
     """
     class Meta:
         model = Profile
-        # Note: organization_profile is excluded as it should be managed via API, not forms.
-        fields = [
-            'Name', 'Surname', 'MiddleName', 'Contact', 'BirthDate',
-            'address', 
-            'academic_stream', # M2M field
-            'pic' # ImageField included
-        ]
+        # Updated fields: removed board, class_field. Added academic_stream.
+        fields = ['address', 'academic_stream']
         widgets = {
-            'Name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'Surname': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'MiddleName': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'Contact': forms.NumberInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'BirthDate': forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'}),
-            'address': forms.Textarea(attrs={'class': TAILWIND_INPUT_CLASSES, 'rows': 3}),
-            'academic_stream': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
-            'organization_groups': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'})
+             'academic_stream': forms.Select(attrs={'class': 'form-control'}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['academic_stream'].queryset = TreeNode.objects.filter(
+            node_type__in=['board', 'competitive', 'class', 'subject']
+        ).order_by('node_type', 'name')
+
+
+
+
+
+class DjangoGroupForm(forms.ModelForm):
+
+    class Meta:
+        model = Group
+        fields = ['name', 'permissions']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500'}),
+        }
+        labels = {
+            'name': 'Group Name',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Set queryset for academic stream to all valid nodes
-        try:
-            self.fields['academic_stream'].queryset = TreeNode.objects.filter(
-                node_type__in=['board', 'competitive', 'class', 'subject']
-            ).order_by('node_type', 'name')
-        except:
-             # Handle case where TreeNode might not be defined during initial load
-             self.fields['academic_stream'].queryset = None 
 
-        # Make all fields optional
-        for fieldName in self.fields:
-            self.fields[fieldName].required = False
+        # 1. Fetch all permissions, ordered by app, model, and name
+        perms = Permission.objects.select_related('content_type').order_by(
+            'content_type__app_label', 'content_type__model', 'name'
+        )
+
+        grouped = {}
+        for perm in perms:
+            # 2. Extract and format the App Label and Model Name
+            app_label = capfirst(perm.content_type.app_label.replace('_', ' '))
+            model_name = capfirst(perm.content_type.model.replace('_', ' '))
+            
+            # 3. Create a single, specific group key combining App and Model
+            # This creates the "group within group" effect using a clear label.
+            group_key = f"{model_name}"
+            app_group_key = f"{app_label}"
+
+
+
+            # grouped.setdefault(group_key, []).append((perm.id, perm.name))
+            if app_group_key not in grouped:
+                grouped[app_group_key] = {}
+
+            if group_key not in grouped[app_group_key]:
+                grouped[app_group_key][group_key] = []
+
+            grouped[app_group_key][group_key].append((perm.id, perm.name))
+            
+
+        # 5. Assign the new, highly-granular choices to the permissions field
+        self.fields['permissions'].choices = grouped
+
+
+class PermissionCreateForm(forms.ModelForm):
+    class Meta:
+        model = Permission
+        fields = ['name', 'content_type', 'codename']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500',
+                'placeholder': 'e.g. Can moderate comments'
+            }),
+            'codename': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500',
+                'placeholder': 'e.g. moderate_comment'
+            }),
+            'content_type': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500'
+            }),
+        }
+        labels = {
+            'name': 'Permission Name',
+            'content_type': 'Model',
+            'codename': 'Codename (unique identifier)',
+        }
+
+    def clean_codename(self):
+        codename = self.cleaned_data['codename']
+        if Permission.objects.filter(codename=codename).exists():
+            raise forms.ValidationError("This codename already exists.")
+        return codename

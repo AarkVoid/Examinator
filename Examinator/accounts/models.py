@@ -38,9 +38,24 @@ class User(AbstractUser, TimeStampedModel):
         ('teacher', 'Staff'),
         ('admin', 'Admin'),
     ]
+    # email = models.EmailField(unique=True)
+    # USERNAME_FIELD = "email"    # ✅ this tells Django to use email as login
+    # REQUIRED_FIELDS = ['username']  # 👈 This is the crucial fix
+
     email = models.EmailField(unique=True)
-    USERNAME_FIELD = "email"    # ✅ this tells Django to use email as login
-    REQUIRED_FIELDS = ['username']  # 👈 This is the crucial fix
+    
+    # --- NEW FIELD FOR FLEXIBLE LOGIN ---
+    phone_number = models.CharField(
+        max_length=20, 
+        unique=True, 
+        blank=True, 
+        null=True,
+        help_text="Optional. Used for alternate login or two-factor authentication."
+    )
+    # ------------------------------------
+
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ['email'] 
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     is_active = models.BooleanField(default=True)
@@ -70,10 +85,16 @@ class User(AbstractUser, TimeStampedModel):
 # Profile Model
 # ================
 class Profile(TimeStampedModel):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='profile',
+        # Adding a database index to the ForeignKey for faster join/lookup performance
+        db_index=True 
+    )
     address = models.TextField(blank=True)
-    Name = models.CharField(max_length=100,null=True, blank=True)
-    Surname = models.CharField(max_length=100,null=True, blank=True)
+    # Name = models.CharField(max_length=100,null=True, blank=True)
+    # Surname = models.CharField(max_length=100,null=True, blank=True)
     MiddleName = models.CharField(max_length=100, null=True, blank=True)
     Contact = models.BigIntegerField(blank=True, null=True)
     BirthDate = models.DateField(default=date.today, blank=True, null=True)
@@ -106,11 +127,20 @@ class Profile(TimeStampedModel):
     
     pic = models.ImageField(upload_to='profileImg', null=True, blank=True)
 
+    impersonation_pin = models.CharField(
+        max_length=128, 
+        blank=True, 
+        null=True,
+        default=12345,
+        # NOTE: For production, this field MUST store a secure hash, not the plaintext PIN.
+        help_text="A security PIN required for staff/admin users (non-superusers) to impersonate this user. Use a hashing function before saving in production."
+    )
+
 
     def __str__(self):
-        # Displays the user and their assigned content boundary (if set)
-        stream_name = self.academic_stream.get_path_display(sep=' / ') if self.academic_stream else 'Unassigned'
-        return f"{self.user.username} Profile | Stream: {stream_name}"
+        # ✅ FIX: Use .all() to get the queryset and .join() to format the names.
+        stream_names = ", ".join([s.name for s in self.academic_stream.all()])
+        return f"{self.user.username} Profile | Stream(s): {stream_names or 'Unassigned'}"
     
     class Meta:
         verbose_name = "Profile"

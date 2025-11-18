@@ -35,85 +35,115 @@ class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
         fields = [
-            'question_type', 'curriculum_board', 'curriculum_subject', 
-            'curriculum_chapter', 'question_text', 'difficulty', 'marks', 'is_published'
-        ] # Added 'is_published' for completeness if needed in the view
+            'question_type', 'curriculum_board', 'curriculum_class', # Added Class
+            'curriculum_subject', 'curriculum_chapter', 'question_text', 
+            'question_image',
+            'difficulty', 'marks', 'is_published'
+        ] 
         widgets = {
             'question_type': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
             'curriculum_board': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
+            'curriculum_class': forms.Select(attrs=TAILWIND_INPUT_CLASSES), # Added Class widget
             'curriculum_subject': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
             'curriculum_chapter': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
             'question_text': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 4}),
+            'question_image': forms.FileInput(attrs=TAILWIND_INPUT_CLASSES),
             'difficulty': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
             'marks': forms.NumberInput(attrs={**TAILWIND_INPUT_CLASSES, 'min': 1}),
             'is_published': forms.CheckboxInput(attrs=TAILWIND_CHECKBOX_CLASSES),
         }
     
     def __init__(self, *args, **kwargs):
+
+        self.current_user = kwargs.pop('user', None)
+
+
         super().__init__(*args, **kwargs)
+
+        if self.current_user and not (self.current_user.is_staff or self.current_user.is_superuser):
+            self.fields.pop('is_published', None)
+
         
         # 1. Initialize Board Field (Always populated)
         self.fields['curriculum_board'].queryset = TreeNode.objects.filter(
             node_type__in=['board', 'competitive']
         ).order_by('name')
 
-        # 2. Initialize Subject and Chapter fields to empty
+
+
+        # 2. Initialize Class, Subject, and Chapter fields to empty
+        self.fields['curriculum_class'].queryset = TreeNode.objects.none()
         self.fields['curriculum_subject'].queryset = TreeNode.objects.none()
         self.fields['curriculum_chapter'].queryset = TreeNode.objects.none()
         
-        # Disable question_type edit
+        # ====================================================================
+        # START: Read-Only Logic (Includes curriculum_class)
+        # ====================================================================
+
         if self.instance.pk:
-            # We assume the view will handle the read-only display for type
-            self.fields['question_type'].required = False
-            self.fields['question_type'].widget.attrs['disabled'] = True
-            # Apply a gray background to disabled field
-            self.fields['question_type'].widget.attrs['class'] += ' opacity-70 bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed'
+            # Disable fields that define the fixed question structure
+            fields_to_disable = [
+                'question_type', 
+                'curriculum_board', 
+                'curriculum_class', # Added
+                'curriculum_subject', 
+                'curriculum_chapter'
+            ]
+            
+            # for field_name in fields_to_disable:
+            #     field = self.fields[field_name]
+            #     field.widget.attrs['disabled'] = True
+            #     field.required = False
+            #     field.widget.attrs['class'] += ' opacity-70 bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed'
 
 
         # ====================================================================
-        # START: CASCADING LOGIC (Kept as provided)
+        # START: CASCADING LOGIC (Board -> Class -> Subject -> Chapter)
         # ====================================================================
         
-        # A. Populate Subject Field (Filter by Board)
-        board_id = None
-        if 'curriculum_board' in self.data:
+        # A. Populate Class Field (Filter by Board)
+        current_board = None
+        board_id = self.data.get('curriculum_board') if 'curriculum_board' in self.data else (self.instance.curriculum_board.pk if self.instance.pk and self.instance.curriculum_board else None)
+        
+        if board_id:
             try:
-                board_id = int(self.data.get('curriculum_board'))
-                self.fields['curriculum_subject'].queryset = TreeNode.objects.filter(
-                    parent_id=board_id,
-                    node_type__in=['subject', 'class']
-                ).order_by('name')
-            except (ValueError, TypeError):
+                current_board = TreeNode.objects.get(pk=int(board_id))
+                self.fields['curriculum_class'].queryset = TreeNode.objects.filter(
+                    parent=current_board,
+                    node_type='class'
+                ).order_by('order', 'name')
+            except (ValueError, TreeNode.DoesNotExist):
                 pass
         
-        elif self.instance.pk and self.instance.curriculum_board:
-            board_id = self.instance.curriculum_board.pk
-            self.fields['curriculum_subject'].queryset = TreeNode.objects.filter(
-                parent=self.instance.curriculum_board,
-                node_type__in=['subject', 'class']
-            ).order_by('name')
-
-        # B. Populate Chapter Field (Filter by Subject)
-        if 'curriculum_subject' in self.data:
+        # B. Populate Subject Field (Filter by Class)
+        current_class = None
+        class_id = self.data.get('curriculum_class') if 'curriculum_class' in self.data else (self.instance.curriculum_class.pk if self.instance.pk and self.instance.curriculum_class else None)
+        
+        if class_id:
             try:
-                subject_id = int(self.data.get('curriculum_subject'))
+                current_class = TreeNode.objects.get(pk=int(class_id))
+                self.fields['curriculum_subject'].queryset = TreeNode.objects.filter(
+                    parent=current_class,
+                    node_type='subject'
+                ).order_by('order', 'name')
+            except (ValueError, TreeNode.DoesNotExist):
+                pass
+
+        # C. Populate Chapter Field (Filter by Subject)
+        current_subject = None
+        subject_id = self.data.get('curriculum_subject') if 'curriculum_subject' in self.data else (self.instance.curriculum_subject.pk if self.instance.pk and self.instance.curriculum_subject else None)
+        
+        if subject_id:
+            try:
+                current_subject = TreeNode.objects.get(pk=int(subject_id))
                 self.fields['curriculum_chapter'].queryset = TreeNode.objects.filter(
-                    parent_id=subject_id,
+                    parent=current_subject,
                     node_type='chapter'
                 ).order_by('order', 'name')
-            except (ValueError, TypeError):
+            except (ValueError, TreeNode.DoesNotExist):
                 pass
-        
-        elif self.instance.pk and self.instance.curriculum_subject:
-            subject_id = self.instance.curriculum_subject.pk
-            self.fields['curriculum_chapter'].queryset = TreeNode.objects.filter(
-                parent=self.instance.curriculum_subject,
-                node_type='chapter'
-            ).order_by('order', 'name')
-            
-        # ====================================================================
-        # END: CASCADING LOGIC
-        # ====================================================================
+
+     
 
 
 class MCQOptionForm(forms.ModelForm):

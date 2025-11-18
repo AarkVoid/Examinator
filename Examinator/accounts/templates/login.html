@@ -38,11 +38,11 @@
 
             <!-- Username Field -->
             <div>
-                <label for="id_username" class="block text-slate-300 mb-2 font-medium">Email </label>
-                {{ form.email|add_class:"w-full px-4 py-2 bg-slate-700 border-slate-600 border rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" }}
-                {% if form.email.errors %}
+                <label for="id_username" class="block text-slate-300 mb-2 font-medium">Username </label>
+                {{ form.identifier|add_class:"w-full px-4 py-2 bg-slate-700 border-slate-600 border rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" }}
+                {% if form.identifier.errors %}
                     <div class="text-red-400 text-sm mt-1">
-                        {% for error in form.email.errors %}
+                        {% for error in form.identifier.errors %}
                             <p>{{ error }}</p>
                         {% endfor %}
                     </div>

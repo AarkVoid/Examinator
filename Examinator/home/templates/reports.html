@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+{# Removed unused .toggle-btn and .nested CSS to rely purely on Tailwind classes #}
+{% endblock %}
+{% block content %}
+<div class="p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+
+    <header class="mb-8">
+        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-100 flex items-center">
+            <i class="fa-solid fa-chart-line text-blue-600 dark:text-blue-400 mr-3"></i>
+            System Reports Dashboard
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">A comprehensive overview of platform statistics.</p>
+    </header>
+
+    <div class="space-y-10">
+
+        <section>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                <i class="fa-solid fa-globe text-blue-500 dark:text-blue-400 mr-2"></i> Global Summary
+            </h2>
+            
+            <div class="grid lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2 gap-6">
+
+                {# Assumes stat_card.html structure is wrapped in: bg-white border border-gray-200 shadow-lg #}
+                {% comment %} 
+                   To make stat_card.html work in dark mode, you would need to ensure the HTML inside it is:
+                   <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-5 rounded-xl ...">
+                {% endcomment %}
+
+                {% include 'home/stat_card.html' with title="Total Organisations" value=total_orgs color="text-gray-900 dark:text-gray-100" icon="fa-building" %}
+                {% include 'home/stat_card.html' with title="Active Organisations" value=active_orgs color="text-green-600 dark:text-green-400" icon="fa-circle-check" %}
+                {% include 'home/stat_card.html' with title="Inactive Organisations" value=inactive_orgs color="text-red-600 dark:text-red-400" icon="fa-circle-xmark" %}
+                {% include 'home/stat_card.html' with title="Total Users" value=total_users color="text-gray-900 dark:text-gray-100" icon="fa-users" %}
+                {% include 'home/stat_card.html' with title="Total Papers" value=total_papers color="text-gray-900 dark:text-gray-100" icon="fa-file-lines" %}
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-200 dark:border-gray-700">
+
+        <section>
+            <div class="grid lg:grid-cols-2 gap-8">
+                
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                        <i class="fa-solid fa-key text-yellow-500 dark:text-yellow-400 mr-2"></i> License Summary
+                    </h2>
+                    <div class="grid md:grid-cols-3 gap-4">
+
+                        {# Assumes stat_card_small.html structure is wrapped in: bg-white border border-gray-200 shadow-lg #}
+                        {% comment %} 
+                           To make stat_card_small.html work in dark mode, you would need to ensure the HTML inside it is:
+                           <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-4 rounded-xl ...">
+                        {% endcomment %}
+                        
+                        {% include 'home/stat_card_small.html' with title="Total Licenses" value=total_licenses color="text-gray-900 dark:text-gray-100" %}
+                        {% include 'home/stat_card_small.html' with title="Active Licenses" value=active_licenses color="text-green-600 dark:text-green-400" %}
+                        {% include 'home/stat_card_small.html' with title="Expired Licenses" value=expired_licenses color="text-red-600 dark:text-red-400" %}
+                    </div>
+                </div>
+                
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                        <i class="fa-solid fa-pencil-ruler text-indigo-500 dark:text-indigo-400 mr-2"></i> Question Paper Summary
+                    </h2>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        {% include 'home/stat_card_small.html' with title="Total Papers" value=total_papers color="text-gray-900 dark:text-gray-100" %}
+                        {% include 'home/stat_card_small.html' with title="Published" value=published_papers color="text-green-600 dark:text-green-400" %}
+                        {% include 'home/stat_card_small.html' with title="Drafts" value=draft_papers color="text-yellow-600 dark:text-yellow-400" %}
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-200 dark:border-gray-700">
+
+        <section>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                <i class="fa-solid fa-book-open-reader text-teal-500 dark:text-teal-400 mr-2"></i> Curriculum Overview (Global)
+            </h2>
+
+            <div class="grid md:grid-cols-4 gap-6">
+                {% for name, value in stats %}
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-5 rounded-xl transition duration-300 hover:shadow-xl">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">{{ name }}</p>
+                    <p class="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mt-1">{{ value }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-200 dark:border-gray-700">
+
+        <section class="w-full">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                <i class="fa-solid fa-sitemap text-orange-500 dark:text-orange-400 mr-2"></i> Curriculum Question Count Breakdown
+            </h2>
+
+            {% for board, classes in hierarchy.items %}
+            <div class="border border-blue-300 dark:border-blue-700 rounded-xl mb-4 bg-white dark:bg-gray-800 shadow-lg">
+                
+                <button class="w-full flex justify-between items-center px-4 py-3 bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-xl collapsible transition duration-200">
+                    <span class="font-bold text-lg text-blue-800 dark:text-blue-300">{{ board.name }}</span>
+                    <div class="flex items-center space-x-3">
+                        <span class="font-semibold text-blue-700 dark:text-blue-400 text-sm hidden sm:inline">{{ classes|length }} Classes</span>
+                        <i class="fa-solid fa-chevron-down text-blue-800 dark:text-blue-300 transition duration-300"></i>
+                    </div>
+                </button>
+
+                {# Content DIV now uses 'content hidden' class #}
+                <div class="content hidden p-4">
+
+                    {% for class, subjects in classes.items %}
+                    <div class="border border-green-300 dark:border-green-700 rounded-lg mb-3 bg-gray-50 dark:bg-gray-700">
+
+                        <button class="w-full flex justify-between items-center px-3 py-2 bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 rounded-lg collapsible transition duration-200">
+                            <span class="font-semibold text-green-800 dark:text-green-300">{{ class.name }}</span>
+                            <div class="flex items-center space-x-3">
+                                <span class="font-semibold text-green-700 dark:text-green-400 text-sm hidden sm:inline">{{ subjects|length }} Subjects</span>
+                                <i class="fa-solid fa-chevron-down text-green-800 dark:text-green-300 transition duration-300"></i>
+                            </div>
+                        </button>
+
+                        {# Content DIV now uses 'content hidden' class #}
+                        <div class="content hidden p-3">
+
+                            {% for subject, chapters in subjects.items %}
+                            <div class="border border-yellow-300 dark:border-yellow-700 rounded-md mb-2 bg-gray-100 dark:bg-gray-600">
+
+                                <button class="w-full flex justify-between items-center px-3 py-2 bg-yellow-100 dark:bg-yellow-900 hover:bg-yellow-200 dark:hover:bg-yellow-800 rounded-md collapsible transition duration-200">
+                                    <span class="font-semibold text-yellow-800 dark:text-yellow-300">{{ subject.name }}</span>
+                                    <div class="flex items-center space-x-3">
+                                        <span class="font-semibold text-yellow-700 dark:text-yellow-400 text-sm hidden sm:inline">{{ chapters|length }} Chapters</span>
+                                        <i class="fa-solid fa-chevron-down text-yellow-800 dark:text-yellow-300 transition duration-300"></i>
+                                    </div>
+                                </button>
+
+                                {# Content DIV now uses 'content hidden' class #}
+                                <div class="content hidden p-3">
+
+                                    {% for chapter, count in chapters.items %}
+                                    <div class="flex justify-between items-center bg-white dark:bg-gray-700 px-3 py-2 my-1 border border-gray-200 dark:border-gray-600 rounded shadow-sm">
+                                        <span class="text-gray-700 dark:text-gray-300">{{ chapter.name }}</span>
+                                        <span class="font-extrabold text-indigo-600 dark:text-indigo-400">{{ count }} Questions</span>
+                                    </div>
+                                    {% endfor %}
+
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+
+        <hr class="border-t border-gray-200 dark:border-gray-700">
+
+        <section>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-8 mb-6 flex items-center">
+                <i class="fa-solid fa-building text-purple-600 dark:text-purple-400 mr-2"></i> Organisation-Wise Statistics
+            </h2>
+
+            <div class="space-y-10">
+
+                {% for item in org_data %}
+                <div class="bg-white dark:bg-gray-800 shadow-xl p-6 rounded-2xl border border-gray-200 dark:border-gray-700 transition duration-300 hover:shadow-2xl">
+
+                    <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">
+                        <h3 class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ item.org.name }}</h3>
+
+                        {% if item.org.is_active %}
+                            <span class="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-sm font-semibold rounded-full flex items-center">
+                                <i class="fa-solid fa-circle-dot mr-2 text-xs"></i> Active
+                            </span>
+                        {% else %}
+                            <span class="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 text-sm font-semibold rounded-full flex items-center">
+                                <i class="fa-solid fa-circle-dot mr-2 text-xs"></i> Inactive
+                            </span>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-6">
+
+                        <div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+                            <p class="text-xs font-medium text-indigo-500 dark:text-indigo-400 uppercase">Total Users</p>
+                            <p class="text-2xl font-bold text-indigo-800 dark:text-indigo-300 mt-1">{{ item.total_users }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+                            <p class="text-xs font-medium text-green-500 dark:text-green-400 uppercase">Active Users</p>
+                            <p class="text-2xl font-bold text-green-800 dark:text-green-300 mt-1">{{ item.active_users }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700">
+                            <p class="text-xs font-medium text-red-500 dark:text-red-400 uppercase">Inactive Users</p>
+                            <p class="text-2xl font-bold text-red-800 dark:text-red-300 mt-1">{{ item.inactive_users }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Teachers</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{{ item.teachers }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Students</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{{ item.students }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Admins</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{{ item.admins }}</p>
+                        </div>
+
+                        <div class="p-4 rounded-lg bg-purple-50 dark:bg-purple-900 border border-purple-200 dark:border-purple-700">
+                            <p class="text-xs font-medium text-purple-500 dark:text-purple-400 uppercase">Questions Created</p>
+                            <p class="text-2xl font-bold text-purple-800 dark:text-purple-300 mt-1">{{ item.total_questions }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-purple-50 dark:bg-purple-900 border border-purple-200 dark:border-purple-700">
+                            <p class="text-xs font-medium text-purple-500 dark:text-purple-400 uppercase">Papers Created</p>
+                            <p class="text-2xl font-bold text-purple-800 dark:text-purple-300 mt-1">{{ item.total_papers }}</p>
+                        </div>
+
+
+                        <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+                            <p class="text-xs font-medium text-yellow-500 dark:text-yellow-400 uppercase">Total Licenses</p>
+                            <p class="text-2xl font-bold text-yellow-800 dark:text-yellow-300 mt-1">{{ item.total_licenses }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+                            <p class="text-xs font-medium text-yellow-500 dark:text-yellow-400 uppercase">Active Licenses</p>
+                            <p class="text-2xl font-bold text-yellow-800 dark:text-yellow-300 mt-1">{{ item.active_licenses }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+                            <p class="text-xs font-medium text-yellow-500 dark:text-yellow-400 uppercase">Expired Licenses</p>
+                            <p class="text-2xl font-bold text-yellow-800 dark:text-yellow-300 mt-1">{{ item.expired_licenses }}</p>
+                        </div>
+
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-8 mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+                        
+                        <div>
+                            <h4 class="text-xl font-bold mb-3 text-gray-800 dark:text-gray-200 flex items-center">
+                                <i class="fa-solid fa-user-group text-sky-600 dark:text-sky-400 mr-2"></i> Organization Groups
+                            </h4>
+
+                            {% if item.Orgnsation_groups %}
+                                <div class="space-y-3">
+                                    {% for group in item.Orgnsation_groups %}
+                                    
+                                        <button 
+                                            class="w-full flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition collapsible border border-gray-300 dark:border-gray-600"
+                                        >
+                                            <span class="font-semibold text-gray-800 dark:text-gray-200">
+                                                {{ group.name }}
+                                            </span>
+                                            <i class="fa-solid fa-chevron-down text-gray-500 dark:text-gray-400 transition duration-300"></i> 
+                                        </button>
+
+                                        <div class="content hidden pl-6 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-inner">
+                                            <p class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">Permissions:</p>
+
+                                            <ul class="list-disc ml-6 space-y-0.5 text-gray-700 dark:text-gray-300 text-sm">
+                                                {% for perm in group.permissions.all %}
+                                                    <li>{{ perm.name|truncatechars:50 }} ({{ perm.codename|truncatechars:30 }})</li>
+                                                {% empty %}
+                                                    <li class="text-gray-500 dark:text-gray-400">No permissions assigned</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-sm text-gray-500 dark:text-gray-400">No groups found for this organisation.</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <h4 class="text-xl font-bold mb-3 text-gray-800 dark:text-gray-200 flex items-center">
+                                <i class="fa-solid fa-file-contract text-red-600 dark:text-red-400 mr-2"></i> License Details
+                            </h4>
+
+                            {% if item.licenses %}
+                                <div class="space-y-4">
+                                    {% for license in item.licenses %}
+                                        
+                                        {# Determine base color variables based on expiry status #}
+                                        {% with is_expired=license.is_expired %}
+                                        {% if license.is_expired %}
+                                            {% with btn_bg_color="bg-red-100 dark:bg-red-900" btn_hover_color="hover:bg-red-200 dark:hover:bg-red-800" btn_border_color="border-red-300 dark:border-red-700" text_color="text-red-800 dark:text-red-300" content_bg_color="bg-red-50 dark:bg-red-950" %}{% endwith %}
+                                        {% else %}
+                                            {% with btn_bg_color="bg-green-100 dark:bg-green-900" btn_hover_color="hover:bg-green-200 dark:hover:bg-green-800" btn_border_color="border-green-300 dark:border-green-700" text_color="text-green-800 dark:text-green-300" content_bg_color="bg-green-50 dark:bg-green-950" %}{% endwith %}
+                                        {% endif %}
+
+                                        <button 
+                                            class="w-full text-left flex justify-between items-center {{ btn_bg_color }} px-4 py-2 rounded-lg {{ btn_hover_color }} transition collapsible border {{ btn_border_color }}"
+                                        >
+                                            <span class="font-semibold {{ text_color }} flex flex-col">
+                                                <span class="flex items-center">
+                                                    License: {{ license.name }}
+                                                    
+                                                    {# Display ACTIVE/EXPIRED tag based on status #}
+                                                    {% if is_expired %}
+                                                        <span class="ml-3 px-2 py-0.5 bg-red-600 text-white text-xs font-extrabold uppercase rounded-full shadow-sm">
+                                                            EXPIRED
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="ml-3 px-2 py-0.5 bg-green-600 text-white text-xs font-extrabold uppercase rounded-full shadow-sm">
+                                                            ACTIVE
+                                                        </span>
+                                                    {% endif %}
+                                                </span>
+                                                
+                                                <span class="text-xs font-normal {{ text_color }} mt-0.5">
+                                                    Valid until: **{{ license.valid_until }}**
+                                                </span>
+                                            </span>
+                                            <i class="fa-solid fa-chevron-down {{ text_color }} transition duration-300"></i>
+                                        </button>
+
+                                        <div class="content hidden pl-6 py-3 {{ content_bg_color }} rounded-lg shadow-inner">
+                                            <p class="text-sm font-semibold {{ text_color }} mb-1">Permissions included:</p>
+
+                                            <ul class="list-disc ml-6 space-y-0.5 {{ text_color }} text-sm">
+                                                {% for perm in license.permissions.all %}
+                                                    <li>{{ perm.name|truncatechars:50 }} ({{ perm.codename|truncatechars:30 }})</li>
+                                                {% empty %}
+                                                    <li class="{% if is_expired %}text-red-600 dark:text-red-400{% else %}text-green-600 dark:text-green-400{% endif %}">No permissions attached</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                        
+                                        {% endwith %}
+
+                                    {% endfor %}
+                                </div>
+
+                            {% else %}
+                                <p class="text-sm text-gray-500 dark:text-gray-400">This organisation has no license permissions.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+
+                </div>
+
+                {% endfor %}
+            </div>
+        </section>
+
+
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+{# Using the correct Font Awesome kit URL #}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script> 
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Find all elements with the 'collapsible' class (the buttons)
+    document.querySelectorAll(".collapsible").forEach(btn => {
+        btn.addEventListener("click", () => {
+            // The content is the immediate next sibling element
+            const content = btn.nextElementSibling;
+            
+            // Find the chevron icon
+            const icon = btn.querySelector('.fa-chevron-down');
+
+            // Toggle the 'hidden' class to show/hide the content
+            content.classList.toggle("hidden");
+
+            // Rotate the chevron icon for visual feedback
+            if (icon) {
+                icon.classList.toggle('rotate-180');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

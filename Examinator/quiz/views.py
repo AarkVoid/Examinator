@@ -25,6 +25,12 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 import csv, io, traceback, os
 from django.conf import settings
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger 
+# Assuming OrganizationProfile is imported from saas.models based on Question model definition
+from saas.models import OrganizationProfile
+from django.core.exceptions import ValidationError
+
+
 QUESTION_TYPES = [
     ('mcq', 'Multiple Choice'),
     ('fill_blank', 'Fill in the Blank'),
@@ -41,7 +47,9 @@ DIFFICULTY_LEVELS = [
 
 def filter_questions_by_license(organization):
     """
-    Return queryset of questions the given organization is allowed to access.
+    Return queryset of questions matching the licensed curriculum nodes 
+    for the given organization, plus questions owned by the organization, 
+    and published questions.
     """
     if not organization:
         return Question.objects.none()
@@ -52,40 +60,79 @@ def filter_questions_by_license(organization):
     # Collect all allowed curriculum node IDs
     allowed_nodes = set()
     for grant in grants:
+        # NOTE: get_all_licensed_nodes should return all descendants of the licensed nodes
+        # We must assume the MPTT model and the license manager handle this correctly.
         for node in grant.get_all_licensed_nodes():
             allowed_nodes.add(node.id)
 
     # Filter questions linked to these nodes
     return Question.objects.filter(
         Q(curriculum_board_id__in=allowed_nodes)
+        | Q(curriculum_class_id__in=allowed_nodes)
         | Q(curriculum_subject_id__in=allowed_nodes)
         | Q(curriculum_chapter_id__in=allowed_nodes)
     ).distinct()
 
+# --- Main View Function (Updated) ---
 
 @login_required
+@permission_required('quiz.view_question',login_url='profile_update')
 def question_list(request):
+    
+    # New Parameters for tabs and organization filter. Default tab is 'public'.
+    tab_type = request.GET.get("tab", "public") 
+    org_filter_id = request.GET.get("organization_id")
+    
     filter_type = request.GET.get("filter", "all")
     search_query = request.GET.get("q", "")
     selected_node_id = request.GET.get("input_node")
 
-    print('selected_node_id :', selected_node_id)
-
-    # --- Base QuerySet ---
-    queryset = Question.objects.all()
-
-    # --- License-based filtering ---
-    organization = getattr(request.user, "organization_profile", None)
-    if request.user.is_superuser:
-        queryset = Question.objects.all()
+    # --- Initial Context and User Role ---
+    organization = getattr(request.user.profile, "organization_profile", None)
+    is_staff_or_superuser = request.user.is_superuser or request.user.is_staff
+    
+    # --- Base QuerySet Determination (CRITICAL ACCESS LOGIC) ---
+    
+    if is_staff_or_superuser:
+        if tab_type == "organization":
+            # Case 1: Staff/Superuser viewing ALL ORGANIZATION questions (Auditing View)
+            # Content: Organization is NOT NULL
+            queryset = Question.objects.filter(organization__isnull=False)
+            
+            # Apply organization filter if selected (MANDATORY for Staff filter functionality)
+            if org_filter_id:
+                queryset = queryset.filter(organization_id=org_filter_id)
+        else: # tab_type == "public" (or default)
+            # Case 2: Staff/Superuser viewing STAFF/PUBLIC questions
+            # Content: Organization IS NULL
+            queryset = Question.objects.filter(organization__isnull=True)
+            
     elif organization:
-        queryset = filter_questions_by_license(organization)
+        if tab_type == "organization":
+            # Case 3: Organization User viewing MY ORGANIZATION/LICENSED questions
+            # Content: Restricted by license/ownership
+            queryset = Question.objects.filter(organization=organization)
+        else: # tab_type == "public" (or default)
+            # Case 4: Organization User viewing PUBLIC questions
+            # Content: Organization IS NULL
+            queryset = filter_questions_by_license(organization)
+            # Additional filter for organization IS NULL
+            queryset = queryset.filter(is_published=True).exclude(organization=organization)
+            
+            
     else:
-        queryset = Question.objects.none()
+        # Default for users with no organization affiliation (safety default: public only)
+        queryset = Question.objects.filter(organization__isnull=True)
 
-    # --- Question Type Counts ---
+    # --- Question Type Counts (MUST be based on the base 'queryset') ---
+    
+    # IMPORTANT: We gather the IDs of the base queryset BEFORE applying further filters 
+    # so that the sidebar counts reflect the total bank the user has access to in this tab.
+    base_queryset_ids = queryset.values_list('id', flat=True)
+    
     counts = (
-        Question.objects.values("question_type")
+        Question.objects.filter(id__in=base_queryset_ids)
+        .values("question_type")
         .annotate(total=Count("id"))
     )
 
@@ -95,43 +142,68 @@ def question_list(request):
 
     json_type_count = json.dumps(result, indent=2)
 
-    # --- Apply Filters ---
+    # --- Apply Filters (applied to the base 'queryset' to narrow the view) ---
     if filter_type != "all":
         queryset = queryset.filter(question_type=filter_type)
 
     if search_query:
-        queryset = queryset.filter(question_text__icontains=search_query)
+        # Searching question text or answer text
+        # Assuming question_answer is a related field/lookup that works, keeping the user's logic
+        queryset = queryset.filter(Q(question_text__icontains=search_query) | Q(question_answer__icontains=search_query))
 
     if selected_node_id:
         try:
-            selected_node = TreeNode.objects.get(pk=selected_node_id)
+            # Note: Since the base_queryset is already distinct, we can apply filters directly
             queryset = queryset.filter(
-                Q(curriculum_board=selected_node)
-                | Q(curriculum_subject=selected_node)
-                | Q(curriculum_chapter=selected_node)
+                Q(curriculum_board__id=selected_node_id)
+                | Q(curriculum_class__id=selected_node_id)
+                | Q(curriculum_subject__id=selected_node_id)
+                | Q(curriculum_chapter__id=selected_node_id)
             )
-            listofselections = selected_node.get_ancestors(include_self=True)
-            print("Selected node and ancestors:", selected_node, listofselections)
-        except Exception as e:
-            print("Invalid node ID:", selected_node_id, "Error:", e)
+        except Exception:
+            # Silently fail on invalid node ID and continue with the current queryset
+            pass
 
-    # --- Root Question Counts ---
+    # Ensure the queryset is distinct before pagination (if needed after filtering)
+    final_queryset = queryset.distinct()
+
+    # --- Pagination Logic ---
+    paginator = Paginator(final_queryset, settings.QUESTIONS_PER_PAGE)
+    page_number = request.GET.get('page')
+    
+    try:
+        questions = paginator.page(page_number)
+    except PageNotAnInteger:
+        questions = paginator.page(1)
+    except EmptyPage:
+        questions = paginator.page(paginator.num_pages)
+
+    # --- Root Question Counts (MUST be based on the base 'queryset') ---
     root_question_counts = {}
+    # Assuming MPTT model where parent__isnull=True correctly finds root nodes
     root_nodes = TreeNode.objects.filter(parent__isnull=True).order_by('name')
 
     for root in root_nodes:
-        count = Question.objects.filter(
-            Q(curriculum_board__in=root.get_descendants())
-            | Q(curriculum_subject__in=root.get_descendants())
-            | Q(curriculum_chapter__in=root.get_descendants())
+        # Count only questions in the base set that link to this root's descendants
+        # We use id__in base_queryset_ids to restrict the count to what the user can see in this tab
+        count = Question.objects.filter(id__in=base_queryset_ids).filter(
+            Q(curriculum_board__in=root.get_descendants(include_self=True))
+            | Q(curriculum_class__in=root.get_descendants(include_self=True))
+            | Q(curriculum_subject__in=root.get_descendants(include_self=True))
+            | Q(curriculum_chapter__in=root.get_descendants(include_self=True))
         ).count()
         root_question_counts[str(root.name)] = count
 
     json_root_count = json.dumps(root_question_counts, indent=2)
 
+    # Fetch all organizations for the filter dropdown (only for staff/superuser)
+    all_organizations = []
+    if is_staff_or_superuser:
+        all_organizations = OrganizationProfile.objects.all().order_by('name')
+        
     # --- Render ---
     return render(request, "quiz/question_list.html", {
-        "questions": queryset.distinct(),
+        "questions": questions,
         "filter_type": filter_type,
         "search_query": search_query,
         "question_types": Question.QUESTION_TYPES,
@@ -139,6 +211,12 @@ def question_list(request):
         "selected_node_id": selected_node_id,
         "json_type_count": json.loads(json_type_count),
         "json_root_count": json.loads(json_root_count),
+        
+        # New context for filtering and tabs
+        "tab_type": tab_type,
+        "is_staff_or_superuser": is_staff_or_superuser,
+        "all_organizations": all_organizations,
+        "org_filter_id": org_filter_id,
     })
 
 
@@ -187,6 +265,7 @@ def get_child_nodes(request, node_id):
 
 # --- Main CRUD View ---
 @login_required
+@permission_required('quiz.add_question',login_url='profile_update')
 def question_create(request, pk=None):
     """
     Handles question creation/update by deriving Board and Subject from Chapter.
@@ -216,6 +295,7 @@ def question_create(request, pk=None):
         
         # Get the final node ID
         chapter_id = child_and_types.get('chapter')
+        class_id = child_and_types.get('class')
         board_id = child_and_types.get('board')
         subject_id = child_and_types.get('subject')
         
@@ -224,6 +304,10 @@ def question_create(request, pk=None):
         q_type = request.POST.get('question_type')
         difficulty = request.POST.get('difficulty')
         marks = request.POST.get('marks')
+
+        # --- NEW: Retrieve the uploaded file from request.FILES ---
+        question_image = request.FILES.get('question_image')
+        # ------------------------------------------------------------
         
         # Basic validation
         if not all([chapter_id, question_text, q_type, difficulty, marks]):
@@ -269,6 +353,7 @@ def question_create(request, pk=None):
             
             # Assign derived IDs
             q.curriculum_board_id = board_id 
+            q.curriculum_class_id = class_id
             q.curriculum_subject_id = subject_id
             q.curriculum_chapter_id = chapter_id
             
@@ -276,7 +361,17 @@ def question_create(request, pk=None):
             q.question_text = question_text
             q.question_type = q_type
             q.difficulty = difficulty
+            if request.user.is_superuser:
+                q.is_published = True
+            else:
+                q.organization = request.user.profile.organization_profile
+            
             q.marks = float(marks) if marks else 0
+
+            # --- NEW: Assign the uploaded image file ---
+            if question_image:
+                q.question_image = question_image
+            # ------------------------------------------
 
             q.save()
             
@@ -432,9 +527,14 @@ def question_true_false(request, question_id):
 
 
 @login_required
+@permission_required('quiz.change_question',login_url='profile_update')
 def question_detail_and_edit(request, question_id):
     # Security: Ensure user only accesses their own questions
-    question = get_object_or_404(Question, id=question_id, created_by=request.user)
+    UserInf = request.user
+    if UserInf.is_superuser:
+        question = get_object_or_404(Question, id=question_id)
+    else:
+        question = get_object_or_404(Question, id=question_id,organization=request.user.profile.organization_profile)
 
     # --- Determine which form type to use (Based on question.question_type) ---
     answer_form_class_map = {
@@ -444,64 +544,84 @@ def question_detail_and_edit(request, question_id):
         'short_answer': ShortAnswerForm,
         'true_false': TrueFalseAnswerForm,
     }
-    # For one-to-one forms, we need the instance first
-    answer_instance = question
-    if question.question_type in ['short_answer']:
-        answer_instance, _ = ShortAnswer.objects.get_or_create(question=question)
-    elif question.question_type in ['true_false']:
-        answer_instance, _ = TrueFalseAnswer.objects.get_or_create(question=question)
 
     AnswerFormOrSet = answer_form_class_map.get(question.question_type)
     
+    # Initialize variables for safe handling
+    answer_instance = question # Default instance for FormSets
+    answer_form_context = None
+    needs_type_selection = False
+
+    if AnswerFormOrSet is None:
+        # If the type is missing or invalid, we cannot load the answer form
+        needs_type_selection = True
+    else:
+        # For one-to-one forms, we ensure the related object exists
+        if question.question_type in ['short_answer']:
+            answer_instance, _ = ShortAnswer.objects.get_or_create(question=question)
+        elif question.question_type in ['true_false']:
+            answer_instance, _ = TrueFalseAnswer.objects.get_or_create(question=question)
+
     # --- POST Handling ---
     if request.method == 'POST':
         # Identify which form was submitted (core question details or answer details)
         action = request.POST.get('form_action')
         
         if action == 'core_details':
-            form = QuestionForm(request.POST, instance=question)
+            form = QuestionForm(request.POST, instance=question,user=request.user)
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Core question details updated successfully.')
-                return redirect('quiz:question_detail_and_edit', question_id=question.id)
+                return redirect('quiz:question_edit', question_id=question.id)
             else:
-                # Initialize answer form for context if core details fail validation
-                answer_form_context = AnswerFormOrSet(instance=answer_instance)
+                # Initialize answer form for context if core details fail validation (safely)
+                if AnswerFormOrSet:
+                    answer_form_context = AnswerFormOrSet(instance=answer_instance)
                 messages.error(request, 'Error updating core details. Please correct the fields.')
         
         elif action == 'answer_details':
-            # Handle FormSet (MCQ, Fill, Match) or single Form (Short, T/F)
-            answer_form_context = AnswerFormOrSet(request.POST, instance=answer_instance)
-            
-            if answer_form_context.is_valid():
-                answer_form_context.save()
-                messages.success(request, f'{question.get_question_type_display()} answers/options updated successfully.')
-                return redirect('quiz:question_detail_and_edit', question_id=question.id)
+            # GUARD: Prevent saving answers if the question type is undefined
+            if needs_type_selection:
+                messages.error(request, 'Cannot save answers: The question type must be set in the core details first.')
+                form = QuestionForm(instance=question,user=request.user)
             else:
-                # Initialize core form for context if answer details fail validation
-                form = QuestionForm(instance=question)
-                messages.error(request, f'Error updating {question.get_question_type_display()} answers. Please correct the errors.')
+                # Handle FormSet (MCQ, Fill, Match) or single Form (Short, T/F)
+                answer_form_context = AnswerFormOrSet(request.POST, instance=answer_instance)
+                
+                if answer_form_context.is_valid():
+                    answer_form_context.save()
+                    messages.success(request, f'{question.get_question_type_display()} answers/options updated successfully.')
+                    return redirect('quiz:question_edit', question_id=question.id)
+                else:
+                    # Initialize core form for context if answer details fail validation
+                    form = QuestionForm(instance=question,user=request.user)
+                    messages.error(request, f'Error updating {question.get_question_type_display()} answers. Please correct the errors.')
         
         else:
             # Fallback/Unrecognized POST
             messages.error(request, 'Unrecognized form submission.')
-            form = QuestionForm(instance=question)
-            answer_form_context = AnswerFormOrSet(instance=answer_instance)
+            form = QuestionForm(instance=question,user=request.user)
+            if AnswerFormOrSet:
+                answer_form_context = AnswerFormOrSet(instance=answer_instance)
 
     # --- GET Handling (or POST failure initialization) ---
     else:
-        form = QuestionForm(instance=question)
-        answer_form_context = AnswerFormOrSet(instance=answer_instance)
+        form = QuestionForm(instance=question,user=request.user)
+        if AnswerFormOrSet:
+            answer_form_context = AnswerFormOrSet(instance=answer_instance)
 
     context = {
         'question': question,
         'form': form,
-        'answer_form_context': answer_form_context, # The form/formset for the answer type
-        'is_formset': hasattr(answer_form_context, 'management_form'), # Check if it's a FormSet
+        'answer_form_context': answer_form_context,
+        # Safely check if it's a FormSet, defaulting to False if context is None
+        'is_formset': hasattr(answer_form_context, 'management_form') if answer_form_context else False,
+        'needs_type_selection': needs_type_selection, # New flag for template logic
     }
     return render(request, 'quiz/question_detail_edit.html', context)
 
 @login_required
+@permission_required('quiz.delete_question',login_url='profile_update')
 def question_delete(request, question_id):
     question = get_object_or_404(Question, id=question_id)
     
@@ -513,25 +633,52 @@ def question_delete(request, question_id):
     return render(request, 'quiz/question_confirm_delete.html', {'question': question})
 
 @login_required
+@permission_required('quiz.view_questionpaper',login_url='profile_update')
 def paper_list(request):
     """
     Displays a paginated list of published or draft papers, filtered by organization, 
     and calculates remaining paper and draft limits.
     """
-    # Initialize limit variables for Superusers or users without an organization
+    # Initialize limit variables and selected organization ID
     remaining_papers = 0
     total_max_papers = 0
     remaining_draft_papers = 0
-    
+    selected_org_id = request.GET.get('org', '') # Get the organization filter ID
+
     # Base Queryset
-    papers_qs = QuestionPaper.objects.select_related('curriculum_subject', 'created_by').order_by('-created')
+    papers_qs = QuestionPaper.objects.select_related('curriculum_subject', 'created_by', 'organization').order_by('-created')
     
     # Initialize querysets for pagination
     draft_papers_qs = papers_qs.filter(is_published=False)
     published_papers_qs = papers_qs.filter(is_published=True)
+    
+    # ----------------------------------------------------
+    # Superuser Filter Logic
+    # ----------------------------------------------------
+    if request.user.is_superuser:
+        # Fetch all organizations for the filter dropdown
+        all_organizations = OrganizationProfile.objects.all().order_by('name')
+        
+        # Apply organization filter if an ID is provided
+        if selected_org_id and selected_org_id.isdigit():
+            draft_papers_qs = draft_papers_qs.filter(organization_id=selected_org_id)
+            published_papers_qs = published_papers_qs.filter(organization_id=selected_org_id)
+            
+            # Since a filter is applied, we calculate counts based on the filter
+            draft_papers_count = draft_papers_qs.count()
+            published_papers_count = published_papers_qs.count()
+        else:
+            # No filter selected, get counts of all papers
+            draft_papers_count = draft_papers_qs.count()
+            published_papers_count = published_papers_qs.count()
 
-    if not request.user.is_superuser:
+    # ----------------------------------------------------
+    # Organization User Logic
+    # ----------------------------------------------------
+    else:
         organization = request.user.profile.organization_profile
+        all_organizations = [] # Not needed for non-staff users
+        
         if organization:
             # 1. Filter Querysets and get Counts for the specific organization
             draft_papers_qs = draft_papers_qs.filter(organization=organization)
@@ -546,7 +693,7 @@ def paper_list(request):
             try:
                 # Assuming UsageLimit is fetched as a single related object
                 usage_limit = UsageLimit.objects.get(organization_profile=organization)
-            except Exception:
+            except UsageLimit.DoesNotExist:
                 usage_limit = None 
 
             # Calculate Remaining Question Papers (Published Limit)
@@ -566,11 +713,6 @@ def paper_list(request):
             published_papers_qs = QuestionPaper.objects.none()
             draft_papers_count = 0
             published_papers_count = 0
-    
-    # Superuser Case: Get total counts but skip license logic
-    else:
-        draft_papers_count = draft_papers_qs.count()
-        published_papers_count = published_papers_qs.count()
 
 
     # Determine which set of papers (QUERYSET) to display based on the 'tab' query parameter
@@ -590,7 +732,12 @@ def paper_list(request):
     context = {
         'papers': papers_paged, 
         'current_tab': tab,
-        # These variables hold the limits and are passed to the template
+        
+        # Superuser Context
+        'all_organizations': all_organizations,
+        'selected_org_id': selected_org_id, 
+        
+        # User Context (Limit & Counts)
         'remaining_papers': remaining_papers,
         'total_max_papers': total_max_papers,
         'remaining_draft_papers': remaining_draft_papers,
@@ -602,9 +749,11 @@ def paper_list(request):
     return render(request, 'quiz/paper_list.html', context)
 
 @login_required
+@permission_required('quiz.publish_questionpaper',login_url='profile_update')
 def publish_paper(request, paper_id):
     """
-    Changes a paper's status from Draft to Published, enforcing usage limits.
+    Changes a paper's status from Draft to Published, enforcing usage limits 
+    and consuming a slot on the specific LicenseGrant.
     """
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     organization = request.user.profile.organization_profile
@@ -620,21 +769,29 @@ def publish_paper(request, paper_id):
 
     try:
         with transaction.atomic():
-            # 🛑 ENFORCEMENT: Check published limit BEFORE publishing
-            validate_paper_limits_and_license(
+            # 🛑 ENFORCEMENT & SELECTION: Check published limit BEFORE publishing.
+            # This function returns the specific LicenseGrant to consume.
+            license_grant_to_consume = validate_paper_limits_and_license(
                 organization=organization,
                 curriculum_subject=paper.curriculum_subject,
-                is_published=True, # Checking against the published limit
-                existing_paper_id=paper.id # Exclude this paper from the DRAFT count
+                is_published=True, 
+                existing_paper_id=paper.id 
             )
 
             # If validation passes, update the paper status
             paper.is_published = True
             paper.save()
-            messages.success(request, f"'{paper.title}' has been successfully published!")
             
-    except Exception as e:
+            # 🛑 CONSUME THE LICENSE SLOT by incrementing the counter on the selected grant
+            license_grant_to_consume.question_papers_created += 1
+            license_grant_to_consume.save()
+            
+            messages.success(request, f"'{paper.title}' has been successfully published, consuming one license slot!")
+            
+    except ValidationError as e:
         messages.error(request, f"Could not publish paper: {e}")
+    except Exception as e:
+        messages.error(request, f"An unexpected error occurred: {e}")
 
     # Redirect back to the drafts tab
     return redirect('quiz:paper_list')
@@ -782,6 +939,7 @@ def get_selected_nodes_info(request):
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
 @login_required
+@permission_required('quiz.view_questionpaper', login_url='profile_update')
 def paper_detail(request, paper_id):
     paper = get_object_or_404(QuestionPaper, id=paper_id)
 
@@ -867,10 +1025,12 @@ def paper_detail(request, paper_id):
 
 
 @login_required
+@permission_required('quiz.add_paperquestion', login_url='profile_update')
 def paper_add_questions(request, paper_id):
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     
     # Check if user can edit this paper (owner or admin)
+    # ---------------------------------------------------------
     if paper.created_by != request.user and not request.user.is_staff:
         messages.error(request, 'You do not have permission to edit this paper.')
         return redirect('quiz:paper_detail', paper.id)
@@ -879,12 +1039,23 @@ def paper_add_questions(request, paper_id):
     existing_question_ids = paper.paper_questions.values_list('question_id', flat=True)
     
     # 🛑 Initial Query: Start with questions NOT already in the paper 🛑
-    questions = Question.objects.exclude(id__in=existing_question_ids)
+    if request.user.is_staff or request.user.is_superuser:
+        questions = Question.objects.all()
+    else:
+        org = getattr(request.user.profile, "organization_profile", None)
+        questions = Question.objects.filter(
+            Q(is_published=True) |
+            Q(organization=org)
+        )
+
 
     if paper.curriculum_chapters.exists():
         questions = questions.filter(
             curriculum_chapter__in=paper.curriculum_chapters.all()
         )
+
+
+    
     
     # Apply filters
     search_form = QuestionSearchForm(request.GET)
@@ -949,6 +1120,7 @@ def paper_add_questions(request, paper_id):
 # reference the subject/chapter fields, so they are correct as is.
 
 @login_required
+@permission_required('quiz.delete_paperquestion', login_url='profile_update')
 def paper_remove_question(request, paper_id, question_id):
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     paper_question = get_object_or_404(PaperQuestion, paper=paper, question_id=question_id)
@@ -980,16 +1152,17 @@ def paper_remove_question(request, paper_id, question_id):
     })
 
 @login_required
+@permission_required('quiz.change_questionpaper', login_url='profile_update')
 def edit_question_paper(request, paper_id):
     # In a real environment, remove the dummy code above and ensure real imports are used.
     
     question_paper = get_object_or_404(QuestionPaper, pk=paper_id)
     
     # Get organization from request
-    organization = getattr(request, 'organization', None)
+    organization = getattr(request.user.profile, 'organization_profile', None)
     
     # Optional Security Check: Ensure the user/org has rights to edit
-    if organization and question_paper.organization != organization:
+    if (organization and question_paper.organization != organization) or (question_paper.is_published == True and not request.user.is_superuser):
         messages.error(request, "You do not have permission to edit this question paper.")
         return redirect('quiz:paper_list')
     
@@ -1076,8 +1249,13 @@ def edit_question_paper(request, paper_id):
     return render(request, 'quiz/edit_question_paper.html', context)
 
 @login_required
+@permission_required('quiz.delete_questionpaper', login_url='profile_update')
 def paper_delete(request, paper_id):
     paper = get_object_or_404(QuestionPaper, id=paper_id)
+
+    if not request.user.is_superuser and paper.is_published == True:
+        messages.error(request, 'Question paper cannot be deleted deleted')
+        return redirect('quiz:paper_list')
     
     if request.method == 'POST':
         paper.delete()
@@ -1087,6 +1265,7 @@ def paper_delete(request, paper_id):
     return render(request, 'quiz/paper_confirm_delete.html', {'paper': paper})
 
 @login_required
+@permission_required('quiz.print_questionpaper', login_url='profile_update')
 def paper_print(request, paper_id):
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     
@@ -1235,6 +1414,7 @@ def get_or_create_curriculum_nodes(board_name, class_name, subject_name, chapter
 
 
 @login_required
+@permission_required('quiz.upload_question_csv',login_url='profile_update')
 def bulk_upload_questions(request):
     """
     Upload mixed question types via CSV.
@@ -1382,6 +1562,7 @@ def bulk_upload_questions(request):
 
 
 @login_required
+@permission_required('quiz.add_paperquestion', login_url='profile_update')
 def paper_add_random_questions(request, paper_id):
     """
     Add random questions to paper based on pattern, marks, and chapters.
@@ -1831,6 +2012,7 @@ def select_questions_up_to_marks(question_list, target_marks):
 
 
 @login_required
+@permission_required('quiz.change_paperquestion', login_url='profile_update')
 def paper_swap_question_select(request, paper_id, old_question_id):
     """
     Shows a list of potential replacement questions for a specific question 
@@ -1907,6 +2089,7 @@ def paper_swap_question_select(request, paper_id, old_question_id):
 # --- PLACEHOLDER FOR NEXT STEP ---
 
 @login_required
+@permission_required('quiz.change_paperquestion', login_url='profile_update')
 def paper_swap_question_confirm(request, paper_id, old_question_id, new_question_id):
     """
     View to execute the actual swap of old_question_id with new_question_id.

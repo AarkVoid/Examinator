@@ -173,3 +173,16 @@ CELERY_BEAT_SCHEDULE = {
 CELERY_BROKER_URL = 'redis://localhost:6379/0' # Example using Redis
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+
+AUTHENTICATION_BACKENDS = [
+    # 1. Your custom backend for multi-field login (username, email, or phone)
+    'accounts.backends.MultiFieldLoginBackend',
+    
+    # 2. Django's default ModelBackend is required for Admin Site access
+    # and ensuring permissions/groups work correctly. Keep this!
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+
+QUESTIONS_PER_PAGE = 25

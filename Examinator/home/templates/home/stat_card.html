@@ -1,0 +1,11 @@
+<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl p-6 rounded-xl transition duration-300 hover:shadow-2xl flex items-center justify-between">
+    <div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium uppercase">{{ title }}</p>
+        <p class="text-4xl font-extrabold mt-1 {{ color }}">{{ value }}</p>
+    </div>
+    {% if icon %}
+    <div class="text-4xl {{ color }} opacity-50">
+        <i class="fa-solid {{ icon }}"></i>
+    </div>
+    {% endif %}
+</div>

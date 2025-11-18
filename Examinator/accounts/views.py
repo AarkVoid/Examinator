@@ -1,13 +1,13 @@
-from django.shortcuts import render
 from .forms import RegistrationForm, ProfileForm, UserEditForm, \
     AdminUserCreationForm,GroupForm,ProfileEditForm,TeacherCreationForm, \
-        InstituteUserEditForm,InstituteProfileEditForm,UserPermissionForm,GroupAdminUserCreationForm,OrganizationUserCreationForm,OrganizationGroupForm,OrgUserAdminForm, OrgProfileAdminForm
+        InstituteUserEditForm,InstituteProfileEditForm,UserPermissionForm,GroupAdminUserCreationForm,OrganizationUserCreationForm, \
+            OrganizationGroupForm,OrgUserAdminForm, OrgProfileAdminForm,DjangoGroupForm,PermissionCreateForm
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required,permission_required
+from django.contrib.auth.decorators import login_required,permission_required,user_passes_test
 
 # --- UPDATED IMPORTS FOR NEW DATA MODEL ---
 from curritree.models import TreeNode # For academic_stream options
@@ -20,6 +20,7 @@ from django.db.models import F, Window,Count
 from django.db.models.functions import Rank
 from django.db import transaction
 from datetime import date
+from django.urls import reverse
 
 
 
@@ -45,6 +46,28 @@ from django.core.paginator import Paginator
 User = get_user_model()
 
 today = date.today()
+
+
+def is_superuser_check(user):
+    """Returns True if the user is a superuser, False otherwise."""
+    return user.is_superuser
+
+# Decorator that combines login check and superuser check
+superuser_required = user_passes_test(
+    is_superuser_check, 
+    # Use a safe fallback for the login URL
+    login_url='/login/' 
+)
+
+def is_staff_check(user):
+    """Returns True if the user is a superuser, False otherwise."""
+    return user.is_superuser
+
+staff_required = user_passes_test(
+    is_staff_check, 
+    # Use a safe fallback for the login URL
+    login_url='profile_update' 
+)
 
 # Create your views here.
 @csrf_exempt
@@ -128,66 +151,135 @@ def logout_view(request):
     return redirect('login')
 
 
-@login_required
-def profile_update_view(request):
-    profile = request.user.profile
-    # current_stream is the ManyRelatedManager object
-    current_stream_manager = profile.academic_stream
+# @login_required
+# def profile_update_view(request):
+#     profile = request.user.profile
     
-    # Safely get the first (or only) related object if it exists
-    current_stream_instance = current_stream_manager.first() 
+#     # 1. Fetch current stream and options (assuming TreeNode is defined/imported)
+#     current_stream_manager = profile.academic_stream
+#     current_stream_instance = current_stream_manager.first() 
+    
+#     try:
+#         # Assuming TreeNode model is available
+#         stream_options = TreeNode.objects.filter(
+#             node_type__in=['board', 'competitive', 'class', 'subject']
+#         ).order_by('node_type', 'name')
+#     except NameError:
+#         # Fallback if TreeNode model is not defined/imported
+#         stream_options = []
 
-    # Fetch valid stream options from the TreeNode model, matching the limit_choices_to in Profile
-    # Placeholder for TreeNode filter, assuming TreeNode is defined
-    try:
-        # NOTE: Replace 'TreeNode' with the actual imported model name if necessary
-        stream_options = TreeNode.objects.filter(
-            node_type__in=['board', 'competitive', 'class', 'subject']
-        ).order_by('node_type', 'name')
-    except NameError:
-        # If TreeNode is not imported/defined, use a fallback
-        stream_options = []
 
+#     if request.method == 'POST':
+#         # --- 2. Update User Model Fields (first_name, last_name) ---
+#         # The user's first name and last name are typically stored on the User model
+#         request.user.first_name = request.POST.get('FirstName')
+#         request.user.last_name = request.POST.get('Surname')
+        
+#         # --- 3. Update Profile Model Fields (using snake_case) ---
+#         profile.address = request.POST.get('address')
+#         profile.middle_name = request.POST.get('MiddleName') # Renamed from MiddleName
+        
+#         # Renamed from Contact to phone_number
+#         phone_number_value = request.POST.get('contact')
+#         if phone_number_value:
+#             profile.phone_number = phone_number_value
+#         else:
+#             profile.phone_number = None
+
+#         # Renamed from BirthDate to birth_date
+#         birth_date_str = request.POST.get('BirthDate')
+#         if birth_date_str:
+#             try:
+#                 # Parse date string from HTML input (YYYY-MM-DD)
+#                 profile.birth_date = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
+#             except ValueError:
+#                 messages.error(request, "Invalid Date of Birth format. Please use YYYY-MM-DD.")
+#         else:
+#             profile.birth_date = None
+
+
+#         # --- 4. CRITICAL FIX: Saving the ManyToMany field (treating it as single select) ---
+#         stream_id = request.POST.get('academic_stream') 
+        
+#         if stream_id:
+#             # If an ID is provided, set the M2M field to include only that ID
+#             profile.academic_stream.set([stream_id])
+#         else:
+#             # If no ID is provided (e.g., the user cleared the selection), clear the field
+#             profile.academic_stream.clear()
+        
+#         # --- 5. File Upload ---
+#         if request.FILES.get('pic'):
+#             profile.pic = request.FILES['pic']
+#         elif 'pic-clear' in request.POST:
+#             profile.pic = None
+
+#         # Save both the user and the profile objects
+#         request.user.save()
+#         profile.save()
+
+#         messages.success(request, "Profile updated successfully.")
+#         return redirect('profile_update')
+
+#     # --- Context for Rendering the Form ---
+#     # Prepare the context data, ensuring we pull name fields from the User object
+#     return render(request, 'profile_update.html', {
+#         # Pass User model fields under the old names so the template works without changes
+#         'profile': {
+#             'Name': request.user.first_name,
+#             'Surname': request.user.last_name,
+#             'MiddleName': profile.MiddleName, # Updated to use new model field
+#             'Contact': profile.user.phone_number,   # Updated to use new model field
+#             'BirthDate': profile.BirthDate,   # Updated to use new model field
+#             'address': profile.address,
+#             'pic': profile.pic,
+#             'organization_profile': profile.organization_profile,
+#             # Placeholder for 'stream_or_department' which might be needed for the template
+#             'stream_or_department': getattr(profile, 'stream_or_department', None) 
+#         },
+#         'stream_options': stream_options, 
+#         'current_stream_id': current_stream_instance.id if current_stream_instance else None,
+#         # 'score' and 'rank' are expected to be available in context, keeping placeholders
+#         'score': getattr(profile, 'score', 'N/A'),
+#         'rank': getattr(profile, 'rank', 'N/A'),
+#         'is_in_any_group': request.user.groups.exists()
+#     })
+
+def profile_update_view(request):
+    """
+    Handles fetching and saving the user's profile data using a ModelForm.
+    """
+    profile = request.user.profile
+    
+    # Minimal context data (placeholders for stats)
+    score = getattr(profile, 'score', 'N/A')
+    rank = getattr(profile, 'rank', 'N/A')
 
     if request.method == 'POST':
-        profile.address = request.POST.get('address')
-        profile.Name = request.POST.get('FirstName')
-        profile.Surname = request.POST.get('Surname')
-        profile.MiddleName = request.POST.get('MiddleName')
+        # Pass the request data, files (for pic), and the profile instance
+        form = ProfileEditForm(request.POST, request.FILES, instance=profile)
         
-        # --- CRITICAL FIX: Saving the ManyToMany field ---
-        stream_id = request.POST.get('academic_stream') 
-        
-        if stream_id:
-            # If an ID is provided, set the M2M field to include only that ID
-            profile.academic_stream.set([stream_id])
-        else:
-            # If no ID is provided (e.g., the user cleared the selection), clear the field
-            profile.academic_stream.clear()
-        
-        # --- End M2M Fix ---
-
-        if request.POST.get('contact') != None and request.POST.get('contact') != 'None':
-            profile.Contact = request.POST.get('contact')
-
-        if request.FILES.get('pic'):
-            profile.pic = request.FILES['pic']
-            print(" saved image")
-        elif 'pic-clear' in request.POST:
-            print(" hi ")
-            profile.pic = None
-
-        profile.save()
-
-        messages.success(request, "Profile updated successfully.")
-        return redirect('profile_update')
+        if form.is_valid():
+            # ModelForm handles validation, cleaning, and persistence (including file upload and M2M)
+            form.save()
+            
+            # NOTE: If user-specific fields like first_name/last_name were on the User model
+            # instead of the Profile model, you'd need custom logic here:
+            # request.user.first_name = form.cleaned_data['Name']
+            # request.user.last_name = form.cleaned_data['Surname']
+            # request.user.save()
+            
+            messages.success(request, "Profile updated successfully.")
+            return redirect('profile_update')
+    else:
+        # Initialize the form with the current instance data
+        form = ProfileEditForm(instance=profile)
 
     return render(request, 'profile_update.html', {
-        'profile': profile,
-        'stream_options': stream_options, # Pass the options list to the template
-        # --- ERROR FIX: Access the ID on the model instance, not the manager ---
-        'current_stream_id': current_stream_instance.id if current_stream_instance else None,
-        'is_in_any_group': request.user.groups.exists()
+        'form': form,
+        'profile': profile, # Required for accessing pic.url and organization_profile in the template
+        'score': score,
+        'rank': rank,
     })
 
 
@@ -214,6 +306,9 @@ def add_to_student_group(request, user_id):
 
 
  
+@login_required
+@staff_required
+@permission_required('account.view_user',login_url='profile_update')
 def manage_users_view(request):
     role = request.GET.get("role")
     # --- UPDATED: Filter by organization instead of institute ---
@@ -257,7 +352,9 @@ def manage_users_view(request):
     })
 
 # --- NEW VIEW: Securely delete a user via POST ---
-@permission_required('auth.delete_user', raise_exception=True)
+@login_required
+@staff_required
+@permission_required('account.delete_user', raise_exception=True)
 def delete_user_view(request, user_id):
     """
     Handles the deletion of a user account via a secure POST request.
@@ -289,6 +386,8 @@ def delete_user_view(request, user_id):
  
 
 @login_required
+@staff_required
+@permission_required('account.change_user',login_url='profile_update')
 def edit_user_view(request, user_id):
     user_to_edit = get_object_or_404(User.objects.select_related('profile'), id=user_id)
     # Safely get or create the profile instance
@@ -298,9 +397,9 @@ def edit_user_view(request, user_id):
         # Create profile if it doesn't exist
         profile = Profile.objects.create(user=user_to_edit)
 
-    print("User Permissions:" ,user_to_edit.user_permissions.all())
-    for per in user_to_edit.user_permissions.all():
-        print(per.name)
+    # print("User Permissions:" ,user_to_edit.user_permissions.all())
+    # for per in user_to_edit.user_permissions.all():
+    #     print(per.name)
     
      # Security check: Prevent editing superuser accounts unless it's the current user themselves   
     if request.method == 'POST':
@@ -487,7 +586,10 @@ def get_permissions_by_app_and_model(permissions_queryset):
         grouped[perm.content_type.app_label][perm.content_type.model].append(perm)
     return grouped
 
- 
+
+@login_required
+@staff_required
+@permission_required('account.change_user',login_url='profile_update')
 def edit_user_permissions_and_groups(request, user_id):
     user = get_object_or_404(User, id=user_id)
 
@@ -544,7 +646,8 @@ def edit_user_permissions_and_groups(request, user_id):
     return render(request, 'User_permissions_controler/edit_user_permissions.html', context)
 
 
-
+@login_required
+@staff_required
 def edit_permissions_by_institute_admin(request, user_id):
     user = get_object_or_404(User, id=user_id)
 
@@ -593,6 +696,7 @@ def edit_permissions_by_institute_admin(request, user_id):
 
 
 @login_required
+@permission_required('account.add_organisation_user',login_url='profile_update')
 def create_user_by_admin(request, org_pk):
     """
     Allows an Organization Admin to create Teacher or Student accounts,
@@ -600,36 +704,46 @@ def create_user_by_admin(request, org_pk):
     """
     admin_user = request.user
     
-
     # Check if current user is admin
     if admin_user.role != "admin" or not admin_user.is_active:
         messages.error(request, "You do not have permission to create users.")
         return redirect("dashboard")
 
     # Fetch the organization
-    # org = admin_user.profile.organization_profile
+    org = None
     if org_pk:
-        org = get_object_or_404(OrganizationProfile, pk=org_pk)
+        # Use a placeholder implementation for get_object_or_404
+        try:
+             org = OrganizationProfile.objects.get(pk=org_pk)
+        except:
+             messages.error(request, "Organization not found.")
+             return redirect("dashboard")
+    
     if not org:
         messages.error(request, "No organization linked to your account.")
         return redirect("dashboard")
 
     # Get all license grants for the org
-    license_grants = LicenseGrant.objects.filter(organization_profile=org)
+    # Placeholder implementation for LicenseGrant and filtering
+    try:
+        license_grants = LicenseGrant.objects.filter(organization_profile=org)
+        active_licenses_qs = org.license_grants.filter(
+            Q(valid_until__isnull=True) | Q(valid_until__gte=today)
+            )
 
+        # Collect licensed permissions and nodes
+        licensed_permissions = Permission.objects.filter(
+            id__in=active_licenses_qs.values_list('permissions', flat=True)
+        ).distinct()
 
-    active_licenses_qs = org.license_grants.filter(
-        Q(valid_until__isnull=True) | Q(valid_until__gte=today)
-        )
+        licensed_nodes = TreeNode.objects.filter(
+            id__in=[node.id for grant in active_licenses_qs for node in grant.get_all_licensed_nodes()]
+        ).distinct()
+    except:
+         # Fallback if models are not fully set up
+         licensed_permissions = []
+         licensed_nodes = []
 
-    # Collect licensed permissions and nodes
-    licensed_permissions = Permission.objects.filter(
-        id__in=active_licenses_qs.values_list('permissions', flat=True)
-    ).distinct()
-
-    licensed_nodes = TreeNode.objects.filter(
-        id__in=[node.id for grant in active_licenses_qs for node in grant.get_all_licensed_nodes()]
-    ).distinct()
 
     if request.method == "POST":
         with transaction.atomic():
@@ -638,15 +752,20 @@ def create_user_by_admin(request, org_pk):
             email = request.POST.get("email")
             username = request.POST.get("username")
             password = request.POST.get("password")
-            name = request.POST.get("name")
-            surname = request.POST.get("surname")
+            
+            # ✅ NEW: Retrieve phone_number from the form
+            phone_number = request.POST.get("phone_number") 
+            
+            # NOTE: Mapping 'name' and 'surname' from HTML to User model fields
+            first_name = request.POST.get("name")
+            last_name = request.POST.get("surname")
             contact = request.POST.get("contact")
             birth_date = request.POST.get("birth_date")
 
             permission_ids = request.POST.getlist("permissions")
             stream_ids = request.POST.getlist("academic_stream")
 
-            # Validate
+            # Basic Validation
             if role not in ["teacher", "student"]:
                 messages.error(request, "Invalid role selected.")
                 return redirect("home")
@@ -655,12 +774,15 @@ def create_user_by_admin(request, org_pk):
                 messages.error(request, "Email already exists.")
                 return redirect("home")
 
-            # ✅ Create User
+            # ✅ Create User: Included first_name, last_name, and phone_number
             user = User.objects.create_user(
                 username=username,
                 email=email,
                 password=password,
-                role=role
+                role=role,
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=phone_number # Added phone_number
             )
 
             # ✅ Assign permissions (restricted to licensed ones)
@@ -668,19 +790,20 @@ def create_user_by_admin(request, org_pk):
             user.user_permissions.set(valid_permissions)
 
             # ✅ Create Profile
+            # Profile fields are 'MiddleName', 'Contact', 'BirthDate', etc.
             profile = user.profile
     
-            profile.Name=name
-            profile.Surname=surname
+            # Assuming 'name' and 'surname' are saved on the User object (first_name/last_name)
+            # and 'contact' maps to Profile.Contact (Secondary Contact)
+            
+            # profile.Name=name # This line is likely incorrect if 'Name' is not a Profile field
+            # profile.Surname=surname # This line is likely incorrect if 'Surname' is not a Profile field
+            
             profile.Contact=contact
             profile.BirthDate=birth_date or None
             profile.organization_profile=org
 
             profile.save()
-                # Surname=surname,
-                # Contact=contact,
-                # BirthDate=birth_date or None,
-                # organization_profile=org,
         
 
             # ✅ Assign academic stream (restricted)
@@ -700,6 +823,7 @@ def create_user_by_admin(request, org_pk):
 
 
 @login_required
+@permission_required('account.view_orgainsation_user',login_url='profile_update')
 def list_organization_users(request, org_pk):
     """
     Allows an organization admin to view a paginated list of all users
@@ -734,6 +858,7 @@ def list_organization_users(request, org_pk):
 
 
 @login_required
+@permission_required('account.change_organisation_user',login_url='profile_update')
 def edit_organization_user(request, org_pk, user_pk):
     """
     Allows an organization admin to edit a specific user's details,
@@ -780,7 +905,6 @@ def edit_organization_user(request, org_pk, user_pk):
         # M2M data from POST (checkbox lists)
         groups_ids = request.POST.getlist('organization_groups')
         permission_ids = request.POST.getlist('user_permissions')
-
         if user_form.is_valid() and profile_form.is_valid():
             try:
                 with transaction.atomic():
@@ -803,7 +927,7 @@ def edit_organization_user(request, org_pk, user_pk):
                     
                     messages.success(request, f"User '{target_user.username}' successfully updated.")
                     # Assuming a URL pattern named 'saas:list_users' exists
-                    return redirect('saas:list_users', org_pk=org_pk) 
+                    return redirect('view_organization_users_list', org_pk=org_pk) 
             except Exception as e:
                 messages.error(request, f"An error occurred while saving user data: {e}")
                 
@@ -857,6 +981,7 @@ def edit_organization_user(request, org_pk, user_pk):
 
 
 @login_required
+@permission_required('saas.view_organizationgroup',login_url='profile_update')
 def manage_organization_groups(request, group_id=None):
 
     """
@@ -965,6 +1090,7 @@ def manage_organization_groups(request, group_id=None):
     return render(request, 'groups/manage_groups.html', context)
 
 @login_required
+@permission_required('saas.delete_organizationgroup',login_url='profile_update')
 def delete_organization_group(request, group_id):
     """
     Handles deleting a group, ensuring it belongs to the current organization.
@@ -985,3 +1111,161 @@ def delete_organization_group(request, group_id):
 
     # Simple GET request shows a confirmation page (or could be handled by a modal in the template)
     return render(request, 'groups/group_confirm_delete.html', {'group': group, 'organization': organization})
+
+
+
+
+@login_required
+@superuser_required
+def django_group_list(request):
+    """
+    Displays a list of all Django Groups.
+    """
+    # Fetch all groups, prefetching related users and permissions for efficiency
+    groups = Group.objects.prefetch_related('permissions').order_by('name')
+    
+    context = {
+        'groups': groups,
+        'title': 'Manage Django User Groups',
+    }
+    return render(request, 'groups/django_group_list.html', context)
+
+# --- 2. Create View (Create) ---
+
+@login_required
+@superuser_required
+def django_group_create(request):
+    """
+    Handles creation of a new Django Group.
+    """
+    if request.method == 'POST':
+        form = DjangoGroupForm(request.POST)
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f"Django Group '{group.name}' created successfully.")
+            return redirect(reverse('group_list'))
+    else:
+        form = DjangoGroupForm()
+    
+    context = {
+        'form': form,
+        'title': 'Create New Django User Group',
+    }
+    return render(request, 'groups/django_group_form.html', context)
+
+
+# --- 3. Update View (Update) ---
+
+@login_required
+@superuser_required
+def django_group_update(request, pk):
+    """
+    Handles updating an existing Django Group.
+    """
+    group = get_object_or_404(Group, pk=pk)
+    
+    if request.method == 'POST':
+        form = DjangoGroupForm(request.POST, instance=group)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Django Group '{group.name}' updated successfully.")
+            return redirect(reverse('group_list'))
+    else:
+        form = DjangoGroupForm(instance=group)
+    
+    context = {
+        'form': form,
+        'title': f"Edit Django Group: {group.name}",
+        'object': group, # object is required by the delete link in the template
+    }
+    return render(request, 'groups/django_group_form.html', context)
+
+
+# --- 4. Delete View (Delete) ---
+
+@login_required
+@superuser_required
+def django_group_delete(request, pk):
+    """
+    Handles deletion of a Django Group.
+    """
+    group = get_object_or_404(Group, pk=pk)
+
+    if request.method == 'POST':
+        group_name = group.name
+        group.delete()
+        messages.warning(request, f"Django Group '{group_name}' deleted.")
+        return redirect(reverse('group_list'))
+    
+    # GET request shows the confirmation page
+    context = {
+        'object': group,
+        'title': 'Confirm Group Deletion',
+    }
+    return render(request, 'groups/django_group_confirm_delete.html', context)
+
+
+
+
+
+
+@login_required
+@staff_required
+@permission_required('auth.view_permission',login_url='profile_update')
+def permission_list(request):
+    # Fetch all permissions ordered by app + model
+    permissions = Permission.objects.select_related('content_type').order_by(
+        'content_type__app_label', 'content_type__model', 'codename'
+    )
+
+    # Group by app -> model
+    grouped = {}
+    for perm in permissions:
+        app_label = perm.content_type.app_label.replace('_', ' ').title()
+        model_name = perm.content_type.model.replace('_', ' ').title()
+
+        if app_label not in grouped:
+            grouped[app_label] = {}
+        if model_name not in grouped[app_label]:
+            grouped[app_label][model_name] = []
+        
+        grouped[app_label][model_name].append(perm)
+
+    return render(request, 'User_permissions_controler/permission_list.html', {
+        'title': 'All Permissions',
+        'grouped': grouped
+    })
+
+
+
+@login_required
+@staff_required
+@permission_required('auth.add_permission',login_url='profile_update')
+def permission_create(request):
+    if request.method == 'POST':
+        form = PermissionCreateForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Permission created successfully!")
+            return redirect('permission_list')  # (optional) redirect to a list page
+    else:
+        form = PermissionCreateForm()
+
+    return render(request, 'User_permissions_controler/create_permission.html', {'form': form, 'title': 'Add New Permission'})
+
+
+
+@login_required
+@staff_required
+@permission_required('auth.delete_permission',login_url='profile_update')
+def permission_delete(request, pk):
+    permission = get_object_or_404(Permission, pk=pk)
+    name = permission.name
+
+    if request.method == "POST":
+        permission.delete()
+        messages.success(request, f'Permission "{name}" deleted successfully!')
+        return redirect('permission_list')
+
+    messages.error(request, "Invalid request.")
+    return redirect('permission_list')

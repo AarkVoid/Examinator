@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto my-10 p-8 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
+
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white">{{ title }}</h1>
+    <a href="{% url 'permission_add' %}"
+       class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg shadow-md transition">
+      + Add Permission
+    </a>
+  </div>
+
+  {% if grouped %}
+    <div class="space-y-6">
+      {% for app, models in grouped.items %}
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <h2 class="text-2xl font-bold text-indigo-700 dark:text-indigo-300 mb-4">{{ app }}</h2>
+
+          {% for model, perms in models.items %}
+            <div class="mb-4 border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
+              <button type="button"
+                      class="w-full flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-3 text-left font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      onclick="toggleModel('{{ app }}_{{ model }}')">
+                <span>{{ model }}</span>
+                <svg id="arrow-{{ app }}_{{ model }}" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <div id="{{ app }}_{{ model }}" class="hidden bg-white dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700">
+                <table class="min-w-full text-sm text-gray-700 dark:text-gray-200">
+                  <thead>
+                    <tr class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100">
+                      <th class="px-4 py-2 text-left w-2/3">Permission Name</th>
+                      <th class="px-4 py-2 text-left">Codename</th>
+                      <th class="px-4 py-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for perm in perms %}
+                      <tr class="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <td class="px-4 py-2">{{ perm.name }}</td>
+                        <td class="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">{{ perm.codename }}</td>
+                        <td class="px-4 py-2 text-center">
+                          <button onclick="confirmDelete('{{ perm.id }}', '{{ perm.name }}')"
+                                  class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm shadow-sm">
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-gray-500 dark:text-gray-400 text-center py-10">No permissions found.</p>
+  {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
+    <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">Delete Permission</h3>
+    <p id="deleteMessage" class="text-gray-700 dark:text-gray-300 mb-5"></p>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+        Cancel
+      </button>
+      <form id="deleteForm" method="POST" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md shadow">
+          Delete
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleModel(id) {
+  const content = document.getElementById(id);
+  const arrow = document.getElementById("arrow-" + id);
+  content.classList.toggle("hidden");
+  arrow.classList.toggle("rotate-180");
+}
+
+function confirmDelete(id, name) {
+  const modal = document.getElementById("deleteModal");
+  const message = document.getElementById("deleteMessage");
+  const form = document.getElementById("deleteForm");
+  
+  message.innerHTML = `Are you sure you want to delete <strong>${name}</strong>?`;
+  form.action = `/permissions/delete/${id}/`;
+  
+  modal.classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("deleteModal").classList.add("hidden");
+}
+</script>
+{% endblock %}

@@ -58,6 +58,13 @@
                                     {{ user.email|default:"N/A" }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    {# IMPERSONATE ACTION #}
+                                    <button type="button" 
+                                            data-user-id="{{ user.id }}" 
+                                            data-username="{{ user.username }}"
+                                            class="impersonate-btn text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 transition-colors mr-2">
+                                        <i class="fa-solid fa-mask mr-1"></i> Impersonate
+                                    </button>
                                     {# Placeholder for Edit User URL #}
                                     <a href="{% url 'view_organization_users_edit' user_pk=user.id org_pk=org.pk %}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
                                         <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
@@ -96,6 +103,13 @@
                         <span class="font-medium">Email:</span> {{ user.email|default:"N/A" }}
                     </p>
                     <div class="flex justify-end space-x-3 text-sm">
+                        {# IMPERSONATE ACTION (Mobile) #}
+                        <button type="button" 
+                                data-user-id="{{ user.id }}" 
+                                data-username="{{ user.username }}"
+                                class="impersonate-btn text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors">
+                            <i class="fa-solid fa-mask"></i> Impersonate
+                        </button>
                         <a href="#" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
                             <i class="fa-solid fa-pen-to-square"></i> Edit
                         </a>
@@ -109,11 +123,42 @@
             
             {# Pagination #}
             {% if page_obj.has_other_pages %}
-                {% include "pagination_snippet.html" %} 
+                <div class="flex justify-center mt-8">
+                    <nav class="relative z-0 inline-flex rounded-xl shadow-lg" aria-label="Pagination">
+                        {# Previous Page Link #}
+                        {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-l-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <span class="sr-only">Previous</span>
+                            <i class="fa-solid fa-chevron-left h-4 w-4"></i>
+                        </a>
+                        {% endif %}
+
+                        {# Page Numbers #}
+                        {% for i in page_obj.paginator.page_range %}
+                            {% if page_obj.number == i %}
+                                <span aria-current="page" class="relative inline-flex items-center px-4 py-2 border border-blue-600 bg-blue-600 text-sm font-bold text-white shadow-inner">
+                                    {{ i }}
+                                </span>
+                            {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+                                <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                    {{ i }}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {# Next Page Link #}
+                        {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-r-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <span class="sr-only">Next</span>
+                            <i class="fa-solid fa-chevron-right h-4 w-4"></i>
+                        </a>
+                        {% endif %}
+                    </nav>
+                </div>
             {% endif %}
 
         {% else %}
-            {# Empty State #}
+            {# Empty State (Original logic retained) #}
             <div class="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl">
                 <i class="fa-solid fa-user-tag text-7xl text-gray-400 dark:text-gray-600 mb-6"></i>
                 <p class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">No users found in {{ org.name }}.</p>
@@ -128,39 +173,123 @@
     </div>
 </div>
 
-{# Assuming pagination_snippet.html is available or we create the content here #}
-{% if page_obj.has_other_pages %}
-<div class="flex justify-center mt-8">
-    <nav class="relative z-0 inline-flex rounded-xl shadow-lg" aria-label="Pagination">
-        {# Previous Page Link #}
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-l-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <span class="sr-only">Previous</span>
-            <i class="fa-solid fa-chevron-left h-4 w-4"></i>
-        </a>
-        {% endif %}
-
-        {# Page Numbers #}
-        {% for i in page_obj.paginator.page_range %}
-            {% if page_obj.number == i %}
-                <span aria-current="page" class="relative inline-flex items-center px-4 py-2 border border-blue-600 bg-blue-600 text-sm font-bold text-white shadow-inner">
-                    {{ i }}
-                </span>
-            {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
-                <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    {{ i }}
-                </a>
-            {% endif %}
-        {% endfor %}
+{# ========================================================= #}
+{# IMPERSONATION PIN ENTRY MODAL #}
+{# ========================================================= #}
+<div id="impersonateModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900 bg-opacity-75 transition-opacity duration-300" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-3xl w-full max-w-md m-4 transform transition-all duration-300 scale-95 opacity-0" id="modal-content">
         
-        {# Next Page Link #}
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center px-4 py-2 rounded-r-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <span class="sr-only">Next</span>
-            <i class="fa-solid fa-chevron-right h-4 w-4"></i>
-        </a>
-        {% endif %}
-    </nav>
+        <div class="p-6">
+            <h3 class="text-2xl font-bold text-purple-700 dark:text-purple-400 mb-2 flex items-center">
+                <i class="fa-solid fa-lock text-xl mr-3"></i> Security Check
+            </h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+                Please enter the **Impersonation PIN** for user: <span id="target-username" class="font-bold text-gray-900 dark:text-gray-100"></span>.
+            </p>
+
+            <form id="impersonateForm" method="POST">
+                {% csrf_token %}
+                
+                {# Hidden field to store the user ID #}
+                <input type="hidden" name="user_id" id="modal-user-id">
+
+                <div class="mb-4">
+                    <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Impersonation PIN
+                    </label>
+                    <input type="password" 
+                           name="pin" 
+                           id="pin" 
+                           required 
+                           autocomplete="off"
+                           placeholder="Enter 4-digit PIN"
+                           maxlength="10"
+                           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500 shadow-inner text-lg tracking-wider"
+                    >
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="closeModal" class="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 shadow-lg shadow-purple-500/50 transition duration-200">
+                        Confirm Impersonation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
-{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('impersonateModal');
+        const modalContent = document.getElementById('modal-content');
+        const closeModalBtn = document.getElementById('closeModal');
+        const impersonateButtons = document.querySelectorAll('.impersonate-btn');
+        const modalUserId = document.getElementById('modal-user-id');
+        const targetUsernameSpan = document.getElementById('target-username');
+        const impersonateForm = document.getElementById('impersonateForm');
+        
+        // --- Modal Control Functions ---
+        function openModal(userId, username) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Set values dynamically
+            modalUserId.value = userId;
+            targetUsernameSpan.textContent = username;
+            
+            // Animate in
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+                document.getElementById('pin').focus();
+            }, 50);
+        }
+
+        function closeModal() {
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            
+            // Animate out
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.getElementById('pin').value = ''; // Clear PIN
+            }, 300);
+        }
+
+        // --- Event Listeners ---
+        impersonateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                openModal(userId, username);
+            });
+        });
+
+        closeModalBtn.addEventListener('click', closeModal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        
+        // --- Form Submission Logic ---
+        // Crucial: Set the form action dynamically to include the user_id in the URL if needed,
+        // or ensure the backend view pulls the user_id from the hidden input field.
+        // We will assume the view is accessible via a simple POST URL like '/impersonate/' 
+        // and uses the hidden 'user_id' field.
+        
+        // For demonstration, let's assume a URL structure that uses the POST data:
+        // You MUST update your Django urls.py to include this path:
+        // path('accounts/impersonate/', views.impersonate_user_with_pin, name='impersonate_user_with_pin'),
+        // OR you can update the impersonate_user view to accept a POST request instead of a URL param.
+        impersonateForm.setAttribute('action', '/accounts/impersonate-submit/'); // <-- REPLACE with your actual POST URL name
+
+    });
+</script>
 {% endblock %}

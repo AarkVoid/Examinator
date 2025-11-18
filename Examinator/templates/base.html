@@ -101,25 +101,28 @@
       
       {# Home Link - BASE STYLE #}
 
-      {% if user.is_superuser %}
-      {% url 'home' as home_url %}
+      {% if user.is_staff %}
+          {% url 'home' as home_url %}
+      {% elif request.user.role == 'admin'%}
+          {% url 'OrgHome' as home_url %}
+      {% endif %}
       <a href="{{ home_url }}" 
         class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-        {% if current_path == home_url %}bg-blue-50 dark:bg-blue-800/30 font-bold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}"
-      >
+        {% if current_path == home_url %}bg-blue-50 dark:bg-blue-800/30 font-bold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
         <i class="fa-solid fa-house text-lg"></i>
         <span>Home</span>
       </a>
-      {% elif request.user.role == 'admin'%}
-      {% url 'OrgHome' as home_url %}
-        <a href="{{ home_url }}" 
-        class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-        {% if current_path == home_url %}bg-blue-50 dark:bg-blue-800/30 font-bold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}"
-        >
-        <i class="fa-solid fa-house text-lg"></i>
-        <span>Home</span>
+
+      {% if user.is_staff %}
+        {% url 'reports_dashboard' as Report %}
+        <a href="{{ Report }}" 
+          class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == Report %}bg-blue-50 dark:bg-blue-800/30 font-bold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-house text-lg"></i>
+          <span>Reports </span>
         </a>
       {% endif %}
+      
       
       {% if user.is_authenticated %}
       
@@ -133,7 +136,7 @@
         <a href="{{ paper_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
           {% if current_path == paper_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
           <i class="fa-solid fa-play-circle text-lg group-hover:text-green-500"></i>
-          <span>Take Quiz</span>
+          <span>Question Papers</span>
         </a>
         {% endif %}
 
@@ -185,64 +188,143 @@
       {% endif %}
       
       {# Section: Management #}
-      {% if user.is_staff or user.is_superuser or user.role in 'admin,main_admin' %}
-      <div class="pt-6">
-        <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Management</p>
+      {% if request.user|check_permissions:"accounts.add_organisation_user,accounts.view_orgainsation_user,saas.view_license_summary,accounts.add_user,saas.view_organizationprofile,saas.add_organizationprofile|or" %}
+        <div class="pt-6">
+          <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Management</p>
 
-        {% if request.user|check_permissions:"saas.view_organizationprofile|or" %}
-        {% url 'saas:organization_list' as organization_list_url %}
-        <a href="{{ organization_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-          {% if current_path == organization_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-          <i class="fa-solid fa-building text-lg group-hover:text-amber-500"></i>
-          <span>Organizations</span>
-        </a>
-        {% endif %}
-
-        {% if request.user|check_permissions:"saas.add_organizationprofile|or" %}
-        {% url 'saas:create_dashboard' as create_dashboard %}
-        <a href="{{ create_dashboard }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-          {% if current_path == create_dashboard %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-          <i class="fa-solid fa-plus text-lg group-hover:text-green-500"></i>
-          <span>New Organization Setup</span>
-        </a>
-        {% endif %}
-
-        {% if request.user|check_permissions:"accounts.add_user|or" %}
-        {% url 'manage_users' as user_management_url %}
-          <a href="{{ user_management_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-            {% if current_path == user_management_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-            <i class="fa-solid fa-users text-lg group-hover:text-purple-500"></i>
-            <span>User Management</span>
+          {% if request.user|check_permissions:"saas.view_organizationprofile|or" %}
+          {% url 'saas:organization_list' as organization_list_url %}
+          <a href="{{ organization_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == organization_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-building text-lg group-hover:text-amber-500"></i>
+            <span>Organizations</span>
           </a>
-        {% endif %}
+          {% endif %}
 
-        {% if user.profile.organization_profile and user.role == 'admin' %}
-          {% url 'create_user_by_admin' org_pk=user.profile.organization_profile.pk as create_user_by_admin_url %}
-        <div class="mt-2">
-          <a href="{{ create_user_by_admin_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-            {% if current_path == create_user_by_admin_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-            <i class="fa-solid fa-user-plus text-lg group-hover:text-green-500"></i>
-            <span>Add New User</span>
+          {% if request.user|check_permissions:"saas.add_organizationprofile|or" %}
+          {% url 'saas:create_dashboard' as create_dashboard %}
+          <a href="{{ create_dashboard }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == create_dashboard %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-plus text-lg group-hover:text-green-500"></i>
+            <span>New Organization Setup</span>
+          </a>
+          {% endif %}
+
+
+          {% if request.user|check_permissions:"accounts.view_user|or" %}
+          {% url 'manage_users' as user_management_url %}
+            <div class="mt-2"></div>
+            <a href="{{ user_management_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+              {% if current_path == user_management_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+              <i class="fa-solid fa-users text-lg group-hover:text-purple-500"></i>
+              <span>User Management</span>
+            </a>
+            </div>
+          {% endif %}
+
+          {% if request.user|check_permissions:"saas.view_license_summary|or" %}
+          {% url 'saas:organization_license_overview' as check_license_url %}
+          <a href="{{ check_license_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == check_license_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+            <i class="fa-solid fa-building text-lg group-hover:text-amber-500"></i>
+            <span>License Summary</span>
+          </a>
+          {% endif %}
+
+          {% if user.profile.organization_profile and user.role == 'admin' %}
+            {% if request.user|check_permissions:"accounts.add_organisation_user|or" %}
+              {% url 'create_user_by_admin' org_pk=user.profile.organization_profile.pk as create_user_by_admin_url %}
+              <div class="mt-2">
+                <a href="{{ create_user_by_admin_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+                  {% if current_path == create_user_by_admin_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+                  <i class="fa-solid fa-user-plus text-lg group-hover:text-green-500"></i>
+                  <span>Add New User</span>
+                </a>
+              </div>
+            {% endif %}
+
+            {% if request.user|check_permissions:"accounts.view_orgainsation_user|or" %}
+              {% url 'view_organization_users_list' org_pk=user.profile.organization_profile.pk as view_organization_users_list_url %}
+              </div class="mt-2">
+                <a href="{{ view_organization_users_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
+                  {% if current_path == view_organization_users_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+                  <i class="fa-solid fa-users-viewfinder text-lg group-hover:text-blue-500"></i>
+                  <span>View Organization Users</span>
+                </a>
+              </div>
+            {% endif %}
+
+          {% endif %}
+
+        </div>
+      {% endif %}
+
+
+
+      {% if user.is_staff or user.is_superuser %}
+        <div class="pt-6">
+          <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">
+            Groups and Permissions
+          </p>
+
+          <!-- List Groups -->
+          {% url 'group_list' as group_list_url %}
+          <a href="{{ group_list_url }}" 
+            class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
+            {% if current_path == group_list_url %}
+                bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link
+            {% else %}
+                text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1
+            {% endif %}">
+            <i class="fa-solid fa-layer-group text-lg group-hover:text-blue-500"></i>
+            <span>List Groups and Role</span>
           </a>
 
-        {% url 'view_organization_users_list' org_pk=user.profile.organization_profile.pk as view_organization_users_list_url %}
-        </div class="mt-2">
-          <a href="{{ view_organization_users_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
-            {% if current_path == view_organization_users_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-            <i class="fa-solid fa-users-viewfinder text-lg group-hover:text-blue-500"></i>
-            <span>View Organization Users</span>
+          <!-- Create Group -->
+          {% url 'group_create' as group_create_url %}
+          <a href="{{ group_create_url }}" 
+            class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
+            {% if current_path == group_create_url %}
+                bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link
+            {% else %}
+                text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1
+            {% endif %}">
+            <i class="fa-solid fa-user-gear text-lg group-hover:text-blue-500"></i>
+            <span>Create Group and Role</span>
+          </a>
+
+          <!-- Permission List -->
+          {% url 'permission_list' as permission_list_url %}
+          <a href="{{ permission_list_url }}" 
+            class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
+            {% if current_path == permission_list_url %}
+                bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link
+            {% else %}
+                text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1
+            {% endif %}">
+            <i class="fa-solid fa-key text-lg group-hover:text-blue-500"></i>
+            <span>Permissions List</span>
+          </a>
+
+          <!-- Create Permission -->
+          {% url 'permission_add' as permission_create_url %}
+          <a href="{{ permission_create_url }}" 
+            class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 mt-2
+            {% if current_path == permission_create_url %}
+                bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link
+            {% else %}
+                text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1
+            {% endif %}">
+            <i class="fa-solid fa-plus-circle text-lg group-hover:text-blue-500"></i>
+            <span>Create Permission</span>
           </a>
         </div>
-
-        {% endif %}
-      
-
-      </div>
       {% endif %}
       
-      {% if request.user.role == "admin" and user.profile.organization_profile %}
+      
+      {% if request.user|check_permissions:"accounts.view_organizationgroup|or" and user.profile.organization_profile %}
         <div class="pt-6">
-          <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Social</p>
+          <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">manage groups</p>
 
           {% url 'manage_groups' as Organisation_Group_url %}
           <a href="{{ Organisation_Group_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
@@ -328,6 +410,7 @@
           <span class="font-medium text-gray-700 dark:text-gray-300">{% block breadcrumb %}Dashboard{% endblock %}</span>
         </div>
       </div>
+  
       <div class="flex items-center gap-4">
         {# Theme Toggle #}
         <button id="theme-toggle" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Toggle dark mode">
@@ -345,7 +428,7 @@
             <i class="fa-solid fa-chevron-down text-xs text-gray-500"></i>
           </button>
           
-          <div id="userMenu" class="absolute right-0 mt-3 w-48 bg-white dark:bg-gray-700 rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden transition-all duration-200 ease-out origin-top-right z-50 **hidden**" role="menu" aria-orientation="vertical" aria-labelledby="userMenuToggle">
+          <div id="userMenu" class="absolute right-0 mt-3 w-48 bg-white dark:bg-gray-700 rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden transition-all duration-200 ease-out origin-top-right z-50 hidden" role="menu" aria-orientation="vertical" aria-labelledby="userMenuToggle">
             <div class="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-600">
                 Logged in as:
                 <p class="text-xs text-blue-600 dark:text-blue-400 mt-0.5">{{ user.email|default:'N/A' }}</p>
@@ -369,8 +452,62 @@
           </a>
         </div>
         {% endif %}
+        
+        
       </div>
     </header>
+
+    
+    {% if request.session.original_user_id %}
+    {% comment %} Check if the session variable used in impersonation_views.py exists {% endcomment %}
+    <div id="impersonation-banner" class="bg-red-700 text-white p-3 text-center sticky top-[5.5rem] md:top-[4.5rem] z-[1000] shadow-2xl transition-all duration-300">
+        <p class="font-bold text-lg flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <i class="fas fa-mask text-yellow-300 flex-shrink-0"></i>
+            <span class="truncate">IMPERSONATING: **{{ request.user.username }}**</span>
+            <a href="{% url 'exit_impersonation' %}" 
+               class="underline hover:no-underline font-extrabold bg-white text-red-700 px-4 py-1.5 rounded-xl transition-colors hover:bg-red-100 shadow-lg flex items-center space-x-2">
+                <i class="fas fa-undo"></i>
+                <span>EXIT IMPERSONATION</span>
+            </a>
+        </p>
+    </div>
+    {% endif %}
+    
+    {# --- START: Django Messages Block (NEW) --- #}
+    {% if messages %}
+    <div id="message-container" class="absolute top-20 right-6 w-full max-w-sm z-50 p-4 space-y-3 pointer-events-none md:fixed">
+      {% for message in messages %}
+        {% comment %} Determine alert style based on message tag {% endcomment %}
+        {% if message.tags == 'success' %}
+          {% with icon_class="fa-circle-check" bg_class="bg-green-100 dark:bg-green-900/40" text_class="text-green-700 dark:text-green-300" border_class="border-green-400" %}  {% endwith %}
+        {% elif message.tags == 'warning' %}
+          {% with icon_class="fa-triangle-exclamation" bg_class="bg-yellow-100 dark:bg-yellow-900/40" text_class="text-yellow-700 dark:text-yellow-300" border_class="border-yellow-400" %}  {% endwith %}
+        {% elif message.tags == 'error' %}
+          {% with icon_class="fa-circle-xmark" bg_class="bg-red-100 dark:bg-red-900/40" text_class="text-red-700 dark:text-red-300" border_class="border-red-400" %}  {% endwith %}
+        {% else %}
+          {% with icon_class="fa-circle-info" bg_class="bg-blue-100 dark:bg-blue-900/40" text_class="text-blue-700 dark:text-blue-300" border_class="border-blue-400" %}  {% endwith %}
+        {% endif %}
+        
+        <div class="auto-dismiss-message pointer-events-auto flex items-start gap-4 p-4 rounded-xl border-l-4 {{ border_class }} {{ bg_class }} shadow-lg opacity-100 transition-opacity duration-500 ease-out" role="alert" data-tag="{{ message.tags }}">
+          <div class="flex-shrink-0 pt-0.5">
+            <i class="fa-solid {{ icon_class }} text-xl {{ text_class }}"></i>
+          </div>
+          <div class="flex-1">
+            <p class="font-medium text-sm {{ text_class }}">{{ message }}</p>
+          </div>
+          <div class="flex-shrink-0">
+            <button type="button" class="message-close -m-1.5 p-1.5 rounded-full inline-flex focus:outline-none focus:ring-2 focus:ring-offset-2 {{ text_class }} hover:opacity-75 transition-opacity" aria-label="Dismiss">
+              <i class="fa-solid fa-xmark h-4 w-4"></i>
+            </button>
+          </div>
+        </div>
+        
+       
+      {% endfor %}
+    </div>
+    {% endif %}
+    {# --- END: Django Messages Block --- #}
+
 
     <main class="p-6 md:p-8 space-y-8 overflow-y-auto">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -515,6 +652,43 @@
         }
       });
     }
+
+    // --- NEW: Auto-Dismiss Django Messages Logic ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const messages = document.querySelectorAll('.auto-dismiss-message');
+      const DISMISS_DELAY_MS = 5000; // 5 seconds
+      const FADE_DURATION_MS = 500; // 0.5 seconds
+
+      messages.forEach(message => {
+        // 1. Start the dismissal timer
+        setTimeout(() => {
+          // 2. Begin fade-out transition
+          message.style.transition = `opacity ${FADE_DURATION_MS / 1000}s ease-out`;
+          message.style.opacity = '0';
+          
+          // 3. Remove element after fade-out completes
+          setTimeout(() => {
+            message.remove();
+          }, FADE_DURATION_MS);
+        }, DISMISS_DELAY_MS);
+      });
+
+      // 4. Add manual close listener
+      const closeButtons = document.querySelectorAll('.message-close');
+      closeButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          const message = e.target.closest('.auto-dismiss-message');
+          if (message) {
+            // Apply fade-out effect for manual close too
+            message.style.transition = `opacity ${FADE_DURATION_MS / 1000}s ease-out`;
+            message.style.opacity = '0';
+            setTimeout(() => {
+              message.remove();
+            }, FADE_DURATION_MS);
+          }
+        });
+      });
+    });
 
   </script>
 </body>

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Organization License Overview{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-10 space-y-10">
+  {% if error %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-xl text-center">
+      <i class="fa-solid fa-triangle-exclamation mr-2"></i>{{ error }}
+    </div>
+  {% else %}
+    <header>
+      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-50 mb-2">
+        License & Permission Overview
+      </h1>
+      {% if organization %}
+        <p class="text-xl font-semibold text-blue-600 dark:text-blue-400">{{ organization.name }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Status: 
+          <span class="{% if organization.is_active %}text-green-500{% else %}text-red-500{% endif %} font-semibold">
+            {% if organization.is_active %}Active{% else %}Inactive{% endif %}
+          </span>
+        </p>
+      {% endif %}
+    </header>
+
+    <!-- Usage Summary -->
+   <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 space-y-6">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center">
+        <i class="fa-solid fa-chart-pie mr-3 text-blue-500"></i> Usage Summary
+      </h2>
+
+      <!-- User Usage -->
+      <div>
+        <p class="text-lg text-gray-700 dark:text-gray-300">
+          <b>{{ current_users }}</b> active users out of <b>{{ usage_limit }}</b> allowed.
+        </p>
+        <div class="w-full h-3 mt-3 bg-gray-200 rounded-full overflow-hidden">
+          <div class="h-full {% if usage_percent >= 90 %}bg-red-500{% elif usage_percent >= 70 %}bg-amber-500{% else %}bg-green-500{% endif %}" 
+               style="width: {{ usage_percent }}%;">
+          </div>
+        </div>
+        <p class="text-sm mt-2 text-right text-gray-500 dark:text-gray-400">{{ usage_percent }}% Used</p>
+      </div>
+
+      <!-- Paper Usage -->
+      <div>
+        <p class="text-lg text-gray-700 dark:text-gray-300">
+          <b>{{ paper_created }}</b> question papers created out of <b>{{ paper_limit }}</b> allowed.
+        </p>
+        <div class="w-full h-3 mt-3 bg-gray-200 rounded-full overflow-hidden">
+          <div class="h-full {% if paper_usage_percent >= 90 %}bg-red-500{% elif paper_usage_percent >= 70 %}bg-amber-500{% else %}bg-green-500{% endif %}" 
+               style="width: {{ paper_usage_percent }}%;">
+          </div>
+        </div>
+        <p class="text-sm mt-2 text-right text-gray-500 dark:text-gray-400">{{ paper_usage_percent }}% Used</p>
+      </div>
+
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Max Draft Papers: <b>{{ draft_limit }}</b></p>
+    </section>
+
+    <!-- Active Licenses -->
+    <section>
+      <h2 class="text-2xl font-bold text-green-600 dark:text-green-400 mt-8 mb-4">
+        Active Licenses ({{ active_licenses|length }})
+      </h2>
+      {% if active_licenses %}
+        <div class="space-y-4">
+          {% for license in active_licenses %}
+          <div class="bg-white dark:bg-gray-800 border-l-4 border-green-500 p-5 rounded-xl shadow-sm">
+            <div class="flex justify-between flex-wrap gap-2">
+              <div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">Valid Until:
+                  {% if license.valid_until %}
+                    <span class="text-gray-700 dark:text-gray-300">{{ license.valid_until|date:"M d, Y" }}</span>
+                  {% else %}
+                    <span class="text-green-500 font-medium">Perpetual</span>
+                  {% endif %}
+                </h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Papers Created: {{ license.created_papers }} / {{ license.max_papers }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Curriculum Nodes -->
+            <div class="mt-4">
+              <h4 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-2">Licensed Content:</h4>
+              <div class="flex flex-wrap gap-2">
+                {% for node in license.curriculum_nodes %}
+                  <span class="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1 text-sm rounded-full">
+                    {{ node.name }} ({{ node.node_type }})
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Permissions -->
+            <div class="mt-4">
+              <h4 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-2">Permissions Granted:</h4>
+              {% if license.permissions %}
+                <ul class="grid sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {% for perm in license.permissions %}
+                    <li class="text-sm bg-gray-100 dark:bg-gray-700 rounded-md px-3 py-2">
+                      <i class="fa-solid fa-key text-teal-500 mr-2"></i>{{ perm.name }}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-gray-500 dark:text-gray-400 text-sm italic">No permissions assigned.</p>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-gray-500 dark:text-gray-400 italic">No active licenses.</p>
+      {% endif %}
+    </section>
+
+    <!-- Expired Licenses -->
+    {% if expired_licenses %}
+    <section>
+      <h2 class="text-2xl font-bold text-red-600 dark:text-red-400 mt-8 mb-4">
+        Expired Licenses ({{ expired_licenses|length }})
+      </h2>
+      <div class="space-y-3">
+        {% for license in expired_licenses %}
+        <div class="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl p-4 flex justify-between">
+          <div>
+            <p class="font-medium text-gray-900 dark:text-gray-100">{{ license.organization }}</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Expired on {{ license.valid_until|date:"M d, Y" }}
+            </p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

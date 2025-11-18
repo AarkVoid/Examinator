@@ -26,8 +26,8 @@
     {% endif %}
 
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
-        <!-- FIX 1: Changed method to POST and added correct ID -->
-        <form method="post" class="space-y-8 form" id="question-form">
+        <!-- CRITICAL CHANGE: Added enctype="multipart/form-data" for file upload support -->
+        <form method="post" class="space-y-8 form" id="question-form" enctype="multipart/form-data">
             {% csrf_token %}
 
             <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-3">
@@ -117,6 +117,26 @@
                           placeholder="Enter the main question text.">{% firstof question.question_text posted.question_text '' %}</textarea>
             </div>
             
+            <!-- NEW: Image Upload Field -->
+            <div>
+                <label for="id_question_image" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Question Image (Optional)
+                </label>
+                <!-- Input type must be 'file' and the name must match the field name 'question_image' -->
+                <input type="file" name="question_image" id="id_question_image" class="input-field file:mr-4 file:py-2 file:px-4
+                      file:rounded-full file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-blue-50 file:text-blue-700
+                      hover:file:bg-blue-100 dark:file:bg-blue-900 dark:file:text-blue-300"/>
+                
+                {% if question.question_image %}
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Current Image: <a href="{{ question.question_image.url }}" target="_blank" class="text-blue-500 hover:text-blue-600">View</a>
+                        (Upload a new file to replace it)
+                    </p>
+                {% endif %}
+            </div>
+            
             <!-- Answer Options -->
             <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-3">
                 Answer Options (MCQ)
@@ -181,7 +201,7 @@
 document.addEventListener("DOMContentLoaded", function() {
   const rootSelect = document.getElementById("root-node");
   const childContainer = document.getElementById("child-filters");
-  const form = document.getElementById("question-form"); // FIX 2: Correct form ID
+  const form = document.getElementById("question-form");
 
   let child_and_types = {}; // Store the hierarchy
   
@@ -191,12 +211,10 @@ document.addEventListener("DOMContentLoaded", function() {
     const allDynamicSelects = Array.from(childContainer.querySelectorAll('select.dynamic-node-select'));
     
     // Find the select element that represents the node that was just changed.
-    // NOTE: This assumes the dynamic selects are ordered sequentially in the DOM.
     let parentIndex = -1;
     let found = false;
 
     // First, find the index of the select element corresponding to the changedNodeId.
-    // Since the root node is NOT a 'dynamic-node-select', we iterate through the children.
     allDynamicSelects.forEach((el, index) => {
         if (String(el.value) === String(changedNodeId)) {
             parentIndex = index;
@@ -209,9 +227,6 @@ document.addEventListener("DOMContentLoaded", function() {
         parentIndex = -1; // Start clearing from the beginning of the child selects
     } else if (!found) {
         // If the element wasn't found (e.g., cleared option), we might need to rely on parentId
-        // This is complex, so the simplest fix is to clear elements *after* the one being cleared.
-        // We will stick to the logic of clearing all elements that are children of the parent
-        // whose ID is passed to the original function call.
     }
     
     // If we are clearing a node, we want to remove the node *after* it in the list.
@@ -283,11 +298,86 @@ document.addEventListener("DOMContentLoaded", function() {
   });
   
   // Initialize if root already selected
-  if (rootSelect.value) {
-      child_and_types["board"] = rootSelect.value;
-      createSelect(rootSelect.value, "");
-  }
-  
+  {% comment %} This block handles re-populating the hierarchy if the form was posted back with an error {% endcomment %}
+  {% if child_and_types.board %}
+      (function initializeHierarchy(data) {
+          const path = [
+              { key: 'board', id: data.board }, 
+              { key: 'class', id: data.class }, 
+              { key: 'subject', id: data.subject }, 
+              { key: 'chapter', id: data.chapter }
+          ].filter(item => item.id); // Only include nodes that were actually selected
+          
+          let previousId = rootSelect.value;
+          
+          // Re-populate hierarchy object from context data
+          path.forEach(item => {
+              child_and_types[item.key] = item.id;
+          });
+
+          // Function to recursively create and select nodes
+          function loadNextNode(index) {
+              if (index >= path.length) {
+                  return; // All nodes loaded
+              }
+              
+              const currentItem = path[index];
+              
+              fetch(`${CHILD_URL}${previousId}/children/`)
+                  .then(res => {
+                      if (!res.ok) throw new Error("Network response was not ok.");
+                      return res.json();
+                  })
+                  .then(data => {
+                      if (data.children && data.children.length > 0) {
+                          let select = document.createElement("select");
+                          select.className = "px-4 py-2 border rounded-lg text-sm bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 transition-colors dynamic-node-select";
+                          select.setAttribute("data-parent-id", previousId);
+                          
+                          let nodeType = data.children[0].node_type;
+                          let label = nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+                          
+                          select.innerHTML = `<option value="">Select ${label}</option>`;
+                          data.children.forEach(child => {
+                              let isSelected = String(child.id) === String(currentItem.id);
+                              select.innerHTML += `<option value="${child.id}" ${isSelected ? 'selected' : ''}>${child.name}</option>`;
+                          });
+
+                          select.addEventListener("change", function() {
+                              if (this.value) {
+                                  child_and_types[nodeType] = this.value;
+                                  console.log("Current hierarchy:", child_and_types);
+                                  createSelect(this.value, nodeType);
+                              } else {
+                                  delete child_and_types[nodeType];
+                                  clearDescendantSelects(this.dataset.parentId);
+                              }
+                          });
+
+                          childContainer.appendChild(select);
+                          previousId = currentItem.id;
+                          loadNextNode(index + 1); // Continue to the next level
+                      }
+                  })
+                  .catch(err => console.error("Error loading children on init:", err));
+          }
+
+          if (path.length > 1) {
+              loadNextNode(1); // Start loading from 'class' (index 1 in path)
+          } else if (path.length === 1) {
+              // Only board selected, load its children
+              createSelect(rootSelect.value, "");
+          }
+
+      })({{ child_and_types|safe }}); // Pass the context dict to the JS function
+  {% else %}
+      // If root is selected on page load (e.g., in edit mode), load children
+      if (rootSelect.value) {
+          child_and_types["board"] = rootSelect.value;
+          createSelect(rootSelect.value, "");
+      }
+  {% endif %}
+
   // Form submission
   form.addEventListener("submit", function(e) {
     let deepestNodeId = rootSelect.value; 
@@ -295,6 +385,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const dynamicSelects = childContainer.querySelectorAll('select.dynamic-node-select');
     dynamicSelects.forEach(select => {
       if (select.value) {
+        // The last selected node is the most specific
         deepestNodeId = select.value;
       }
     });
@@ -303,14 +394,14 @@ document.addEventListener("DOMContentLoaded", function() {
     const existingHiddenInputs = form.querySelectorAll('input[name="node"], input[name="child_and_types"]');
     existingHiddenInputs.forEach(input => input.remove());
 
-    // Create hidden input for final node
+    // Create hidden input for final node (This field is not strictly used by the view but is harmless)
     let nodeInput = document.createElement("input");
     nodeInput.type = "hidden";
     nodeInput.name = "node";
     nodeInput.value = deepestNodeId;
     form.appendChild(nodeInput);
 
-    // Create hidden input for hierarchy data
+    // Create hidden input for hierarchy data (Used by the view)
     let hierarchyInput = document.createElement("input");
     hierarchyInput.type = "hidden";
     hierarchyInput.name = "child_and_types";

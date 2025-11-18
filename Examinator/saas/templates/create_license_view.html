@@ -32,38 +32,7 @@
             {% csrf_token %}
 
             <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
-                <h2 class="text-2xl font-semibold text-blue-500 mb-4 border-b pb-2">1. Organization Profile</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {% for field in org_form %}
-                    <div class="{% if field.field.widget.input_type == 'checkbox' %}col-span-2{% endif %}">
-                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
-                        {% endif %}
-                        {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
-                    <h2 class="text-2xl font-semibold text-purple-500 mb-4 border-b pb-2">2. Usage Limit</h2>
-                    {% for field in usage_form %}
-                    <div>
-                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
-                        {% endif %}
-                        {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
-                    <h2 class="text-2xl font-semibold text-yellow-500 mb-4 border-b pb-2">3. Create Administrator User</h2>
+                <h2 class="text-2xl font-semibold text-yellow-500 mb-4 border-b pb-2">3. Create Administrator User</h2>
                     
                     {# Use new_user_form instead of user_assign_form #}
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -83,10 +52,42 @@
                             {% endif %}
                         {% endfor %}
                     </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                    <h2 class="text-2xl font-semibold text-purple-500 mb-4 border-b pb-2">2. Usage Limit</h2>
+                    {% for field in usage_form %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+                    
+                    <h2 class="text-2xl font-semibold text-blue-500 mb-4 border-b pb-2">1. Organization Profile</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {% for field in org_form %}
+                        <div class="{% if field.field.widget.input_type == 'checkbox' %}col-span-2{% endif %}">
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
+                            {% endif %}
+                            {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
+            <!-- <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md">
                 <h2 class="text-2xl font-semibold text-green-500 mb-4 border-b pb-2">4. Content Licenses (License Grants)</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -107,7 +108,7 @@
                         {% if license_form.valid_until.errors %}<p class="text-red-500 text-xs mt-1">{{ license_form.valid_until.errors|striptags }}</p>{% endif %}
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <button type="submit"
                 class="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50">

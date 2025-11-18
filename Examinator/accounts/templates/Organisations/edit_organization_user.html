@@ -80,7 +80,7 @@
                                value="{{ group.id }}"
                                {% if group.id in user_group_ids %}checked{% endif %}
                                class="rounded text-indigo-600 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500">
-                        <span class="text-gray-700 dark:text-gray-300 text-sm">{{ group.name }}</span>
+                        <span class="text-gray-700 dark:text-gray-300 text-sm">{{ group.name }} {{ group.id }}</span>
                     </label>
                 {% empty %}
                     <p class="text-gray-500 text-sm">No organization groups available.</p>

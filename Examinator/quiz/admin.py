@@ -58,8 +58,8 @@ class QuestionAdmin(admin.ModelAdmin):
     
     # Group fields for better editing experience
     fieldsets = (
-        (None, {'fields': ('question_text', 'question_type', 'difficulty', 'marks','organization')}),
-        ('Curriculum Links', {'fields': ('curriculum_subject', 'curriculum_chapter','curriculum_board')}),
+        (None, {'fields': ('question_text', 'question_type', 'difficulty', 'marks','organization','is_published')}),
+        ('Curriculum Links', {'fields': ('curriculum_board','curriculum_class','curriculum_subject', 'curriculum_chapter')}),
         ('Metadata', {'fields': ('created_by',)}),
     )
     

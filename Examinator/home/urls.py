@@ -21,4 +21,5 @@ urlpatterns = [
     path('send-message/', views.send_message, name='send_message'),
     path('messages/', views.message_list, name='message_list'),
     path('message/<int:message_id>/', views.message_detail, name='message_detail'),
+    path("reports/", views.reports_dashboard, name="reports_dashboard"),
 ] 

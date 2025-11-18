@@ -22,7 +22,12 @@ from django.http import HttpResponseForbidden
 from saas.models import LicenseGrant, UsageLimit
 from django.db.models import Sum
 from datetime import date
+from saas.utils import get_licensed_node_ids
+from accounts.views import staff_required,superuser_required
 # Create your views here. 
+
+@login_required
+@staff_required
 def home(request):
     # Define time thresholds
     one_week_ago = timezone.now() - timedelta(days=7)
@@ -34,7 +39,6 @@ def home(request):
     total_questions = Question.objects.count()
     total_papers = QuestionPaper.objects.count()
     recent_papers = QuestionPaper.objects.select_related('created_by').order_by('-created')[:4]
-    total_attempts = QuestionPaperAttempt.objects.count()
     total_boards = TreeNode.objects.filter(node_type='board').count()
     total_competitive_exams = TreeNode.objects.filter(node_type='competitive').count()
     total_subjects = TreeNode.objects.filter(node_type='subject').count()
@@ -83,7 +87,6 @@ def home(request):
     context = {
         'total_questions': total_questions,
         'total_papers': total_papers,
-        'total_attempts': total_attempts,
         'recent_papers': recent_papers,
         
         'total_users': total_users,
@@ -686,3 +689,142 @@ def message_detail(request, message_id):
         message.save()
     
     return render(request, 'home/message_detail.html', {'message': message})
+
+
+
+
+@login_required
+@staff_required
+def reports_dashboard(request):
+
+    # -----------------------------
+    # GLOBAL STATS (your existing)
+    # -----------------------------
+    total_orgs = OrganizationProfile.objects.count()
+    active_orgs = OrganizationProfile.objects.filter(is_active=True).count()
+    inactive_orgs = total_orgs - active_orgs
+
+    total_licenses = LicenseGrant.objects.count()
+    expired_licenses = LicenseGrant.objects.filter(valid_until__lt=date.today()).count()
+
+    total_users = User.objects.count()
+    total_papers = QuestionPaper.objects.count()
+    published_papers = QuestionPaper.objects.filter(is_published=True).count()
+    draft_papers = total_papers - published_papers
+
+
+    organizations = OrganizationProfile.objects.prefetch_related(
+        'custom_groups__permissions'
+    )
+
+    # -----------------------------
+    # PER-ORGANISATION STATISTICS
+    # -----------------------------
+    orgs = OrganizationProfile.objects.all()
+    org_data = []
+    today = date.today()
+
+    for org in orgs:
+
+        users = User.objects.filter(profile__organization_profile=org)
+        licenses_with_status = []
+        # Fetch licenses
+        licenses = org.license_grants.all().prefetch_related("permissions")
+        
+        for license in licenses:
+            # Calculate expiry status
+            license.is_expired = license.valid_until < today
+            licenses_with_status.append(license)
+
+        org_data.append({
+            "org": org,
+
+            # USERS
+            "total_users": users.count(),
+            "active_users": users.filter(is_active=True).count(),
+            "inactive_users": users.filter(is_active=False).count(),
+            "students": users.filter(role="student").count(),
+            "teachers": users.filter(role="teacher").count(),
+            "admins": users.filter(role="admin").count(),
+
+            # LICENSES
+            "total_licenses": org.license_grants.count(),
+            "active_licenses": org.license_grants.filter(valid_until__gte=date.today()).count(),
+            "expired_licenses": org.license_grants.filter(valid_until__lt=date.today()).count(),
+
+            # NEW: license objects (with permissions)
+            "licenses": licenses_with_status,
+
+            # ORG GROUPS
+            "Orgnsation_groups": org.custom_groups.all().prefetch_related('permissions'),
+
+            # CONTENT CREATED BY ORG
+            "total_questions": Question.objects.filter(organization=org).count(),
+            "total_papers": QuestionPaper.objects.filter(organization=org).count(),
+        })
+
+    # -----------------------------
+    # GLOBAL CURRICULUM COUNTS
+    # -----------------------------
+    total_boards = TreeNode.objects.filter(node_type="board").count()
+    total_classes = TreeNode.objects.filter(node_type="class").count()
+    total_subjects = TreeNode.objects.filter(node_type="subject").count()
+    total_chapters = TreeNode.objects.filter(node_type="chapter").count()
+
+
+    hierarchy = {}
+
+    # Get all classes
+    board = TreeNode.objects.filter(node_type="board")
+
+    for b in board:
+        classes = b.children.filter(node_type="class")
+
+        hierarchy[b] = {}  # Board level
+        
+        for c in classes:
+            subjects = c.children.filter(node_type="subject")
+            hierarchy[b][c] = {}  # Class level
+
+            for s in subjects:
+                chapters = s.children.filter(node_type="chapter")
+
+                hierarchy[b][c][s] = {}  # Subject level
+
+                for ch in chapters:
+                    # Count questions directly under chapter
+                    q_count = ch.chapter_questions.count()  # Reverse FK: TreeNode → Question
+                    # print(q_count,ch.questions)
+                    hierarchy[b][c][s][ch] = q_count
+
+    # -----------------------------
+    # RETURN
+    # -----------------------------
+    context = {
+        # Global stats
+        "total_orgs": total_orgs,
+        "active_orgs": active_orgs,
+        "inactive_orgs": inactive_orgs,
+        "total_licenses": total_licenses,
+        "expired_licenses": expired_licenses,
+        "total_users": total_users,
+        "total_papers": total_papers,
+        "published_papers": published_papers,
+        "draft_papers": draft_papers,
+        "active_licenses": total_licenses - expired_licenses,
+        "hierarchy": hierarchy,
+
+        # global curriculum stats
+        "stats": {
+            "Boards": total_boards,
+            "Classes": total_classes,
+            "Subjects": total_subjects,
+            "Chapters": total_chapters,
+        }.items(),
+
+        # NEW PER-ORG DATA
+        "org_data": org_data,
+       
+    }
+
+    return render(request, "reports.html", context)

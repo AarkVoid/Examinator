@@ -22,11 +22,27 @@ class Question(TimeStampedModel):
     ]
     
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPES)
+
+    question_image = models.ImageField(
+        upload_to='questions/images/', 
+        null=True, 
+        blank=True,
+        help_text="Optional image to accompany the question text."
+    )
+    
     curriculum_board = models.ForeignKey(
         TreeNode, 
         on_delete=models.CASCADE, 
         related_name='board_questions',
         limit_choices_to={'node_type': 'board'},
+        default=None, null=True, blank=True
+    )
+
+    curriculum_class = models.ForeignKey(
+        TreeNode, 
+        on_delete=models.CASCADE, 
+        related_name='class_questions',
+        limit_choices_to={'node_type': 'class'},
         default=None, null=True, blank=True
     )
     
@@ -92,6 +108,7 @@ class TrueFalseAnswer(models.Model):
     explanation = models.TextField(blank=True)
 
 class QuestionPaper(TimeStampedModel):
+    
     PAPER_PATTERNS = [
         ('standard', 'Standard Pattern'),
         ('section_wise', 'Section-wise Pattern'),

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load form_tags %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+  <div class="max-w-7xl mx-auto my-10 px-4 md:px-6">
+    
+    <!-- Header and Dark Mode Toggle -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-4">
+      <div class="mb-4 sm:mb-0">
+        <a href="{% url 'group_list' %}" class="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 transition duration-150">
+          <i class="fa-solid fa-arrow-left mr-2"></i> Back to Groups List
+        </a>
+        <h1 class="mt-2 text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+          {{ title }}
+        </h1>
+        <p class="mt-1 text-base text-gray-500 dark:text-gray-400">
+          Configure the role name and assign granular permissions within the organization.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Dark Mode Toggle -->
+        
+
+        <a href="{% url 'group_list' %}" class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm transition duration-150">
+          <i class="fa-solid fa-list mr-2"></i> View All
+        </a>
+       
+      </div>
+    </div>
+    
+    <!-- MAIN FORM CONTAINER -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-6 sm:p-8 lg:p-10">
+      
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-blue-300 mb-8 border-b-4 border-teal-500/50 pb-4">
+        {{ title }}
+      </h1>
+
+      <form method="post" class="space-y-12">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-300 rounded-lg">
+            <p class="font-semibold">There was an error saving the group:</p>
+            <div class="mt-1 text-sm">
+              {{ form.non_field_errors }}
+            </div>
+          </div>
+        {% endif %}
+
+        <!-- SECTION 1: ROLE INFORMATION (Organization & Name) -->
+        <section class="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 shadow-xl">
+          <h2 class="text-2xl font-bold text-indigo-700 dark:text-indigo-400 mb-6 flex items-center gap-3">
+            <i class="fa-solid fa-id-badge text-3xl"></i> Role Identity
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- Organization Field -->
+            <div>
+              <label for="{{ form.organization.id_for_label }}" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                {{ form.organization.label }}
+              </label>
+              <!-- Manual class application for stability, assuming filter issue -->
+              {{ form.organization|add_class:'w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-800 focus:ring-blue-500 focus:border-blue-500 transition shadow-md' }}
+              {% if form.organization.errors %}
+                <p class="mt-1 text-xs text-red-500 font-medium">{{ form.organization.errors.as_text }}</p>
+              {% endif %}
+            </div>
+
+            <!-- Name Field -->
+            <div>
+              <label for="{{ form.name.id_for_label }}" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                {{ form.name.label }}
+              </label>
+              <!-- Manual class application for stability, assuming filter issue -->
+              {{ form.name|add_class:'w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-800 focus:ring-blue-500 focus:border-blue-500 transition shadow-md' }}
+              {% if form.name.errors %}
+                <p class="mt-1 text-xs text-red-500 font-medium">{{ form.name.errors.as_text }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 2: PERMISSION ASSIGNMENT (IMPROVED GROUPED LAYOUT) -->
+        <section>
+          <h2 class="text-2xl font-bold text-teal-700 dark:text-teal-400 mb-6 flex items-center gap-3">
+            <i class="fa-solid fa-key text-3xl"></i> Permission Assignment
+          </h2>
+          <p class="text-gray-500 dark:text-gray-400 mb-6">
+            {{ form.permissions.help_text|default:"Select which granular permissions this role should grant, grouped by Application and Model." }}
+          </p>
+
+          <!-- Accordion Container -->
+          <div id="permission-accordion" class="space-y-4">
+            
+            {% for app_label, app_perms in form.permissions.field.choices %}
+            <!-- Accordion Item (Group by Application) -->
+            <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-xl">
+                <!-- Accordion Header -->
+                <button type="button" 
+                        class="accordion-button w-full flex justify-between items-center p-4 sm:p-5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/70 transition duration-150"
+                        data-target="#permissions-{{ forloop.counter }}" 
+                        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" 
+                        aria-controls="permissions-{{ forloop.counter }}">
+                    <span class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                      {{ app_label|title }} 
+                      <span class="text-gray-500 dark:text-gray-400 ml-2 text-sm font-normal">({{ app_perms|length }} models)</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down text-gray-500 dark:text-gray-400 transform transition-transform duration-300 {% if forloop.first %}rotate-180{% endif %}"></i>
+                </button>
+
+                <!-- Accordion Body -->
+                <div id="permissions-{{ forloop.counter }}" 
+                    class="accordion-content bg-gray-50 dark:bg-gray-900/50 p-4 border-t border-gray-200 dark:border-gray-700 {% if not forloop.first %}hidden{% endif %}">
+                    
+                    <!-- Nested Model Groups -->
+                    <div class="space-y-6">
+                      {% for model_name, perms in app_perms %}
+                      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 p-4 shadow-sm">
+                        <!-- Model Header -->
+                        <h4 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                          {{ model_name|title }}
+                          <span class="text-sm text-gray-500 dark:text-gray-400 font-normal ml-2">({{ perms|length }} permissions)</span>
+                        </h4>
+                        
+                        <!-- Permissions Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {% for perm_id, perm_name in perms %}
+                            <label class="flex items-start gap-3 bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm cursor-pointer hover:border-teal-500 dark:hover:border-teal-400 transition">
+                                <!-- Checkbox input -->
+                                <input type="checkbox"
+                                    name="{{ form.permissions.html_name }}"
+                                    value="{{ perm_id }}"
+                                    {% if perm_id in form.permissions.value or perm_id|stringformat:"s" in form.permissions.value %}checked{% endif %}
+                                    class="w-5 h-5 mt-0.5 accent-teal-600 dark:accent-teal-400 rounded focus:ring-teal-500">
+                                <!-- Permission name -->
+                                <span class="text-sm text-gray-900 dark:text-gray-200 font-medium leading-tight">{{ perm_name }}</span>
+                            </label>
+                          {% endfor %}
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+          </div>
+          <!-- End Accordion Container -->
+
+          {% if form.permissions.errors %}
+            <p class="mt-4 text-xs text-red-500 font-medium">{{ form.permissions.errors.as_text }}</p>
+          {% endif %}
+        </section>
+
+        <!-- ACTION BUTTONS -->
+        <div class="flex justify-end gap-4 pt-8 border-t border-gray-300 dark:border-gray-700">
+          <a href="{% url 'group_list' %}"
+             class="px-8 py-3 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-semibold text-lg rounded-xl shadow-md flex items-center gap-3 transition">
+            <i class="fa-solid fa-xmark"></i> Cancel
+          </a>
+          <button type="submit"
+                  class="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-lg rounded-xl shadow-2xl shadow-teal-500/50 dark:shadow-teal-700/50 transform hover:scale-105 transition duration-200 flex items-center gap-3">
+            <i class="fa-solid fa-floppy-disk"></i> Save Role
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===================================
+  // ACCORDION / COLLAPSIBLE PERMISSIONS
+  // ===================================
+  document.querySelectorAll('.accordion-button').forEach(button => {
+      button.addEventListener('click', () => {
+          const targetId = button.getAttribute('data-target');
+          const content = document.querySelector(targetId);
+          const icon = button.querySelector('i');
+          const isExpanded = button.getAttribute('aria-expanded') === 'true';
+
+          // Toggle the content visibility
+          if (isExpanded) {
+              content.classList.add('hidden');
+              icon.classList.remove('rotate-180');
+              button.setAttribute('aria-expanded', 'false');
+          } else {
+              content.classList.remove('hidden');
+              icon.classList.add('rotate-180');
+              button.setAttribute('aria-expanded', 'true');
+          }
+      });
+  });
+
+  // ===================================
+  // DARK MODE TOGGLE
+  // ===================================
+  const htmlElement = document.documentElement;
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+
+  function setTheme(theme) {
+    if (theme === 'dark') {
+      htmlElement.classList.add('dark');
+      themeIcon.classList.remove('fa-sun');
+      themeIcon.classList.add('fa-moon');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      htmlElement.classList.remove('dark');
+      themeIcon.classList.remove('fa-moon');
+      themeIcon.classList.add('fa-sun');
+      localStorage.setItem('theme', 'light');
+    }
+  }
+
+  function initialThemeSetup() {
+    const storedTheme = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (storedTheme === 'dark' || (!storedTheme && systemPrefersDark)) {
+      setTheme('dark');
+    } else {
+      setTheme('light');
+    }
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = localStorage.getItem('theme') || (htmlElement.classList.contains('dark') ? 'dark' : 'light');
+    setTheme(currentTheme === 'light' ? 'dark' : 'light');
+  });
+
+  initialThemeSetup();
+</script>
+{% endblock %}

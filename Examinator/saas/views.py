@@ -23,6 +23,7 @@ from .saas_admin_forms import (
 )
 
 from saas.models import OrganizationProfile, LicenseGrant, UsageLimit,LicensePermission
+from accounts.views import staff_required,superuser_required
 # NOTE: The User model is implicitly linked via a Profile model in the application design.
 
 User = get_user_model()
@@ -37,62 +38,72 @@ def get_user_organization(user):
 
 
 @login_required
-def license_dashboard(request):
+@staff_required
+@permission_required('saas.view_license_summary',login_url='profile_update')
+def organization_license_overview(request):
     """
-    Displays licensing and usage information.
-    - Superusers see all organizations' licenses.
-    - Organization admins see only their own.
+    Read-only dashboard showing the current organization's licenses,
+    permissions, and usage summary.
     """
+    user = request.user
     today = timezone.now().date()
 
-    # Superuser: show all licenses
-    if request.user.is_superuser:
-        licenses_qs = LicenseGrant.objects.all().prefetch_related('curriculum_node', 'organization_profile')
+    # ------------------------------
+    # Determine which organization to show
+    # ------------------------------
+    if user.is_superuser:
         organization = None
+        licenses = LicenseGrant.objects.select_related("organization_profile").prefetch_related(
+            "curriculum_node", "permissions"
+        )
     else:
-        organization = get_user_organization(request.user)
+        organization = getattr(user.profile, "organization_profile", None)
         if not organization:
-            return render(request, 'license_dashboard.html', {
-                'organization': None,
-                'message': "You are not linked to any organization profile. Please contact support.",
+            return render(request, "saas/license_overview.html", {
+                "error": "You are not linked to any organization.",
             })
-        licenses_qs = LicenseGrant.objects.filter(
+        
+        licenses = LicenseGrant.objects.filter(
             organization_profile=organization
-        ).prefetch_related('curriculum_node')
+        ).prefetch_related("curriculum_node", "permissions")
 
-    # Build active and expired license lists
+    # ------------------------------
+    # Categorize active vs expired
+    # ------------------------------
     active_licenses = []
     expired_licenses = []
 
-    for license in licenses_qs:
-        valid_until = license.valid_until
-        is_active = valid_until is None or valid_until >= today
+    for license in licenses:
+        is_active = not license.valid_until or license.valid_until >= today
+        license_data = {
+            "id": license.id,
+            "organization": license.organization_profile.name,
+            "valid_until": license.valid_until,
+            "curriculum_nodes": license.curriculum_node.all(),
+            "permissions": license.permissions.all(),
+            "max_papers": license.max_question_papers or 0,
+            "created_papers": license.question_papers_created or 0,
+        }
+        (active_licenses if is_active else expired_licenses).append(license_data)
 
-        # Iterate over all linked curriculum nodes
-        for node in license.curriculum_node.all():
-            node_type_display = getattr(node, 'get_node_type_display', lambda: node.node_type.capitalize())()
-            license_data = {
-                'organization_name': license.organization_profile.name if request.user.is_superuser else None,
-                'node_name': node.name,
-                'node_type': node_type_display,
-                'valid_until': valid_until,
-                'is_expired': not is_active,
-            }
-            if is_active:
-                active_licenses.append(license_data)
-            else:
-                expired_licenses.append(license_data)
-
-    # Usage info (only for org admins)
+    # ------------------------------
+    # Usage summary (for org users only)
+    # ------------------------------
     usage_limit = 0
     current_users = 0
     usage_percent = 0
+    draft_limit = 0
+    paper_limit = 0
+    paper_created = 0
+    paper_usage_percent = 0
 
     if organization:
         try:
             usage_limit = organization.usage_limit.max_users
+            draft_limit = organization.usage_limit.max_question_papers_drafts
         except UsageLimit.DoesNotExist:
             usage_limit = 0
+            draft_limit = 0
 
         current_users = User.objects.filter(
             profile__organization_profile=organization,
@@ -102,20 +113,41 @@ def license_dashboard(request):
         if usage_limit > 0:
             usage_percent = min(100, (current_users / usage_limit) * 100)
 
+        # ✅ Only include active licenses for paper usage
+        total_papers_limit = sum(l["max_papers"] for l in active_licenses)
+        total_papers_created = sum(l["created_papers"] for l in active_licenses)
+
+        if total_papers_limit > 0:
+            paper_usage_percent = min(100, (total_papers_created / total_papers_limit) * 100)
+
+        paper_limit = total_papers_limit
+        paper_created = total_papers_created
+
+        print(" usage_percent :",usage_percent)
+
+    # ------------------------------
+    # Render context
+    # ------------------------------
     context = {
-        'organization': organization,
-        'active_licenses': active_licenses,
-        'expired_licenses': expired_licenses,
-        'usage_limit': usage_limit,
-        'current_users': current_users,
-        'usage_percent': int(usage_percent),
-        'message': None
+        "organization": organization,
+        "active_licenses": active_licenses,
+        "expired_licenses": expired_licenses,
+        "usage_limit": usage_limit,
+        "draft_limit": draft_limit,
+        "current_users": current_users,
+        "usage_percent": int(usage_percent),
+        "paper_limit": paper_limit,
+        "paper_created": paper_created,
+        "paper_usage_percent": int(paper_usage_percent),
+        "today": today,
     }
 
-    return render(request, 'license_dashboard.html', context)
+    return render(request, "license_overview.html", context)
 
 
 @login_required
+@staff_required
+@permission_required('saas.add_licensegrant',login_url='profile_update')
 def create_license_view(request):
     """
     Admin view to create an OrganizationProfile, its UsageLimit,
@@ -129,12 +161,13 @@ def create_license_view(request):
         # Instantiate all four forms with POST data, using prefixes
         org_form = OrganizationProfileForm(request.POST, prefix='org')
         usage_form = UsageLimitForm(request.POST, prefix='usage')
-        license_form = MultipleLicenseGrantForm(request.POST, prefix='license')
+        # license_form = MultipleLicenseGrantForm(request.POST, prefix='license')
         # Use the NEW user creation form
         new_user_form = ClientUserForm(request.POST, prefix='user')
 
         # Validate all forms simultaneously
-        if org_form.is_valid() and usage_form.is_valid() and license_form.is_valid() and new_user_form.is_valid():
+        # if org_form.is_valid() and usage_form.is_valid() and license_form.is_valid() and new_user_form.is_valid():
+        if org_form.is_valid() and usage_form.is_valid() and new_user_form.is_valid():
             try:
                 # Use a transaction to ensure all database writes succeed or fail together
                 with transaction.atomic():
@@ -147,15 +180,15 @@ def create_license_view(request):
                     usage_limit.save()
 
                     # 3. Create LicenseGrant instance (M2M handled in separate steps)
-                    curriculum_nodes = license_form.cleaned_data['curriculum_nodes']
-                    valid_until = license_form.cleaned_data['valid_until']
+                    # curriculum_nodes = license_form.cleaned_data['curriculum_nodes']
+                    # valid_until = license_form.cleaned_data['valid_until']
                     
-                    license_obj = LicenseGrant.objects.create(
-                        organization_profile=organization,
-                        valid_until=valid_until
-                    )
-                    # Set the M2M relationship
-                    license_obj.curriculum_node.set(curriculum_nodes)
+                    # license_obj = LicenseGrant.objects.create(
+                    #     organization_profile=organization,
+                    #     valid_until=valid_until
+                    # )
+                    # # Set the M2M relationship
+                    # license_obj.curriculum_node.set(curriculum_nodes)
 
                     # 4. Create and Assign New User (Client Admin)
                     client_admin_user = new_user_form.save() # This creates User AND Profile
@@ -178,14 +211,14 @@ def create_license_view(request):
         # Initial GET request: Instantiate blank forms
         org_form = OrganizationProfileForm(prefix='org')
         usage_form = UsageLimitForm(prefix='usage')
-        license_form = MultipleLicenseGrantForm(prefix='license')
+        # license_form = MultipleLicenseGrantForm(prefix='license')
         # Use the NEW user creation form
         new_user_form = ClientUserForm(prefix='user')
 
     context = {
         'org_form': org_form,
         'usage_form': usage_form,
-        'license_form': license_form,
+        # 'license_form': license_form,
         'new_user_form': new_user_form, # Updated context key
         'page_title': 'New Organization Setup',
     }
@@ -193,6 +226,8 @@ def create_license_view(request):
 
 
 @login_required
+@staff_required
+@permission_required('saas.view_licensegrant',login_url='profile_update')
 def manage_licenses(request, org_id):
     organization = get_object_or_404(OrganizationProfile, id=org_id)
     # Ensure LicenseGrant is imported/accessible for prefetch
@@ -323,6 +358,8 @@ def manage_licenses(request, org_id):
 
 
 @login_required
+@staff_required
+@permission_required('saas.change_licensegrant',login_url='profile_update')
 def edit_license(request, pk):
     """
     Allows editing of a single LicenseGrant (including its curriculum nodes, expiry date, and permissions).
@@ -359,7 +396,7 @@ def edit_license(request, pk):
     )
 
     # 2. Load available permissions grouped by ContentType model
-    APP_LABELS = ['accounts', 'quiz']
+    APP_LABELS = ['accounts', 'quiz','saas']
     
     all_available_permissions = (
         Permission.objects.filter(content_type__app_label__in=APP_LABELS)
@@ -452,6 +489,8 @@ def edit_license(request, pk):
 
 
 @login_required
+@staff_required
+@permission_required('saas.delete_licensegrant',login_url='profile_update')
 def delete_license(request, pk):
     """
     Allows deletion of a specific LicenseGrant.
@@ -475,6 +514,7 @@ def delete_license(request, pk):
 
 
 @login_required
+@staff_required
 @permission_required('saas.add_organizationprofile', raise_exception=True)
 def create_client_and_organization_view(request):
     """
@@ -553,6 +593,7 @@ def create_client_and_organization_view(request):
 
 
 @login_required
+@staff_required
 @permission_required('saas.add_organizationprofile', raise_exception=True)
 def create_organization_and_admin_view(request):
     """ View to create a new OrganizationProfile and assign an EXISTING User (Client Admin) to it. """
@@ -564,7 +605,9 @@ def create_organization_and_admin_view(request):
     return render(request, 'create_organization_and_admin.html', context)
 
 
-
+@login_required
+@staff_required
+@permission_required('saas.view_organizationgroup',login_url='profile_update')
 def organization_list(request):
     """
     Function-based view to display a paginated list of all organizations.
@@ -584,7 +627,9 @@ def organization_list(request):
     
     return render(request, 'organization_list.html', context)
 
-
+@login_required
+@staff_required
+@permission_required('saas.add_organizationgroup',login_url='profile_update')
 def create_organization(request):
     if request.method == 'POST':
         form = OrganizationCreateForm(request.POST)
@@ -607,6 +652,8 @@ def create_organization(request):
 
 
 @login_required
+@staff_required
+@permission_required('saas.change_organizationgroup',login_url='profile_update')
 def edit_organization(request, pk):
     organization = get_object_or_404(OrganizationProfile, pk=pk)
     # Fetch grants using the correct related_name
@@ -668,6 +715,8 @@ def edit_organization(request, pk):
 
 
 @login_required
+@staff_required
+@permission_required('saas.view_usagelimit',login_url='profile_update')
 def update_max_question_papers(request, org_id):
     """
     Allows an admin to update all usage limits (max users, max papers) 

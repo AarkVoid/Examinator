@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from django.contrib.auth import views as auth_views
+from .impersonation_views import impersonate_user, exit_impersonation,impersonate_user_submission
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -21,6 +22,10 @@ urlpatterns = [
     # path('institute/users/', views.manage_institute_users_view, name='manage_institute_users'),
     # path('institute/users/edit/<int:user_id>/', views.edit_institute_user_view, name='edit_institute_user'),
     # path('institute/users/delete/<int:user_id>/', views.delete_institute_user_view, name='delete_institute_user'),
+    path('permissions/', views.permission_list, name='permission_list'),
+    path('permissions/create/', views.permission_create, name='permission_add'),
+    path('permissions/delete/<int:pk>/', views.permission_delete, name='permission_delete'),
+
     path('UserPermission/<int:user_id>/',views.edit_user_permissions_and_groups, name='UserPermission'),
     path('institute-admin/UserPermissions/<int:user_id>/', views.edit_permissions_by_institute_admin, name='edit_permissions_by_institute_admin'),
     path('users/create/<int:org_pk>/', views.create_user_by_admin, name='create_user_by_admin'),
@@ -31,4 +36,15 @@ urlpatterns = [
     path('manage/<int:group_id>/', views.manage_organization_groups, name='manage_groups'),
     # Path for deleting a group (requires a confirmation page/modal)
     path('delete/<int:group_id>/', views.delete_organization_group, name='delete_group'),
+
+    path('impersonate/<int:user_id>/', impersonate_user, name='impersonate_user'),
+    path('impersonate-submit/', impersonate_user_submission, name='impersonate_user_submission'),
+    path('stop-impersonating/', exit_impersonation, name='exit_impersonation'),
+
+
+    path('django/', views.django_group_list, name='group_list'),
+    path('django/add/', views.django_group_create, name='group_create'),
+    path('django/<int:pk>/edit/', views.django_group_update, name='group_update'),
+    path('django/<int:pk>/delete/', views.django_group_delete, name='group_delete'),
+    
 ]

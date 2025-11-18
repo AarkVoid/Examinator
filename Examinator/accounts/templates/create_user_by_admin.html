@@ -43,19 +43,25 @@
                     
                     <!-- Name and Surname -->
                     <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">First Name</label>
                         <input type="text" name="name" id="name" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
 
                     <div>
-                        <label for="surname" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Surname</label>
+                        <label for="surname" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Last Name</label>
                         <input type="text" name="surname" id="surname" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
 
-                    <!-- Contact and Birth Date -->
+                    <!-- Primary Phone Number (New Field) -->
                     <div>
-                        <label for="contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contact</label>
-                        <input type="number" name="contact" id="contact" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
+                        <label for="phone_number" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number (Primary)</label>
+                        <input type="tel" name="phone_number" id="phone_number" required class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out" placeholder="e.g., +1 555-123-4567">
+                    </div>
+
+                    <!-- Secondary Contact (Existing field, updated label) and Birth Date -->
+                    <div>
+                        <label for="contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Secondary Contact</label>
+                        <input type="text" name="contact" id="contact" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out" placeholder="Optional contact number">
                     </div>
 
                     <div>
