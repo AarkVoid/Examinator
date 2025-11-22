@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load dict_filters %}
 <script src="https://cdn.tailwindcss.com"></script>
 
 {% block title %}Add Random Questions - {{ paper.title }}{% endblock %}
@@ -8,7 +9,6 @@
 <div class="min-h-screen bg-gray-50 py-8 font-sans antialiased">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
-            <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <div class="flex items-center justify-between">
                     <h2 class="text-2xl font-extrabold text-gray-900">Automated Question Generation</h2>
@@ -22,7 +22,6 @@
                 </p>
             </div>
 
-            <!-- Django Messages (Fix for Issue 2: Displaying the Marks Alert) -->
             {% if messages %}
             <div class="px-6 pt-4">
                 {% for message in messages %}
@@ -35,7 +34,6 @@
             </div>
             {% endif %}
 
-            <!-- Paper Info Summary -->
             <div class="px-6 py-4 bg-blue-50 border-b border-blue-200">
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -64,56 +62,45 @@
                 </div>
             </div>
 
-            <!-- Form -->
-            <form method="post" class="px-6 py-6">
+            <form method="post" class="px-6 py-6" id="question-form">
                 {% csrf_token %}
                 
-                <!-- Target Marks (Fix for Issue 1: Using dynamic default value) -->
                 <div class="mb-8 p-4 border rounded-lg bg-white">
                     <label for="target_marks" class="block text-lg font-bold text-gray-800 mb-2">
-                        Target Marks to Add
+                        Total Marks to Target
                     </label>
                     <input type="number" id="target_marks" name="target_marks" 
                            min="1" max="500" value="{{ target_marks_default }}" required
                            class="w-full sm:w-40 px-4 py-2 border border-gray-300 rounded-lg shadow-inner text-xl font-mono focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition duration-150">
-                    <p class="text-xs text-gray-500 mt-2">The system will try to select questions that total this amount of marks. Default suggests the remaining marks needed.</p>
+                    <p class="text-xs text-gray-500 mt-2">The total marks the system will aim to reach.</p>
                 </div>
-
-                <!-- Distribution Type (Applies to Difficulty/Type) -->
-                <div class="mb-8 p-4 border rounded-lg bg-gray-50">
-                    <label class="block text-lg font-bold text-gray-800 mb-4">
-                        Question Distribution Strategy
+                
+                <div class="mb-8 p-4 border rounded-lg bg-red-50 border-red-200">
+                    <label class="block text-lg font-bold text-red-900 mb-4">
+                        Custom Marks per Question Type
                     </label>
-                    <p class="text-sm text-gray-600 mb-4 italic">Determines the balance of question difficulty (if pattern is 'Difficulty-wise') or type (if pattern is 'Standard').</p>
-                    <div class="space-y-3">
-                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
-                            <input type="radio" name="distribution_type" value="balanced" checked
-                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
-                            <span class="ml-3 text-sm">
-                                <strong class="text-gray-900">Balanced (40/40/20)</strong>
-                                <p class="text-gray-500">Even mix of Easy and Medium, with some Hard questions.</p>
-                            </span>
-                        </label>
-                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
-                            <input type="radio" name="distribution_type" value="exam_focused" 
-                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
-                            <span class="ml-3 text-sm">
-                                <strong class="text-gray-900">Exam Focused (30/50/20)</strong>
-                                <p class="text-gray-500">Heavier weight on Medium difficulty questions, suitable for typical exams.</p>
-                            </span>
-                        </label>
-                        <label class="flex items-start p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-blue-500 cursor-pointer">
-                            <input type="radio" name="distribution_type" value="progressive" 
-                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">
-                            <span class="ml-3 text-sm">
-                                <strong class="text-gray-900">Progressive (50/30/20)</strong>
-                                <p class="text-gray-500">Focus on Easy questions, ideal for foundational review or practice tests.</p>
-                            </span>
-                        </label>
+                    <p class="text-sm text-red-700 mb-4 italic">
+                        Enter the **MARK VALUE** you want to assign to each question type chosen. Use 0 to exclude a type.
+                    </p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="custom-marks-container">
+                        {% for type_code, type_display in question_types %}
+                        <div>
+                            <label for="custom_marks_{{ type_code }}" class="block text-sm font-medium text-gray-700">
+                                {{ type_display }} Questions
+                            </label>
+                            <input type="number" id="custom_marks_{{ type_code }}" 
+                                   name="custom_marks_{{ type_code }}" 
+                                   min="0" value="{{ custom_marks_values|get_item:type_code|default:0 }}"
+                                   required 
+                                   data-mark-input="true"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                        </div>
+                        {% endfor %}
                     </div>
+                    
+                    <p class="text-sm mt-4 p-2 rounded hidden" id="validation-message"></p>
                 </div>
 
-                <!-- Chapter Distribution -->
                 <div class="mb-8 p-4 border rounded-lg bg-gray-50">
                     <label class="block text-lg font-bold text-gray-800 mb-4">
                         Chapter Weighting
@@ -146,13 +133,12 @@
                         </label>
                     </div>
                 </div>
-
-                <!-- Pattern-specific Info -->
+                
                 <div class="bg-yellow-100 border-l-4 border-yellow-500 rounded-r-lg p-4 mb-6 shadow-md">
                     <h4 class="text-md font-bold text-yellow-900 mb-2">Current Paper Pattern: {{ paper.get_pattern_display }}</h4>
                     {% if paper.pattern == 'difficulty_wise' %}
                     <p class="text-sm text-yellow-800">
-                        The primary filter will be **Difficulty**, balanced across chapters using the weights above.
+                        The primary filter will be **Difficulty**. Selection will attempt to pull questions from all available difficulties proportionally to available questions, balanced across chapters using the weights above.
                     </p>
                     {% elif paper.pattern == 'section_wise' %}
                     <p class="text-sm text-yellow-800">
@@ -160,7 +146,7 @@
                     </p>
                     {% elif paper.pattern == 'standard' %}
                     <p class="text-sm text-yellow-800">
-                        The primary filter will be **Question Type** (MCQ, Short Answer, etc.), balanced across chapters.
+                        The primary filter will be **Question Type** (MCQ, Short Answer, etc.). Selection will attempt to pull from all types requested, balanced across chapters using the weights above.
                     </p>
                     {% else %}
                     <p class="text-sm text-yellow-800">
@@ -169,7 +155,6 @@
                     {% endif %}
                 </div>
 
-                <!-- Chapter Details -->
                 {% if paper.curriculum_chapters.exists %}
                 <div class="bg-green-100 border-l-4 border-green-500 rounded-r-lg p-4 mb-6 shadow-md">
                     <h4 class="text-md font-bold text-green-900 mb-2">Selected Chapters:</h4>
@@ -186,13 +171,12 @@
                 </div>
                 {% endif %}
 
-                <!-- Actions -->
                 <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
                     <a href="{% url 'quiz:paper_detail' paper.id %}" 
                        class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
                         Cancel
                     </a>
-                    <button type="submit" 
+                    <button type="submit" id="submit-button"
                             class="px-5 py-2.5 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
                         Generate & Add Questions
                     </button>
@@ -201,4 +185,68 @@
         </div>
     </div>
 </div>
-{% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('question-form');
+        const targetMarksInput = document.getElementById('target_marks');
+        // Select all custom mark inputs using the data attribute
+        const customMarkInputs = document.querySelectorAll('[data-mark-input="true"]');
+        const submitButton = document.getElementById('submit-button');
+        const validationMessage = document.getElementById('validation-message');
+
+        function validateMarks() {
+            // Use 0 as fallback if input is empty or invalid
+            const targetMarks = parseInt(targetMarksInput.value) || 0;
+            let currentSum = 0;
+
+            customMarkInputs.forEach(input => {
+                // Parse integer and ensure it's not negative
+                const mark = Math.max(0, parseInt(input.value) || 0);
+                currentSum += mark;
+            });
+
+            validationMessage.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+            
+            if (currentSum > targetMarks) {
+                // Validation Failed: Sum exceeds target
+                validationMessage.textContent = `❌ ERROR: Total Custom Marks (${currentSum}) exceeds Target Marks (${targetMarks}).`;
+                validationMessage.classList.add('bg-red-100', 'text-red-800');
+                submitButton.disabled = true;
+                return false;
+            } else if (currentSum === 0) {
+                 // Warning: No custom marks entered
+                validationMessage.textContent = `⚠️ WARNING: Total Custom Marks is 0. Please enter marks for at least one question type.`;
+                validationMessage.classList.add('bg-yellow-100', 'text-yellow-800');
+                submitButton.disabled = true; 
+                return false;
+            } else {
+                // Validation Success
+                const difference = targetMarks - currentSum;
+                validationMessage.textContent = `✅ VALID: Total Custom Marks (${currentSum}) / Target (${targetMarks}). Remaining target: ${difference}.`;
+                validationMessage.classList.add('bg-green-100', 'text-green-800');
+                submitButton.disabled = false;
+                return true;
+            }
+        }
+
+        // 1. Run validation on page load
+        validateMarks();
+
+        // 2. Attach event listeners for dynamic validation
+        targetMarksInput.addEventListener('input', validateMarks);
+        customMarkInputs.forEach(input => {
+            input.addEventListener('input', validateMarks);
+        });
+
+        // 3. Prevent form submission if validation fails
+        form.addEventListener('submit', function(event) {
+            if (!validateMarks()) {
+                event.preventDefault();
+                // Optionally scroll to the message for visibility
+                validationMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    });
+</script>
+{% endblock content %}

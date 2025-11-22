@@ -4,6 +4,7 @@ from curritree.models import TreeNode
 from accounts.models import TimeStampedModel,User
 import json
 
+
 User = get_user_model()
 
 class Question(TimeStampedModel):
@@ -176,3 +177,15 @@ class QuestionPaperAttempt(models.Model):
     
     class Meta:
         unique_together = ['paper', 'student']
+
+
+class QuestionUploadLog(TimeStampedModel):
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    total_questions = models.PositiveIntegerField(default=0)
+    file_path = models.CharField(max_length=500)
+    success_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+    error_details = models.JSONField(blank=True, null=True)  # Use JSONField for structured data
+    
+    def __str__(self):
+        return f"Upload by {self.uploaded_by.username} on {self.created.strftime('%Y-%m-%d %H:%M:%S')}"

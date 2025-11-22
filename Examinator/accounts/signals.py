@@ -16,9 +16,10 @@ def sync_user_permissions(profile):
 
     for group in profile.organization_groups.all():
         perms = group.permissions.all()
-        user.user_permissions.add(*perms)
+        user.user_permissions.set(perms)
 
     user.save()
+    print(" permission : ",user.user_permissions.all())
 
 
 # When user.organization_groups changes

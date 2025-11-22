@@ -308,7 +308,7 @@ def add_to_student_group(request, user_id):
  
 @login_required
 @staff_required
-@permission_required('account.view_user',login_url='profile_update')
+@permission_required('accounts.view_user',login_url='profile_update')
 def manage_users_view(request):
     role = request.GET.get("role")
     # --- UPDATED: Filter by organization instead of institute ---
@@ -354,7 +354,7 @@ def manage_users_view(request):
 # --- NEW VIEW: Securely delete a user via POST ---
 @login_required
 @staff_required
-@permission_required('account.delete_user', raise_exception=True)
+@permission_required('accounts.delete_user', raise_exception=True)
 def delete_user_view(request, user_id):
     """
     Handles the deletion of a user account via a secure POST request.
@@ -387,7 +387,7 @@ def delete_user_view(request, user_id):
 
 @login_required
 @staff_required
-@permission_required('account.change_user',login_url='profile_update')
+@permission_required('accounts.change_user',login_url='profile_update')
 def edit_user_view(request, user_id):
     user_to_edit = get_object_or_404(User.objects.select_related('profile'), id=user_id)
     # Safely get or create the profile instance
@@ -696,7 +696,7 @@ def edit_permissions_by_institute_admin(request, user_id):
 
 
 @login_required
-@permission_required('account.add_organisation_user',login_url='profile_update')
+@permission_required('accounts.add_organisation_user',login_url='profile_update')
 def create_user_by_admin(request, org_pk):
     """
     Allows an Organization Admin to create Teacher or Student accounts,
@@ -823,7 +823,7 @@ def create_user_by_admin(request, org_pk):
 
 
 @login_required
-@permission_required('account.view_orgainsation_user',login_url='profile_update')
+@permission_required('accounts.view_orgainsation_user',login_url='profile_update')
 def list_organization_users(request, org_pk):
     """
     Allows an organization admin to view a paginated list of all users
@@ -858,7 +858,7 @@ def list_organization_users(request, org_pk):
 
 
 @login_required
-@permission_required('account.change_organisation_user',login_url='profile_update')
+@permission_required('accounts.change_organisation_user',login_url='profile_update')
 def edit_organization_user(request, org_pk, user_pk):
     """
     Allows an organization admin to edit a specific user's details,
@@ -889,8 +889,11 @@ def edit_organization_user(request, org_pk, user_pk):
     target_user = get_object_or_404(User.objects.select_related('profile'), 
                                     pk=user_pk, 
                                     profile__organization_profile=org)
-    
+    print(" target_user : ", target_user)
+    print(" target_user.user_permissions :", target_user.user_permissions.all())
     target_profile = target_user.profile
+
+    print(" organization_groups : ",target_profile.organization_groups.name)
     
     # Initialize Forms
     user_form = OrgUserAdminForm(request.POST or None, instance=target_user)
@@ -902,32 +905,37 @@ def edit_organization_user(request, org_pk, user_pk):
 
     # 2. Handle POST Request
     if request.method == 'POST':
-        # M2M data from POST (checkbox lists)
-        groups_ids = request.POST.getlist('organization_groups')
+        groups_ids = []
+        print(" post request ",request.POST.getlist('organization_groups[]'))
+        groups_ids = request.POST.getlist('organization_groups[]')
         permission_ids = request.POST.getlist('user_permissions')
+
+        print(" groups_ids : ",groups_ids)
+
         if user_form.is_valid() and profile_form.is_valid():
             try:
                 with transaction.atomic():
-                    # 1. Save main models
                     user_form.save()
                     profile_form.save()
 
-                    # 2. Save M2M fields
-                    # Organization Groups
-                    target_profile.organization_groups.set(groups_ids) 
-
-                    # Direct User Permissions
-                    target_user.user_permissions.set(permission_ids) 
+                    # ---- FIX HERE ----
                     
-                    # 3. Academic Stream M2M (from profile_form)
-                    # This is handled automatically by the form's save method for standard fields, 
-                    # but if using SelectMultiple, ensure it's saved correctly:
+
+                    target_profile.organization_groups.set(groups_ids)
+
+                    print(" organization_groups : ",target_profile.organization_groups)
+                    # -------------------
+
+                    # Direct permissions
+                    target_user.user_permissions.set(permission_ids)
+
+                    # Academic streams
                     academic_streams = profile_form.cleaned_data.get('academic_stream')
                     target_profile.academic_stream.set(academic_streams)
-                    
+
                     messages.success(request, f"User '{target_user.username}' successfully updated.")
-                    # Assuming a URL pattern named 'saas:list_users' exists
-                    return redirect('view_organization_users_list', org_pk=org_pk) 
+                    return redirect('view_organization_users_list', org_pk=org_pk)
+
             except Exception as e:
                 messages.error(request, f"An error occurred while saving user data: {e}")
                 
@@ -981,7 +989,7 @@ def edit_organization_user(request, org_pk, user_pk):
 
 
 @login_required
-@permission_required('saas.view_organizationgroup',login_url='profile_update')
+@permission_required('accounts.view_organizationgroup',login_url='profile_update')
 def manage_organization_groups(request, group_id=None):
 
     """

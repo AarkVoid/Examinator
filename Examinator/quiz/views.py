@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.core.paginator import Paginator
-from .models import Question, QuestionPaper, PaperQuestion, MCQOption, MatchPair, FillBlankAnswer,ShortAnswer, TrueFalseAnswer
+from .models import Question, QuestionPaper, PaperQuestion, MCQOption, MatchPair, FillBlankAnswer,ShortAnswer, TrueFalseAnswer,QuestionUploadLog
 from .forms import (
     QuestionForm, MCQOptionFormSet, FillBlankAnswerFormSet, ShortAnswerForm,
     MatchPairFormSet, TrueFalseAnswerForm, QuestionPaperForm,
@@ -29,6 +29,10 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # Assuming OrganizationProfile is imported from saas.models based on Question model definition
 from saas.models import OrganizationProfile
 from django.core.exceptions import ValidationError
+import random
+import json
+import openpyxl 
+import pandas as pd
 
 
 QUESTION_TYPES = [
@@ -149,7 +153,7 @@ def question_list(request):
     if search_query:
         # Searching question text or answer text
         # Assuming question_answer is a related field/lookup that works, keeping the user's logic
-        queryset = queryset.filter(Q(question_text__icontains=search_query) | Q(question_answer__icontains=search_query))
+        queryset = queryset.filter(Q(question_text__icontains=search_query))
 
     if selected_node_id:
         try:
@@ -1414,24 +1418,26 @@ def get_or_create_curriculum_nodes(board_name, class_name, subject_name, chapter
 
 
 @login_required
-@permission_required('quiz.upload_question_csv',login_url='profile_update')
+@permission_required('quiz.upload_question_csv', login_url='profile_update')
 def bulk_upload_questions(request):
     """
-    Upload mixed question types via CSV.
-    Expected CSV headers:
-    question_type,question_text,options,correct_answer,pairs,board,class_name,subject,chapter,section,difficulty,marks,explanation,max_words,is_case_sensitive
-
-    Notes:
-    - MCQ → options separated by ';' | correct_answer is one or more exact matches.
-    - Match → pairs like Left:Right;Left:Right;...
-    - FillBlank → correct_answer text
-    - TrueFalse → correct_answer True/False
-    - ShortAnswer → correct_answer (sample answer)
+    Upload mixed question types via CSV or Excel.
+    Expected file formats: .csv, .xlsx, .xls
     """
     if request.method == 'POST':
-        csv_file = request.FILES.get('file')
-        if not csv_file:
-            messages.error(request, "Please attach a CSV file.")
+        print("Received bulk upload request")
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            messages.error(request, "Please attach a CSV or Excel file.")
+            return redirect('bulk_upload_questions')
+
+        # Get file extension
+        file_name = uploaded_file.name.lower()
+        is_csv = file_name.endswith('.csv')
+        is_excel = file_name.endswith(('.xlsx', '.xls'))
+        
+        if not (is_csv or is_excel):
+            messages.error(request, "Please upload a CSV or Excel file (.csv, .xlsx, .xls)")
             return redirect('bulk_upload_questions')
 
         # ✅ Save a copy of uploaded file for audit
@@ -1441,59 +1447,134 @@ def bulk_upload_questions(request):
             upload_dir = os.path.join(settings.MEDIA_ROOT, "question_uploads")
             os.makedirs(upload_dir, exist_ok=True)
 
-            file_path = os.path.join(upload_dir, f"{username}_{timestamp}.csv")
+            # Keep original extension
+            file_ext = os.path.splitext(uploaded_file.name)[1]
+            file_path = os.path.join(upload_dir, f"{username}_{timestamp}{file_ext}")
+            
             with default_storage.open(file_path, 'wb+') as dest:
-                for chunk in csv_file.chunks():
+                for chunk in uploaded_file.chunks():
                     dest.write(chunk)
 
-            # Optionally store record in DB (we'll add a model below)
-            from .models import QuestionUploadLog
-            QuestionUploadLog.objects.create(
-                user=request.user,
-                file_name=os.path.basename(file_path),
-                file_path=os.path.relpath(file_path, settings.MEDIA_ROOT),
-                uploaded_at=timezone.now(),
-            )
+            print(f"Uploaded file saved to {file_path}")
 
         except Exception as e:
             messages.warning(request, f"File could not be saved: {e}")
 
-        try:
-            data = csv_file.read().decode('utf-8-sig')
-            reader = csv.DictReader(io.StringIO(data))
-        except Exception as e:
-            messages.error(request, f"Error reading CSV: {e}")
-            return redirect('bulk_upload_questions')
+        # Create upload log
+        question_log = QuestionUploadLog.objects.create(
+            uploaded_by=request.user,
+            total_questions=0,
+            file_path=file_path,
+            success_count=0,
+            failed_count=0,
+            error_details=None
+        )
 
         total, successes = 0, 0
         failures = []
 
-        for rownum, row in enumerate(reader, start=1):
+        try:
+            # Reset file pointer
+            uploaded_file.seek(0)
+            
+            if is_csv:
+                # Process CSV file
+                data = uploaded_file.read().decode('utf-8-sig')
+                print(f"Reading CSV file, data length: {len(data)}")
+                
+                reader = csv.DictReader(io.StringIO(data))
+                rows = list(reader)
+                print(f"CSV headers: {reader.fieldnames}")
+                
+            else:
+                # Process Excel file
+                print(f"Reading Excel file: {uploaded_file.name}")
+                
+                # Read Excel file using pandas
+                if file_name.endswith('.xlsx'):
+                    excel_file = pd.ExcelFile(uploaded_file, engine='openpyxl')
+                else:  # .xls
+                    excel_file = pd.ExcelFile(uploaded_file, engine='xlrd')
+                
+                # Get sheet names
+                sheet_names = excel_file.sheet_names
+                print(f"Excel sheets: {sheet_names}")
+                
+                # Use first sheet by default, or allow selection if needed
+                sheet_name = sheet_names[0]
+                df = pd.read_excel(uploaded_file, sheet_name=sheet_name, engine='openpyxl' if file_name.endswith('.xlsx') else 'xlrd')
+                
+                # Convert NaN values to empty strings
+                df = df.fillna('')
+                
+                # Convert DataFrame to list of dictionaries
+                rows = df.to_dict('records')
+                print(f"Excel headers: {list(df.columns)}")
+                print(f"Number of rows in Excel: {len(rows)}")
+            
+            print(f"Total rows to process: {len(rows)}")
+            
+            if not rows:
+                messages.error(request, "File is empty or has no data rows.")
+                question_log.error_details = [{'row': 0, 'error': 'File is empty'}]
+                question_log.save()
+                return redirect('quiz:bulk_upload_questions')
+                
+            # Show sample of first row for debugging
+            if rows:
+                print(f"Sample first row: {rows[0]}")
+                
+        except Exception as e:
+            error_msg = f"Error reading file: {e}"
+            print(error_msg)
+            messages.error(request, error_msg)
+            question_log.error_details = [{'row': 0, 'error': error_msg}]
+            question_log.save()
+            return redirect('quiz:bulk_upload_questions')
+
+        print("Starting file processing...")
+
+        # Process each row
+        for rownum, row in enumerate(rows, start=1):
+            print(f"Processing row {rownum}")
             total += 1
+            
             try:
                 with transaction.atomic():
-                    # Normalize fields
-                    board_name = row.get('board', '').strip()
-                    class_name = row.get('class_name', '').strip()
-                    subject_name = row.get('subject', '').strip()
-                    chapter_name = row.get('chapter', '').strip()
-                    section_name = row.get('section', '').strip()
+                    # Normalize fields with better handling for different file types
+                    # Excel files might have different data types, so convert to string
+                    board_name = str(row.get('board', '')).strip() or 'CBSE'
+                    class_name = str(row.get('class_name', '')).strip() or 'Class 10'
+                    subject_name = str(row.get('subject', '')).strip() or 'Mathematics'
+                    chapter_name = str(row.get('chapter', '')).strip()
+                    section_name = str(row.get('section', '')).strip()
 
-                    qtype = row.get('question_type', '').strip().lower()
-                    q_text = row.get('question_text', '').strip()
-                    difficulty = row.get('difficulty', 'medium').strip()
+                    qtype = str(row.get('question_type', '')).strip().lower()
+                    q_text = str(row.get('question_text', '')).strip()
+                    difficulty = str(row.get('difficulty', 'medium')).strip()
+
+                    # Validate required fields
+                    if not qtype:
+                        raise ValueError("question_type is required")
+                    if not q_text:
+                        raise ValueError("question_text is required")
 
                     try:
-                        marks = int(row.get('marks', 1))
-                    except ValueError:
+                        marks = int(float(row.get('marks', 1)))  # Handle float from Excel
+                    except (ValueError, TypeError):
                         marks = 1
 
+                    print(f"Creating curriculum nodes: board={board_name}, class={class_name}, subject={subject_name}")
+                    
                     board, class_node, subject, chapter, section = get_or_create_curriculum_nodes(
                         board_name, class_name, subject_name, chapter_name, section_name
                     )
 
+                    print(f"Creating question: type={qtype}, text={q_text[:50]}...")
+                    
                     question = Question.objects.create(
                         question_type=qtype,
+                        curriculum_class=class_node,
                         curriculum_board=board,
                         curriculum_subject=subject,
                         curriculum_chapter=section or chapter,
@@ -1501,56 +1582,97 @@ def bulk_upload_questions(request):
                         difficulty=difficulty,
                         marks=marks,
                         created_by=request.user,
+                        is_published=True if request.user.is_staff else False
                     )
 
-                    # Handle each type
+                    print(f"✅ Created question ID {question.id} of type {qtype}")
+
+                    # Handle each question type
                     if qtype == 'mcq':
-                        options_raw = row.get('options', '') or ''
-                        correct_raw = row.get('correct_answer', '') or ''
+                        options_raw = str(row.get('options', '') or '')
+                        correct_raw = str(row.get('correct_answer', '') or '')
                         opts = [o.strip() for o in options_raw.split(';') if o.strip()]
                         correct_list = [c.strip().lower() for c in correct_raw.split(';') if c.strip()]
+                        
+                        if len(opts) < 2:
+                            raise ValueError("MCQ requires at least 2 options")
+                        if not correct_list:
+                            raise ValueError("MCQ requires at least one correct answer")
+                            
                         for i, opt in enumerate(opts, start=1):
                             is_correct = opt.strip().lower() in correct_list
                             MCQOption.objects.create(question=question, option_text=opt, is_correct=is_correct, order=i)
+                        print(f"  Created {len(opts)} MCQ options")
 
                     elif qtype == 'match':
-                        pairs_raw = row.get('pairs', '') or ''
+                        pairs_raw = str(row.get('pairs', '') or '')
                         pairs = [p.strip() for p in pairs_raw.split(';') if p.strip()]
+                        if not pairs:
+                            raise ValueError("Match questions require pairs")
+                            
                         for i, pair in enumerate(pairs, start=1):
                             if ':' in pair:
                                 left, right = pair.split(':', 1)
                                 MatchPair.objects.create(question=question, left_item=left.strip(), right_item=right.strip(), order=i)
+                            else:
+                                raise ValueError(f"Invalid pair format: {pair}")
+                        print(f"  Created {len(pairs)} match pairs")
 
                     elif qtype in ['fill_blank', 'fill', 'fillblank']:
-                        correct = (row.get('correct_answer') or '').strip()
+                        correct = str(row.get('correct_answer', '') or '').strip()
+                        if not correct:
+                            raise ValueError("Fill in blank requires correct_answer")
                         is_case = str(row.get('is_case_sensitive', 'False')).lower() in ['true', '1', 'yes']
-                        if correct:
-                            FillBlankAnswer.objects.create(question=question, correct_answer=correct, is_case_sensitive=is_case)
+                        FillBlankAnswer.objects.create(question=question, correct_answer=correct, is_case_sensitive=is_case)
+                        print(f"  Created fill blank answer: {correct}")
 
                     elif qtype in ['true_false', 'tf']:
-                        val = (row.get('correct_answer') or '').strip().lower()
+                        val = str(row.get('correct_answer', '') or '').strip().lower()
+                        print(f"  True/False correct_answer value: '{val}'")
                         if val not in ['true', 'false']:
                             raise ValueError("True/False question must have correct_answer 'True' or 'False'")
                         correct_bool = (val == 'true')
-                        explanation = (row.get('explanation') or '').strip()
+                        explanation = str(row.get('explanation', '') or '').strip()
                         TrueFalseAnswer.objects.create(question=question, correct_answer=correct_bool, explanation=explanation)
+                        print(f"  Created True/False answer: {correct_bool}")
 
                     elif qtype in ['short_answer', 'short']:
-                        sample = (row.get('correct_answer') or row.get('sample_answer') or '').strip()
-                        max_words = int(row.get('max_words') or 50)
+                        sample = str(row.get('correct_answer') or row.get('sample_answer') or '').strip()
+                        try:
+                            max_words = max(1, int(float(row.get('max_words') or 50)))  # Handle float
+                        except (ValueError, TypeError):
+                            max_words = 50
                         ShortAnswer.objects.create(question=question, sample_answer=sample, max_words=max_words)
+                        print(f"  Created short answer with max {max_words} words")
 
                     else:
-                        question.delete()
                         raise ValueError(f"Unsupported question_type '{qtype}'")
 
                     successes += 1
+                    print(f"✅ Successfully processed row {rownum}")
 
             except Exception as e:
                 tb = traceback.format_exc()
+                error_msg = f"Row {rownum} failed: {str(e)}"
+                print(f"❌ {error_msg}")
                 failures.append({'row': rownum, 'error': str(e), 'trace': tb})
 
-        messages.success(request, f"Processed {total} rows. Added: {successes}. Failed: {len(failures)}.")
+        # Final summary
+        print(f"Processing complete: {successes}/{total} successful")
+        
+        if successes > 0:
+            messages.success(request, f"Successfully imported {successes} questions from {total} rows.")
+        if failures:
+            messages.warning(request, f"Failed to import {len(failures)} rows. Check details below.")
+
+        # Update upload log
+        question_log.error_details = failures
+        question_log.success_count = successes
+        question_log.failed_count = len(failures)
+        question_log.total_questions = total
+        question_log.save()
+
+        # Show up to first 5 errors
         for f in failures[:5]:
             messages.error(request, f"Row {f['row']}: {f['error']}")
 
@@ -1564,61 +1686,69 @@ def bulk_upload_questions(request):
 @login_required
 @permission_required('quiz.add_paperquestion', login_url='profile_update')
 def paper_add_random_questions(request, paper_id):
-    """
-    Add random questions to paper based on pattern, marks, and chapters.
-    
-    Key Changes:
-    - Stops automatically saving the calculated total marks to paper.total_marks.
-    - Issues a warning if the calculated total marks change, requiring manual confirmation.
-    """
     
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     
-    # Check if user can edit this paper
+    # Check if user can edit this paper (unchanged)
     if paper.created_by != request.user and not request.user.is_staff:
         messages.error(request, 'You do not have permission to edit this paper.')
         return redirect('quiz:paper_detail', paper.id)
     
-    # Get existing question IDs to avoid duplicates
+    # Get existing question IDs to avoid duplicates (unchanged)
     existing_question_ids = paper.paper_questions.values_list('question_id', flat=True)
     
-    # Calculate current marks before any additions
+    # Calculate current marks before any additions (unchanged)
     current_marks_pre_add = paper.calculate_total_marks()
+    
+    # --- Helper to get Question Types from the model ---
+    QUESTION_TYPES = Question.QUESTION_TYPES
     
     if request.method == 'POST':
         try:
-            # --- POST LOGIC FOR TARGET MARKS DEFAULT (Kept for consistency) ---
+            # --- FORM DATA EXTRACTION ---
             target_marks_default = paper.total_marks if paper.total_marks is not None else 100
-            
             if hasattr(paper, 'max_marks') and paper.max_marks is not None:
-                # Calculate the remaining marks needed
                 remaining_marks = paper.max_marks - current_marks_pre_add
-                # Use the remaining needed marks, or 20 as a minimum addition
                 target_marks_default = max(remaining_marks, 20) 
             
-            # Get criteria from form
             target_marks = int(request.POST.get('target_marks', target_marks_default))
-            distribution_type = request.POST.get('distribution_type', 'balanced')
+            # distribution_type = request.POST.get('distribution_type', 'balanced')
             chapter_distribution = request.POST.get('chapter_distribution', 'proportional')
-            # --- END POST LOGIC FOR TARGET MARKS DEFAULT ---
+            
+            # **CRITICAL CHANGE: Get Custom Marks by Question Type**            
+            custom_marks_by_type = {}
+            for type_code, _ in QUESTION_TYPES:
+                mark_value = int(request.POST.get(f'custom_marks_{type_code}', 0) or 0)
+                if mark_value > 0:
+                    custom_marks_by_type[type_code] = mark_value
+            
+            if not custom_marks_by_type:
+                messages.warning(request, 'Please specify a Mark Value greater than 0 for at least one Question Type.')
+                return redirect('quiz:paper_add_random_questions', paper.id)
+            # --- END FORM DATA EXTRACTION ---
 
             # Get and filter available questions (Queries remain the same)
             available_questions = Question.objects.exclude(id__in=existing_question_ids)
             available_questions = available_questions.filter(
                 curriculum_subject=paper.curriculum_subject
+            ).filter(
+                # Filter available questions to only include those types the user requested marks for
+                question_type__in=custom_marks_by_type.keys() 
             )
+
             if paper.curriculum_chapters.exists():
                 available_questions = available_questions.filter(
                     curriculum_chapter__in=paper.curriculum_chapters.all()
                 )
             
             # Select questions
-            selected_questions = select_questions_by_pattern_and_chapters(
+            selected_questions_data = select_questions_by_pattern_and_chapters(
                 available_questions, paper.pattern, paper.curriculum_chapters.all(), 
-                target_marks, distribution_type, chapter_distribution
+                target_marks, chapter_distribution, # distribution_type REMOVED
+                custom_marks_by_type 
             )
             
-            if not selected_questions:
+            if not selected_questions_data:
                 messages.warning(request, 'No questions found matching the criteria.')
                 return redirect('quiz:paper_add_random_questions', paper.id)
             
@@ -1627,36 +1757,36 @@ def paper_add_random_questions(request, paper_id):
             total_added_marks = 0
             
             with transaction.atomic():
-                for i, question_data in enumerate(selected_questions):
-                    question = question_data['question']
+                for i, data in enumerate(selected_questions_data):
+                    question = data['question']
+                    
+                    # **CRITICAL CHANGE: Use the custom_marks_value from the data dict**
+                    custom_marks = data['custom_marks_value'] 
+                    
                     PaperQuestion.objects.create(
                         paper=paper,
                         question=question,
                         order=last_order + i + 1,
-                        marks=question.marks,
-                        section=question_data.get('section', '')
+                        marks=custom_marks,  # <-- USE CUSTOM MARKS HERE
+                        section=data.get('section', '')
                     )
-                    total_added_marks += question.marks
+                    total_added_marks += custom_marks 
             
             # Calculate the new total marks of the content (after additions)
             current_marks_post_add = paper.calculate_total_marks()
             
-            # --- CONFIRMATION LOGIC ---
+            # --- CONFIRMATION LOGIC (unchanged) ---
             
-            # 1. Successful Addition Message
             messages.success(request, 
-                f'Added {len(selected_questions)} questions totaling {total_added_marks} marks!'
+                f'Added {len(selected_questions_data)} questions totaling {total_added_marks} custom marks!'
             )
 
-            # 2. Check if the calculated marks now differ from the intended/cached marks (paper.total_marks)
             if current_marks_post_add != paper.total_marks:
                 messages.warning(request, 
                     f"⚠️ **Marks Discrepancy Alert!** The paper content now totals **{current_marks_post_add}** marks. "
                     f"The paper's intended max marks (`paper.total_marks`) is still set at **{paper.total_marks}**. "
                     f"The paper's intended max marks have **NOT** been automatically updated. Please review and manually change them if needed."
                 )
-
-            # 3. DO NOT UPDATE paper.total_marks or call paper.save() here.
             
             return redirect('quiz:paper_detail', paper.id)
             
@@ -1665,39 +1795,27 @@ def paper_add_random_questions(request, paper_id):
             return redirect('quiz:paper_add_random_questions', paper.id)
     
     # --- GET REQUEST LOGIC ---
-    
-    # Use the pre-calculated marks for display and comparison
     current_marks = current_marks_pre_add 
 
-    # --- Start Issue 1 & 2 Logic (Display side) ---
     target_marks_default = paper.total_marks if paper.total_marks is not None else 100
-
+    # ... (default calculation logic remains unchanged) ...
     if hasattr(paper, 'max_marks') and paper.max_marks is not None:
         max_marks = paper.max_marks
-        
-        # Issue 2: Check for marks discrepancy
         if current_marks != max_marks:
-            # Calculate how many marks are left to reach the intended total
             remaining_marks = max_marks - current_marks
-            
-            # Alert the user about the current state on the GET request
             messages.warning(request, 
                 f"Paper Marks Alert: The current total marks of the content are {current_marks}, "
                 f"but the intended max marks are {max_marks}. "
                 f"You need {'+' if remaining_marks > 0 else ''}{remaining_marks} marks "
                 f"to meet the intended target."
             )
-            
-            # Issue 1: Set default to the remaining marks, or 20 if it's already over/meets target
             target_marks_default = max(remaining_marks, 20) if max_marks > current_marks else 20
         else:
-            # If marks match, suggest a small addition just in case (Issue 1 refinement)
             target_marks_default = 20
     else:
         messages.info(request, "The paper's intended max marks are not set, defaulting 'Target Marks' to 100.")
-    # --- End Issue 1 & 2 Logic ---
-
-    # Get available question count
+    
+    # Get available question count (unchanged)
     available_question_count = Question.objects.exclude(
         id__in=existing_question_ids
     ).filter(
@@ -1714,106 +1832,131 @@ def paper_add_random_questions(request, paper_id):
         'current_marks': current_marks,
         'available_question_count': available_question_count,
         'pattern_choices': QuestionPaper.PAPER_PATTERNS,
-        'target_marks_default': target_marks_default, # Pass to template for form's initial value
+        'target_marks_default': target_marks_default, 
+        'question_types': QUESTION_TYPES, # Pass question types to the template
+        'custom_marks_values': {type_code: 0 for type_code, _ in QUESTION_TYPES}, # Default marks to 0 for GET
     }
     
+    # --- Template Tag Helper (For simplicity, included here) ---
+    def get_item(dictionary, key):
+        return dictionary.get(key)
+
+    context['get_item'] = get_item # Pass the helper function/lambda to context
+
     return render(request, 'quiz/paper_add_random_questions.html', context)
 
 
+# quiz/views.py
+
+# Update signature
 def select_questions_by_pattern_and_chapters(questions_queryset, pattern, selected_chapters, 
-                                           target_marks, distribution_type, chapter_distribution):
+                                           target_marks, chapter_distribution, # distribution_type REMOVED
+                                           custom_marks_by_type):
     """
-    Select random questions considering pattern, marks, and chapter distribution
+    Select random questions considering pattern, marks, and chapters.
+    Selection is based on achieving target_marks using the custom marks specified 
+    for each question type, without distribution bias.
     """
     questions = list(questions_queryset)
     if not questions:
         return []
     
-    selected_questions = []
+    # ... (Filtering logic remains) ...
     
     if pattern == 'difficulty_wise':
         selected_questions = select_by_difficulty_and_chapters(
-            questions, selected_chapters, target_marks, distribution_type, chapter_distribution
+            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
         )
     
     elif pattern == 'section_wise':
         selected_questions = select_by_sections_with_chapters(
-            questions, selected_chapters, target_marks, distribution_type, chapter_distribution
+            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
         )
     
     elif pattern == 'standard':
-        selected_questions = select_by_question_type_and_chapters(
-            questions, selected_chapters, target_marks, distribution_type, chapter_distribution
+        selected_questions = select_by_question_type_and_chapters_custom_marks(
+            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
         )
     
     else:  # custom or fallback
         selected_questions = select_random_balanced_with_chapters(
-            questions, selected_chapters, target_marks, chapter_distribution
+            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
         )
     
     return selected_questions
 
 
+# quiz/views.py
+
 def select_by_difficulty_and_chapters(questions, selected_chapters, target_marks, 
-                                    distribution_type, chapter_distribution):
-    """Select questions with balanced difficulty distribution across chapters"""
-    # Group questions by chapter first, then by difficulty
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
+                                    chapter_distribution, custom_marks_by_type): # distribution_type REMOVED
     
+    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
     selected = []
-    current_marks = 0
     
     # Determine marks distribution per chapter
     chapter_marks = distribute_marks_to_chapters(
         chapter_groups, target_marks, chapter_distribution
     )
     
-    # Distribution ratios for difficulties
-    if distribution_type == 'balanced':
-        difficulty_ratios = {'easy': 0.4, 'medium': 0.4, 'hard': 0.2}
-    elif distribution_type == 'exam_focused':
-        difficulty_ratios = {'easy': 0.3, 'medium': 0.5, 'hard': 0.2}
-    else:  # progressive
-        difficulty_ratios = {'easy': 0.5, 'medium': 0.3, 'hard': 0.2}
-    
     # Select questions from each chapter
     for chapter_id, chapter_data in chapter_groups.items():
         chapter_marks_target = chapter_marks.get(chapter_id, 0)
         if chapter_marks_target == 0:
             continue
             
-        # Distribute marks across difficulties for this chapter
-        difficulty_marks = {
-            'easy': int(chapter_marks_target * difficulty_ratios['easy']),
-            'medium': int(chapter_marks_target * difficulty_ratios['medium']),
-            'hard': int(chapter_marks_target * difficulty_ratios['hard'])
-        }
+        # 🆕 Calculate total available marks across all difficulties in this chapter (using custom marks)
+        total_available_custom_marks = sum(
+            custom_marks_by_type.get(q.question_type, 0) 
+            for q in chapter_data['questions']
+        )
+        
+        current_chapter_marks = 0
         
         # Select from each difficulty level in this chapter
         for difficulty in ['easy', 'medium', 'hard']:
             difficulty_questions = [q for q in chapter_data['questions'] if q.difficulty == difficulty]
-            selected_from_difficulty = select_questions_up_to_marks(
-                difficulty_questions, difficulty_marks[difficulty]
+            
+            if not difficulty_questions:
+                continue
+
+            # 🆕 Calculate difficulty-specific mark target based on its proportion of total available custom marks
+            difficulty_available_custom_marks = sum(
+                custom_marks_by_type.get(q.question_type, 0) 
+                for q in difficulty_questions
             )
             
-            for question in selected_from_difficulty:
-                if current_marks + question.marks <= target_marks:
-                    selected.append({
-                        'question': question,
-                        'section': f"{chapter_data['chapter'].name} - {difficulty.capitalize()}"
-                    })
-                    current_marks += question.marks
-    
+            if total_available_custom_marks > 0:
+                proportion = difficulty_available_custom_marks / total_available_custom_marks
+                difficulty_marks_target = int(chapter_marks_target * proportion)
+            else:
+                # If no custom marks are available for any question in the chapter, fallback to simple division
+                difficulty_marks_target = chapter_marks_target // 3 
+            
+            # Select using the calculated proportional target
+            selected_from_difficulty = select_questions_up_to_marks_custom(
+                difficulty_questions, 
+                difficulty_marks_target,
+                custom_marks_by_type
+            )
+            
+            for data in selected_from_difficulty:
+                # 🛑 Limit selection to not exceed overall chapter target
+                if current_chapter_marks + data['custom_marks_value'] <= chapter_marks_target:
+                    data['section'] = f"{chapter_data['chapter'].name} - {difficulty.capitalize()}"
+                    selected.append(data)
+                    current_chapter_marks += data['custom_marks_value']
+
     return selected
 
 
+# quiz/views.py
+
 def select_by_sections_with_chapters(questions, selected_chapters, target_marks, 
-                                   distribution_type, chapter_distribution):
-    """Select questions grouped by chapters with intelligent distribution"""
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
+                                   chapter_distribution, custom_marks_by_type): # distribution_type REMOVED
     
+    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
     selected = []
-    current_marks = 0
     
     # Distribute marks among chapters
     chapter_marks = distribute_marks_to_chapters(
@@ -1823,67 +1966,140 @@ def select_by_sections_with_chapters(questions, selected_chapters, target_marks,
     # Select questions from each chapter
     for chapter_id, chapter_data in chapter_groups.items():
         chapter_marks_target = chapter_marks.get(chapter_id, 0)
-        if chapter_marks_target == 0:
-            continue
-            
+        
         chapter_questions = chapter_data['questions']
-        selected_from_chapter = select_questions_up_to_marks(
-            chapter_questions, chapter_marks_target
+        selected_from_chapter = select_questions_up_to_marks_custom(
+            chapter_questions, 
+            chapter_marks_target,
+            custom_marks_by_type
         )
         
-        for question in selected_from_chapter:
-            if current_marks + question.marks <= target_marks:
-                selected.append({
-                    'question': question,
-                    'section': chapter_data['chapter'].name
-                })
-                current_marks += question.marks
+        for data in selected_from_chapter:
+            data['section'] = chapter_data['chapter'].name
+            selected.append(data)
     
     return selected
 
 
-def select_by_question_type_and_chapters(questions, selected_chapters, target_marks, 
-                                       distribution_type, chapter_distribution):
-    """Select questions with balanced type distribution across chapters"""
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
+# quiz/views.py
+
+def select_by_question_type_and_chapters_custom_marks(questions, selected_chapters, target_marks, 
+                                       chapter_distribution, custom_marks_by_type): # distribution_type REMOVED
     
+    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
     selected = []
-    current_marks = 0
     
     # Distribute marks among chapters
     chapter_marks = distribute_marks_to_chapters(
         chapter_groups, target_marks, chapter_distribution
     )
     
-    # Question type distribution
-    type_ratios = {
-        'mcq': 0.4,
-        'fill_blank': 0.2,
-        'short_answer': 0.2,
-        'true_false': 0.1,
-        'match': 0.1
-    }
-    
+    # Global available custom marks for all types requested
+    all_available_custom_marks = sum(
+        custom_marks_by_type.get(q.question_type, 0) 
+        for q in questions if q.question_type in custom_marks_by_type
+    )
+
     # Select from each chapter
     for chapter_id, chapter_data in chapter_groups.items():
         chapter_marks_target = chapter_marks.get(chapter_id, 0)
         if chapter_marks_target == 0:
             continue
             
-        # Distribute chapter marks across question types
-        for q_type, ratio in type_ratios.items():
-            type_marks_target = int(chapter_marks_target * ratio)
+        current_chapter_marks = 0
+            
+        # Distribute chapter marks across requested question types
+        for q_type, custom_mark_value in custom_marks_by_type.items():
+            
             type_questions = [q for q in chapter_data['questions'] if q.question_type == q_type]
             
-            selected_from_type = select_questions_up_to_marks(type_questions, type_marks_target)
+            if not type_questions or custom_mark_value == 0:
+                continue
+                
+            # 🆕 Calculate question type-specific mark target based on proportion of total available custom marks
+            type_available_custom_marks = sum(
+                custom_marks_by_type.get(q.question_type, 0)
+                for q in type_questions
+            )
             
-            for question in selected_from_type:
-                if current_marks + question.marks <= target_marks:
-                    selected.append({
-                        'question': question,
-                        'section': f"{chapter_data['chapter'].name} - {question.get_question_type_display()}"
-                    })
-                    current_marks += question.marks
+            if all_available_custom_marks > 0:
+                proportion = type_available_custom_marks / all_available_custom_marks
+                type_marks_target = int(chapter_marks_target * proportion)
+            else:
+                # Fallback: simple equal distribution among requested types
+                type_marks_target = chapter_marks_target // len(custom_marks_by_type)
+
+            selected_from_type = select_questions_up_to_marks_custom(
+                type_questions, 
+                type_marks_target,
+                custom_marks_by_type
+            )
+            
+            for data in selected_from_type:
+                # 🛑 Limit selection to not exceed overall chapter target
+                if current_chapter_marks + data['custom_marks_value'] <= chapter_marks_target:
+                    data['section'] = f"{chapter_data['chapter'].name} - {data['question'].get_question_type_display()}"
+                    selected.append(data)
+                    current_chapter_marks += data['custom_marks_value']
+
+    return selected
+
+
+def select_questions_up_to_marks_custom(question_list, target_marks, custom_marks_by_type):
+    """
+    Selects random questions up to target marks from a list, using the custom marks
+    assigned to their question type.
+    
+    Returns list of dicts: {'question': q, 'custom_marks_value': custom_marks}
+    """
+    if not question_list or target_marks <= 0:
+        return []
+    
+    random.shuffle(question_list)
+    
+    selected_data = []
+    current_marks = 0
+    
+    for question in question_list:
+        custom_marks = custom_marks_by_type.get(question.question_type, 0)
+        
+        if custom_marks > 0 and current_marks + custom_marks <= target_marks:
+            selected_data.append({
+                'question': question,
+                'custom_marks_value': custom_marks
+            })
+            current_marks += custom_marks
+    
+    return selected_data
+
+# quiz/views.py
+
+def select_random_balanced_with_chapters(questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type):
+    """Fallback random selection with chapter consideration (custom marks)"""
+    # This logic remains identical to select_by_sections_with_chapters now.
+    
+    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
+    selected = []
+    
+    # Distribute marks among chapters
+    chapter_marks = distribute_marks_to_chapters(
+        chapter_groups, target_marks, chapter_distribution
+    )
+    
+    # Select from each chapter
+    for chapter_id, chapter_data in chapter_groups.items():
+        chapter_marks_target = chapter_marks.get(chapter_id, 0)
+        
+        chapter_questions = chapter_data['questions']
+        selected_from_chapter = select_questions_up_to_marks_custom(
+            chapter_questions, 
+            chapter_marks_target,
+            custom_marks_by_type
+        )
+        
+        for data in selected_from_chapter:
+            data['section'] = chapter_data['chapter'].name
+            selected.append(data)
     
     return selected
 

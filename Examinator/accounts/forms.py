@@ -483,7 +483,7 @@ class OrgProfileAdminForm(forms.ModelForm):
         
         try:
             self.fields['academic_stream'].queryset = TreeNode.objects.filter(
-                node_type__in=['board', 'competitive', 'class', 'subject']
+                node_type__in=['board', 'competitive']
             ).order_by('node_type', 'name')
         except:
              self.fields['academic_stream'].queryset = TreeNode.objects.none()

@@ -76,11 +76,11 @@
             <div class="grid md:grid-cols-3 gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-700">
                 {% for group in all_org_groups %}
                     <label class="flex items-center space-x-2">
-                        <input type="checkbox" name="organization_groups"
+                        <input type="checkbox" name="organization_groups[]"
                                value="{{ group.id }}"
                                {% if group.id in user_group_ids %}checked{% endif %}
                                class="rounded text-indigo-600 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500">
-                        <span class="text-gray-700 dark:text-gray-300 text-sm">{{ group.name }} {{ group.id }}</span>
+                        <span class="text-gray-700 dark:text-gray-300 text-sm">{{ group.name }} </span>
                     </label>
                 {% empty %}
                     <p class="text-gray-500 text-sm">No organization groups available.</p>

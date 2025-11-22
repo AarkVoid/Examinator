@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Question, QuestionPaper,PaperQuestion, MCQOption, FillBlankAnswer, MatchPair, ShortAnswer, TrueFalseAnswer
+from .models import Question, QuestionPaper,PaperQuestion, MCQOption, FillBlankAnswer, MatchPair, ShortAnswer, TrueFalseAnswer, QuestionUploadLog
 from curritree.models import TreeNode 
 
 # --- Inline Definitions ---
@@ -100,3 +100,12 @@ class QuestionPaperAdmin(admin.ModelAdmin):
     autocomplete_fields = ['curriculum_subject']
     
     inlines = [PaperQuestionInline]
+
+@admin.register(PaperQuestion)
+class PaperQuestionAdmin(admin.ModelAdmin):
+    list_display = ['paper', 'question', 'order', 'marks', 'section']
+    list_filter = ['paper__title', 'question__question_type']
+    search_fields = ['question__question_text']
+    autocomplete_fields = ['paper', 'question']
+
+admin.site.register(QuestionUploadLog)
