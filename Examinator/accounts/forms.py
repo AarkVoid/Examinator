@@ -16,6 +16,9 @@ from django.utils.text import capfirst
 
 from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
+from django.views.decorators.debug import sensitive_variables
+from django.contrib.auth import authenticate, get_user_model
+from django.utils.translation import gettext_lazy as _
 # --- REMOVED: from institute.models import Institution, InstitutionGroup
 # --- REMOVED: from education.models import Board, StudentClass, Division
 # ---------------------------------------------
@@ -1067,3 +1070,58 @@ class PermissionCreateForm(forms.ModelForm):
         if Permission.objects.filter(codename=codename).exists():
             raise forms.ValidationError("This codename already exists.")
         return codename
+    
+
+
+
+class AuthenticationForm(forms.Form):
+    # Renamed from 'email' to 'identifier' and changed to CharField
+    identifier = forms.CharField(
+        label=_("Username, Email, or Phone Number"),
+        widget=forms.TextInput(attrs={"autofocus": True}),
+    )
+    password = forms.CharField(
+        label=_("Password"),
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+
+    error_messages = {
+        "invalid_login": _(
+            "Please enter a correct username, email, or phone number and password. "
+            "Note that both fields may be case-sensitive."
+        ),
+        "inactive": _("This account is inactive."),
+    }
+
+    def __init__(self, request=None, *args, **kwargs):
+        self.request = request
+        self.user_cache = None
+        super().__init__(*args, **kwargs)
+
+    @sensitive_variables()
+    def clean(self):
+        # Retrieve the new 'identifier' field value
+        identifier = self.cleaned_data.get("identifier")
+        password = self.cleaned_data.get("password")
+
+        if identifier and password:
+            # Pass the generic identifier as 'username'. 
+            # This relies on a custom authentication backend (e.g., UsernameEmailPhoneBackend)
+            # being configured in settings.py to check username, email, and phone number fields.
+            self.user_cache = authenticate(
+                self.request, username=identifier, password=password
+            )
+            
+            if self.user_cache is None:
+                raise ValidationError(
+                    self.error_messages["invalid_login"],
+                    code="invalid_login",
+                )
+            self.confirm_login_allowed(self.user_cache)
+
+        return self.cleaned_data
+
+    def confirm_login_allowed(self, user):
+        if not user.is_active:
+            raise ValidationError(self.error_messages["inactive"], code="inactive")

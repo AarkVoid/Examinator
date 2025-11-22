@@ -1,10 +1,10 @@
 from .forms import RegistrationForm, ProfileForm, UserEditForm, \
     AdminUserCreationForm,GroupForm,ProfileEditForm,TeacherCreationForm, \
         InstituteUserEditForm,InstituteProfileEditForm,UserPermissionForm,GroupAdminUserCreationForm,OrganizationUserCreationForm, \
-            OrganizationGroupForm,OrgUserAdminForm, OrgProfileAdminForm,DjangoGroupForm,PermissionCreateForm
+            OrganizationGroupForm,OrgUserAdminForm, OrgProfileAdminForm,DjangoGroupForm,PermissionCreateForm,AuthenticationForm
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.forms import AuthenticationForm
+# from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required,permission_required,user_passes_test

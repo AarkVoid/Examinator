@@ -25,10 +25,8 @@ urlpatterns = [
     path('papers/<int:paper_id>/edit/', views.edit_question_paper, name='edit_question_paper'),
     path('papers/<int:paper_id>/delete/', views.paper_delete, name='paper_delete'),
     path('papers/<int:paper_id>/add-questions/', views.paper_add_questions, name='paper_add_questions'),
-    path('papers/<int:paper_id>/add-random-questions/', views.paper_add_random_questions, name='paper_add_random_questions'),
     path('papers/<int:paper_id>/remove-question/<int:question_id>/', views.paper_remove_question, name='paper_remove_question'),
-    path('paper/<int:paper_id>/swap/<int:old_question_id>/select/', views.paper_swap_question_select, name='paper_swap_question_select'),
-    path('paper/<int:paper_id>/swap/<int:old_question_id>/confirm/<int:new_question_id>/', views.paper_swap_question_confirm, name='paper_swap_question_confirm'),
+    path('paper/<int:paper_id>/swap/<int:old_question_id>/select/', views.paper_execute_random_swap_api, name='paper_swap_question_select'),
     path('papers/<int:paper_id>/print/', views.paper_print, name='paper_print'),
     
     # AJAX URLs

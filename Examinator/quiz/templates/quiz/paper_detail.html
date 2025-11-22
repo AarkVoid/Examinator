@@ -180,10 +180,10 @@
 <a href="{% url 'quiz:paper_add_questions' paper.id %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
 <i class="fa-solid fa-plus mr-2"></i>Select Questions
 </a>
-<a href="{% url 'quiz:paper_add_random_questions' paper.id %}"
+{% comment %} <!-- <a href="{% url 'quiz:paper_add_random_questions' paper.id %}"
 class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
 <i class="fa-solid fa-dice mr-2"></i>Add Random Questions
-</a>
+</a> --> {% endcomment %}
 </div>
 {% endif %}
 </div>
@@ -317,10 +317,10 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
       <a href="{% url 'quiz:paper_add_questions' paper.id %}" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
         <i class="fa-solid fa-plus mr-2"></i>Select First Question
       </a>
-      <a href="{% url 'quiz:paper_add_random_questions' paper.id %}" 
+      {% comment %} <!-- <a href="{% url 'quiz:paper_add_random_questions' paper.id %}" 
         class="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ml-4">
           <i class="fa-solid fa-dice mr-2"></i>Add Random Questions
-      </a>
+      </a> --> {% endcomment %}
       {% endif %}
     </div>
   {% endif %}

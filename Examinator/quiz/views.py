@@ -802,66 +802,217 @@ def publish_paper(request, paper_id):
 
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, permission_required
+from django.db import transaction
+from django.contrib import messages
+from curritree.models import TreeNode
+from .models import QuestionPaper, PaperQuestion, Question
+import json
+import random
+
+# --- Assuming this helper function is defined elsewhere in your project ---
+def validate_paper_limits_and_license(organization, curriculum_subject, is_published, existing_paper_id):
+    """Placeholder for license/limit check function."""
+    pass
+# -------------------------------------------------------------------------
+
+# --- NEW HELPER FUNCTION for Question Selection Logic ---
+
+def select_random_questions(subject_node, chapter_nodes, difficulty_criteria, marks_criteria):
+    """
+    Selects questions based on difficulty distribution and required marks per question type.
+
+    :param subject_node: The main curriculum subject.
+    :param chapter_nodes: List of selected chapters (TreeNode objects).
+    :param difficulty_criteria: String ('balanced', 'easy', 'medium', 'hard').
+    :param marks_criteria: Dictionary {question_type: required_marks}.
+    :return: List of selected Question objects.
+    """
+    
+    # 1. Determine Difficulty Distribution
+    # This determines the base difficulty filter for the query
+    if difficulty_criteria == 'easy':
+        allowed_difficulties = ['easy']
+    elif difficulty_criteria == 'medium':
+        allowed_difficulties = ['medium']
+    elif difficulty_criteria == 'hard':
+        allowed_difficulties = ['hard']
+    elif difficulty_criteria == 'balanced':
+        # Balanced means questions of all difficulties are allowed for selection
+        allowed_difficulties = ['easy', 'medium', 'hard']
+    else:
+        # Default to allowing all difficulties if something unexpected is passed
+        allowed_difficulties = ['easy', 'medium', 'hard']
+
+
+    # 2. Base Query: Filter by Subject, Chapters, and Allowed Difficulties
+    base_queryset = Question.objects.filter(
+        curriculum_subject=subject_node,
+        difficulty__in=allowed_difficulties,
+        is_published=True # Only select published questions
+    )
+    
+    if chapter_nodes:
+        # Filter questions belonging to the selected chapters
+        base_queryset = base_queryset.filter(curriculum_chapter__in=chapter_nodes)
+
+    selected_questions = []
+    current_order = 1
+    
+    # 3. Iterate through Marks Criteria to select questions
+    for q_type, required_marks in marks_criteria.items():
+        if required_marks <= 0:
+            continue
+
+        # Get available questions of the current type
+        available_questions = list(base_queryset.filter(
+            question_type=q_type,
+            marks__lte=required_marks # Only consider questions whose marks don't exceed the requirement
+        ).order_by('?')[:100]) # Limit selection pool for performance and randomize order
+        
+        # If no questions are available, continue
+        if not available_questions:
+            continue
+
+        selected_marks_for_type = 0
+        questions_for_type = []
+        
+        # Randomly select questions until the required marks are met or we run out of questions
+        while selected_marks_for_type < required_marks and available_questions:
+            # Pop a random question from the list
+            q = available_questions.pop(random.randrange(len(available_questions)))
+            
+            # Check if adding this question exceeds the required marks too much
+            # (simple greedy algorithm)
+            if selected_marks_for_type + q.marks <= required_marks + max(1, q.marks) : # Allow slight overshoot 
+                questions_for_type.append({
+                    'question': q,
+                    'order': current_order,
+                    'marks': q.marks 
+                })
+                selected_marks_for_type += q.marks
+                current_order += 1
+                
+        selected_questions.extend(questions_for_type)
+        
+    return selected_questions
+
+# -------------------------------------------------------------------------
+
+
 @login_required
 @permission_required('quiz.add_questionpaper', login_url='profile_update')
 def add_question_paper(request):
-    # Get organization from request
     organization = None
     
-    if request.user.profile.organization_profile:
+    if hasattr(request.user, 'profile') and request.user.profile.organization_profile:
         organization = request.user.profile.organization_profile
-    print('OrganiZation : ',organization)
     
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Get basic form data
+                # --- Retrieve Input Data ---
                 title = request.POST.get('title')
                 curriculum_subject_id = request.POST.get('curriculum_subject')
                 pattern = request.POST.get('pattern', 'standard')
-                total_marks = request.POST.get('total_marks', 0)
-                duration_minutes = request.POST.get('duration_minutes', 60)
                 instructions = request.POST.get('instructions', '')
                 selected_chapters = request.POST.getlist('selectedItemsList')
+                difficulty_criteria = request.POST.get('difficulty_criteria', 'balanced')
                 
-                # Validate required fields
-                if not title or not curriculum_subject_id:
-                    messages.error(request, "Title and Subject are required fields.")
-                    print("Missing required fields")
+                # --- 1. Safely parse JSON for Question Criteria ---
+                selection_criteria_json = request.POST.get('selection_criteria_json')
+                
+                if not selection_criteria_json:
+                    messages.error(request, "Question criteria (marks per type) must be provided.")
                     return redirect('quiz:add_question_paper')
                 
-                # Get the subject node
-                curriculum_subject = get_object_or_404(TreeNode, id=curriculum_subject_id, node_type='subject')
+                try:
+                    criteria = json.loads(selection_criteria_json)
+                    marks_criteria = criteria.get('marks_per_type', {})
+                    total_paper_marks = int(criteria.get('total_paper_marks', 0))
+                except (json.JSONDecodeError, ValueError):
+                    messages.error(request, "Invalid format for question selection criteria.")
+                    return redirect('quiz:add_question_paper')
 
+
+                # --- 2. Input Validation and Conversion ---
+                if not title or not curriculum_subject_id:
+                    messages.error(request, "Title and Subject are required fields.")
+                    return redirect('quiz:add_question_paper')
+                
+                # We use the total_paper_marks derived from UI criteria validation
+                duration_minutes = int(request.POST.get('duration_minutes') or 60)
+                
+                curriculum_subject = get_object_or_404(
+                    TreeNode, 
+                    id=curriculum_subject_id, 
+                    node_type='subject'
+                )
 
                 validate_paper_limits_and_license(
                     organization=organization,
                     curriculum_subject=curriculum_subject,
-                    is_published=False, # We are checking against the DRAFT limit
-                    existing_paper_id=None # This is a new paper, so no ID to exclude
+                    is_published=False, 
+                    existing_paper_id=None 
                 )
                 
-                # Create the question paper
+                # --- 3. Prepare Chapter Nodes for Selection Logic ---
+                chapter_nodes = []
+                if selected_chapters:
+                    chapter_nodes = list(TreeNode.objects.filter(
+                        id__in=selected_chapters,
+                        node_type__in=['chapter', 'unit', 'section']
+                    ))
+
+                # --- 4. Execute Question Selection ---
+                questions_to_add = select_random_questions(
+                    curriculum_subject, 
+                    chapter_nodes, 
+                    difficulty_criteria, 
+                    marks_criteria
+                )
+                
+                if not questions_to_add:
+                    messages.warning(request, "No questions could be selected based on the specified criteria.")
+                    # Return to form, but allow creation of an empty paper if necessary
+                    pass 
+                
+                # --- 5. Create Paper and Question Links ---
                 question_paper = QuestionPaper(
                     title=title,
                     organization=organization,
                     curriculum_subject=curriculum_subject,
                     pattern=pattern,
-                    total_marks=total_marks or 0,
-                    duration_minutes=duration_minutes or 60,
+                    total_marks=total_paper_marks, # Use the total calculated by the UI/JSON
+                    duration_minutes=duration_minutes,
                     instructions=instructions,
                     created_by=request.user
                 )
                 question_paper.save()
                 
-                # Add selected chapters/units
-                print("Selected Chapters:", selected_chapters)
-                if selected_chapters:
-                    chapter_nodes = TreeNode.objects.filter(id__in=selected_chapters)
+                # Set M2M chapters
+                if chapter_nodes:
                     question_paper.curriculum_chapters.set(chapter_nodes)
+
+                # Bulk create PaperQuestion links
+                paper_questions = [
+                    PaperQuestion(
+                        paper=question_paper,
+                        question=item['question'],
+                        order=item['order'],
+                        marks=item['marks']
+                    )
+                    for item in questions_to_add
+                ]
                 
-                print("Question paper created:", question_paper)
-                messages.success(request, f"Question paper '{title}' created successfully!")
+                PaperQuestion.objects.bulk_create(paper_questions)
+                
+                # Update total marks based on actual questions selected (if calculation needed)
+                # question_paper.total_marks = question_paper.calculate_total_marks() 
+                # question_paper.save()
+                
+                messages.success(request, f"Question paper '{title}' created successfully with {len(paper_questions)} questions!")
                 return redirect('quiz:paper_detail', paper_id=question_paper.id)
                 
         except Exception as e:
@@ -869,19 +1020,30 @@ def add_question_paper(request):
             print("Error:", str(e))
             return redirect('quiz:add_question_paper')
     
-    # GET request - prepare the form data
-    # Get root nodes (boards and classes) for the cascading hierarchy
+    # GET request setup remains the same
     root_nodes = TreeNode.objects.filter(
         node_type__in=['board', 'competitive']
     ).order_by('node_type', 'name')
     
-    # Get pattern choices
     pattern_choices = QuestionPaper.PAPER_PATTERNS
+    
+    # Get available question types for the UI criteria selection
+    question_types = Question.QUESTION_TYPES
+    
+    # Define difficulty choices for the UI
+    difficulty_choices = [
+        ('balanced', 'Balanced (All Difficulties)'),
+        ('easy', 'Easy Only'),
+        ('medium', 'Medium Only'),
+        ('hard', 'Hard Only'),
+    ]
     
     context = {
         'root_nodes': root_nodes,
         'pattern_choices': pattern_choices,
         'organization': organization,
+        'question_types': question_types,
+        'difficulty_choices': difficulty_choices,
     }
     
     return render(request, 'quiz/add_question_paper.html', context)
@@ -1144,7 +1306,6 @@ def paper_remove_question(request, paper_id, question_id):
             pq.save()
         
         # Update total marks
-        paper.total_marks = paper.calculate_total_marks()
         paper.save()
         
         messages.success(request, 'Question removed from paper!')
@@ -1683,366 +1844,7 @@ def bulk_upload_questions(request):
 
 
 
-@login_required
-@permission_required('quiz.add_paperquestion', login_url='profile_update')
-def paper_add_random_questions(request, paper_id):
-    
-    paper = get_object_or_404(QuestionPaper, id=paper_id)
-    
-    # Check if user can edit this paper (unchanged)
-    if paper.created_by != request.user and not request.user.is_staff:
-        messages.error(request, 'You do not have permission to edit this paper.')
-        return redirect('quiz:paper_detail', paper.id)
-    
-    # Get existing question IDs to avoid duplicates (unchanged)
-    existing_question_ids = paper.paper_questions.values_list('question_id', flat=True)
-    
-    # Calculate current marks before any additions (unchanged)
-    current_marks_pre_add = paper.calculate_total_marks()
-    
-    # --- Helper to get Question Types from the model ---
-    QUESTION_TYPES = Question.QUESTION_TYPES
-    
-    if request.method == 'POST':
-        try:
-            # --- FORM DATA EXTRACTION ---
-            target_marks_default = paper.total_marks if paper.total_marks is not None else 100
-            if hasattr(paper, 'max_marks') and paper.max_marks is not None:
-                remaining_marks = paper.max_marks - current_marks_pre_add
-                target_marks_default = max(remaining_marks, 20) 
-            
-            target_marks = int(request.POST.get('target_marks', target_marks_default))
-            # distribution_type = request.POST.get('distribution_type', 'balanced')
-            chapter_distribution = request.POST.get('chapter_distribution', 'proportional')
-            
-            # **CRITICAL CHANGE: Get Custom Marks by Question Type**            
-            custom_marks_by_type = {}
-            for type_code, _ in QUESTION_TYPES:
-                mark_value = int(request.POST.get(f'custom_marks_{type_code}', 0) or 0)
-                if mark_value > 0:
-                    custom_marks_by_type[type_code] = mark_value
-            
-            if not custom_marks_by_type:
-                messages.warning(request, 'Please specify a Mark Value greater than 0 for at least one Question Type.')
-                return redirect('quiz:paper_add_random_questions', paper.id)
-            # --- END FORM DATA EXTRACTION ---
 
-            # Get and filter available questions (Queries remain the same)
-            available_questions = Question.objects.exclude(id__in=existing_question_ids)
-            available_questions = available_questions.filter(
-                curriculum_subject=paper.curriculum_subject
-            ).filter(
-                # Filter available questions to only include those types the user requested marks for
-                question_type__in=custom_marks_by_type.keys() 
-            )
-
-            if paper.curriculum_chapters.exists():
-                available_questions = available_questions.filter(
-                    curriculum_chapter__in=paper.curriculum_chapters.all()
-                )
-            
-            # Select questions
-            selected_questions_data = select_questions_by_pattern_and_chapters(
-                available_questions, paper.pattern, paper.curriculum_chapters.all(), 
-                target_marks, chapter_distribution, # distribution_type REMOVED
-                custom_marks_by_type 
-            )
-            
-            if not selected_questions_data:
-                messages.warning(request, 'No questions found matching the criteria.')
-                return redirect('quiz:paper_add_random_questions', paper.id)
-            
-            # Add questions to paper within a transaction
-            last_order = paper.paper_questions.count()
-            total_added_marks = 0
-            
-            with transaction.atomic():
-                for i, data in enumerate(selected_questions_data):
-                    question = data['question']
-                    
-                    # **CRITICAL CHANGE: Use the custom_marks_value from the data dict**
-                    custom_marks = data['custom_marks_value'] 
-                    
-                    PaperQuestion.objects.create(
-                        paper=paper,
-                        question=question,
-                        order=last_order + i + 1,
-                        marks=custom_marks,  # <-- USE CUSTOM MARKS HERE
-                        section=data.get('section', '')
-                    )
-                    total_added_marks += custom_marks 
-            
-            # Calculate the new total marks of the content (after additions)
-            current_marks_post_add = paper.calculate_total_marks()
-            
-            # --- CONFIRMATION LOGIC (unchanged) ---
-            
-            messages.success(request, 
-                f'Added {len(selected_questions_data)} questions totaling {total_added_marks} custom marks!'
-            )
-
-            if current_marks_post_add != paper.total_marks:
-                messages.warning(request, 
-                    f"⚠️ **Marks Discrepancy Alert!** The paper content now totals **{current_marks_post_add}** marks. "
-                    f"The paper's intended max marks (`paper.total_marks`) is still set at **{paper.total_marks}**. "
-                    f"The paper's intended max marks have **NOT** been automatically updated. Please review and manually change them if needed."
-                )
-            
-            return redirect('quiz:paper_detail', paper.id)
-            
-        except Exception as e:
-            messages.error(request, f'Error adding random questions: {str(e)}')
-            return redirect('quiz:paper_add_random_questions', paper.id)
-    
-    # --- GET REQUEST LOGIC ---
-    current_marks = current_marks_pre_add 
-
-    target_marks_default = paper.total_marks if paper.total_marks is not None else 100
-    # ... (default calculation logic remains unchanged) ...
-    if hasattr(paper, 'max_marks') and paper.max_marks is not None:
-        max_marks = paper.max_marks
-        if current_marks != max_marks:
-            remaining_marks = max_marks - current_marks
-            messages.warning(request, 
-                f"Paper Marks Alert: The current total marks of the content are {current_marks}, "
-                f"but the intended max marks are {max_marks}. "
-                f"You need {'+' if remaining_marks > 0 else ''}{remaining_marks} marks "
-                f"to meet the intended target."
-            )
-            target_marks_default = max(remaining_marks, 20) if max_marks > current_marks else 20
-        else:
-            target_marks_default = 20
-    else:
-        messages.info(request, "The paper's intended max marks are not set, defaulting 'Target Marks' to 100.")
-    
-    # Get available question count (unchanged)
-    available_question_count = Question.objects.exclude(
-        id__in=existing_question_ids
-    ).filter(
-        curriculum_subject=paper.curriculum_subject
-    )
-    if paper.curriculum_chapters.exists():
-        available_question_count = available_question_count.filter(
-            curriculum_chapter__in=paper.curriculum_chapters.all()
-        )
-    available_question_count = available_question_count.count()
-    
-    context = {
-        'paper': paper,
-        'current_marks': current_marks,
-        'available_question_count': available_question_count,
-        'pattern_choices': QuestionPaper.PAPER_PATTERNS,
-        'target_marks_default': target_marks_default, 
-        'question_types': QUESTION_TYPES, # Pass question types to the template
-        'custom_marks_values': {type_code: 0 for type_code, _ in QUESTION_TYPES}, # Default marks to 0 for GET
-    }
-    
-    # --- Template Tag Helper (For simplicity, included here) ---
-    def get_item(dictionary, key):
-        return dictionary.get(key)
-
-    context['get_item'] = get_item # Pass the helper function/lambda to context
-
-    return render(request, 'quiz/paper_add_random_questions.html', context)
-
-
-# quiz/views.py
-
-# Update signature
-def select_questions_by_pattern_and_chapters(questions_queryset, pattern, selected_chapters, 
-                                           target_marks, chapter_distribution, # distribution_type REMOVED
-                                           custom_marks_by_type):
-    """
-    Select random questions considering pattern, marks, and chapters.
-    Selection is based on achieving target_marks using the custom marks specified 
-    for each question type, without distribution bias.
-    """
-    questions = list(questions_queryset)
-    if not questions:
-        return []
-    
-    # ... (Filtering logic remains) ...
-    
-    if pattern == 'difficulty_wise':
-        selected_questions = select_by_difficulty_and_chapters(
-            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
-        )
-    
-    elif pattern == 'section_wise':
-        selected_questions = select_by_sections_with_chapters(
-            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
-        )
-    
-    elif pattern == 'standard':
-        selected_questions = select_by_question_type_and_chapters_custom_marks(
-            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
-        )
-    
-    else:  # custom or fallback
-        selected_questions = select_random_balanced_with_chapters(
-            questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type
-        )
-    
-    return selected_questions
-
-
-# quiz/views.py
-
-def select_by_difficulty_and_chapters(questions, selected_chapters, target_marks, 
-                                    chapter_distribution, custom_marks_by_type): # distribution_type REMOVED
-    
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
-    selected = []
-    
-    # Determine marks distribution per chapter
-    chapter_marks = distribute_marks_to_chapters(
-        chapter_groups, target_marks, chapter_distribution
-    )
-    
-    # Select questions from each chapter
-    for chapter_id, chapter_data in chapter_groups.items():
-        chapter_marks_target = chapter_marks.get(chapter_id, 0)
-        if chapter_marks_target == 0:
-            continue
-            
-        # 🆕 Calculate total available marks across all difficulties in this chapter (using custom marks)
-        total_available_custom_marks = sum(
-            custom_marks_by_type.get(q.question_type, 0) 
-            for q in chapter_data['questions']
-        )
-        
-        current_chapter_marks = 0
-        
-        # Select from each difficulty level in this chapter
-        for difficulty in ['easy', 'medium', 'hard']:
-            difficulty_questions = [q for q in chapter_data['questions'] if q.difficulty == difficulty]
-            
-            if not difficulty_questions:
-                continue
-
-            # 🆕 Calculate difficulty-specific mark target based on its proportion of total available custom marks
-            difficulty_available_custom_marks = sum(
-                custom_marks_by_type.get(q.question_type, 0) 
-                for q in difficulty_questions
-            )
-            
-            if total_available_custom_marks > 0:
-                proportion = difficulty_available_custom_marks / total_available_custom_marks
-                difficulty_marks_target = int(chapter_marks_target * proportion)
-            else:
-                # If no custom marks are available for any question in the chapter, fallback to simple division
-                difficulty_marks_target = chapter_marks_target // 3 
-            
-            # Select using the calculated proportional target
-            selected_from_difficulty = select_questions_up_to_marks_custom(
-                difficulty_questions, 
-                difficulty_marks_target,
-                custom_marks_by_type
-            )
-            
-            for data in selected_from_difficulty:
-                # 🛑 Limit selection to not exceed overall chapter target
-                if current_chapter_marks + data['custom_marks_value'] <= chapter_marks_target:
-                    data['section'] = f"{chapter_data['chapter'].name} - {difficulty.capitalize()}"
-                    selected.append(data)
-                    current_chapter_marks += data['custom_marks_value']
-
-    return selected
-
-
-# quiz/views.py
-
-def select_by_sections_with_chapters(questions, selected_chapters, target_marks, 
-                                   chapter_distribution, custom_marks_by_type): # distribution_type REMOVED
-    
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
-    selected = []
-    
-    # Distribute marks among chapters
-    chapter_marks = distribute_marks_to_chapters(
-        chapter_groups, target_marks, chapter_distribution
-    )
-    
-    # Select questions from each chapter
-    for chapter_id, chapter_data in chapter_groups.items():
-        chapter_marks_target = chapter_marks.get(chapter_id, 0)
-        
-        chapter_questions = chapter_data['questions']
-        selected_from_chapter = select_questions_up_to_marks_custom(
-            chapter_questions, 
-            chapter_marks_target,
-            custom_marks_by_type
-        )
-        
-        for data in selected_from_chapter:
-            data['section'] = chapter_data['chapter'].name
-            selected.append(data)
-    
-    return selected
-
-
-# quiz/views.py
-
-def select_by_question_type_and_chapters_custom_marks(questions, selected_chapters, target_marks, 
-                                       chapter_distribution, custom_marks_by_type): # distribution_type REMOVED
-    
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
-    selected = []
-    
-    # Distribute marks among chapters
-    chapter_marks = distribute_marks_to_chapters(
-        chapter_groups, target_marks, chapter_distribution
-    )
-    
-    # Global available custom marks for all types requested
-    all_available_custom_marks = sum(
-        custom_marks_by_type.get(q.question_type, 0) 
-        for q in questions if q.question_type in custom_marks_by_type
-    )
-
-    # Select from each chapter
-    for chapter_id, chapter_data in chapter_groups.items():
-        chapter_marks_target = chapter_marks.get(chapter_id, 0)
-        if chapter_marks_target == 0:
-            continue
-            
-        current_chapter_marks = 0
-            
-        # Distribute chapter marks across requested question types
-        for q_type, custom_mark_value in custom_marks_by_type.items():
-            
-            type_questions = [q for q in chapter_data['questions'] if q.question_type == q_type]
-            
-            if not type_questions or custom_mark_value == 0:
-                continue
-                
-            # 🆕 Calculate question type-specific mark target based on proportion of total available custom marks
-            type_available_custom_marks = sum(
-                custom_marks_by_type.get(q.question_type, 0)
-                for q in type_questions
-            )
-            
-            if all_available_custom_marks > 0:
-                proportion = type_available_custom_marks / all_available_custom_marks
-                type_marks_target = int(chapter_marks_target * proportion)
-            else:
-                # Fallback: simple equal distribution among requested types
-                type_marks_target = chapter_marks_target // len(custom_marks_by_type)
-
-            selected_from_type = select_questions_up_to_marks_custom(
-                type_questions, 
-                type_marks_target,
-                custom_marks_by_type
-            )
-            
-            for data in selected_from_type:
-                # 🛑 Limit selection to not exceed overall chapter target
-                if current_chapter_marks + data['custom_marks_value'] <= chapter_marks_target:
-                    data['section'] = f"{chapter_data['chapter'].name} - {data['question'].get_question_type_display()}"
-                    selected.append(data)
-                    current_chapter_marks += data['custom_marks_value']
-
-    return selected
 
 
 def select_questions_up_to_marks_custom(question_list, target_marks, custom_marks_by_type):
@@ -2074,34 +1876,6 @@ def select_questions_up_to_marks_custom(question_list, target_marks, custom_mark
 
 # quiz/views.py
 
-def select_random_balanced_with_chapters(questions, selected_chapters, target_marks, chapter_distribution, custom_marks_by_type):
-    """Fallback random selection with chapter consideration (custom marks)"""
-    # This logic remains identical to select_by_sections_with_chapters now.
-    
-    chapter_groups = group_questions_by_chapter(questions, selected_chapters)
-    selected = []
-    
-    # Distribute marks among chapters
-    chapter_marks = distribute_marks_to_chapters(
-        chapter_groups, target_marks, chapter_distribution
-    )
-    
-    # Select from each chapter
-    for chapter_id, chapter_data in chapter_groups.items():
-        chapter_marks_target = chapter_marks.get(chapter_id, 0)
-        
-        chapter_questions = chapter_data['questions']
-        selected_from_chapter = select_questions_up_to_marks_custom(
-            chapter_questions, 
-            chapter_marks_target,
-            custom_marks_by_type
-        )
-        
-        for data in selected_from_chapter:
-            data['section'] = chapter_data['chapter'].name
-            selected.append(data)
-    
-    return selected
 
 
 def group_questions_by_chapter(questions, selected_chapters):
@@ -2227,91 +2001,91 @@ def select_questions_up_to_marks(question_list, target_marks):
 
 
 
-@login_required
-@permission_required('quiz.change_paperquestion', login_url='profile_update')
-def paper_swap_question_select(request, paper_id, old_question_id):
+def paper_execute_random_swap_api(request, paper_id, old_question_id):
     """
-    Shows a list of potential replacement questions for a specific question 
-    in a paper. Candidates must match the marks, type, subject, and chapter 
-    of the question being replaced, and must not already be in the paper.
+    API: Finds a random replacement question matching criteria 
+    (marks, type, subject, paper chapters) and immediately swaps it 
+    into the paper, replacing the question at old_question_id.
     """
     
+
+    # 1. Fetch the paper
     paper = get_object_or_404(QuestionPaper, id=paper_id)
-    
-    # 1. Get the Question being swapped out
+
+    # 2. Fetch old question and PaperQuestion instance (pq)
     try:
         old_pq = PaperQuestion.objects.select_related('question').get(
-            paper=paper, question_id=old_question_id
+            paper=paper,
+            question_id=old_question_id
         )
         old_question = old_pq.question
     except PaperQuestion.DoesNotExist:
-        messages.error(request, 'The question you tried to swap is not in this paper.')
+        messages.error(request, f"The question (ID: {old_question_id}) you are trying to swap does not exist in this paper.")
         return redirect('quiz:paper_detail', paper.id)
 
-    # 2. Check permissions
+    # 3. Permission check
     if paper.created_by != request.user and not request.user.is_staff:
         messages.error(request, 'You do not have permission to edit this paper.')
         return redirect('quiz:paper_detail', paper.id)
 
-    # 3. Define the criteria for the replacement question
+    # 4. Criteria setup
     target_marks = old_question.marks
     target_type = old_question.question_type
-    target_chapter = old_question.curriculum_chapter # Can be None
+    target_subject = paper.curriculum_subject
+    target_chapters = paper.curriculum_chapters.all()
 
-    # 4. Get existing question IDs to exclude duplicates
-    existing_question_ids = list(paper.paper_questions.values_list('question_id', flat=True))
-    
-    # 5. Build the query for candidate replacement questions
-    
-    # Base filter: Exclude existing questions, match subject, marks, and type
-    candidates_queryset = Question.objects.exclude(id__in=existing_question_ids).filter(
-        curriculum_subject=paper.curriculum_subject,
-        marks=target_marks,
-        question_type=target_type
+    # 5. Exclude existing questions (Exclude the old question itself from exclusion list)
+    existing_question_ids = list(
+        paper.paper_questions.exclude(question_id=old_question_id).values_list('question_id', flat=True)
     )
 
-    # Chapter Filter: If the old question belongs to a specific chapter, limit candidates to that chapter.
-    if target_chapter:
-        candidates_queryset = candidates_queryset.filter(curriculum_chapter=target_chapter)
-        chapter_criteria_text = f"Chapter: {target_chapter.name}"
+    # 6. Build Candidate Query
+    candidates = Question.objects.exclude(id__in=existing_question_ids).filter(
+        curriculum_subject=target_subject,
+        marks=target_marks,
+        question_type=target_type,
+        is_published=True # Only swap with published questions
+    )
+
+    # 7. Chapter filtering: IF paper has chapters → match any of them
+    if target_chapters.exists():
+        candidates = candidates.filter(curriculum_chapter__in=target_chapters)
+        chapter_criteria = ", ".join([c.name for c in target_chapters])
     else:
-        # If the old question had no chapter, we look for other chapterless questions or questions from any chapter in the subject
-        # For simplicity, we keep it broad if no chapter was set on the original question.
-        chapter_criteria_text = "Chapter: Any (or None)"
+        chapter_criteria = "Any within subject"
+        
+    candidate_count = candidates.count()
 
+    if candidate_count == 0:
+        messages.warning(request, f"Swap failed: No replacement questions found matching criteria (Marks: {target_marks}, Type: {old_question.get_question_type_display()}, Chapters: {chapter_criteria}).")
+        return redirect('quiz:paper_detail', paper.id)
 
-    # Fetch the candidates and limit the list for display purposes (e.g., 50)
-    candidate_questions = candidates_queryset.order_by('?')[:50]
-    
-    # 6. Prepare context
-    criteria = {
-        'Marks': target_marks,
-        'Type': old_question.get_question_type_display(),
-        'Subject': paper.curriculum_subject.name,
-        'Chapter': chapter_criteria_text,
-    }
+    # 8. Select one random candidate (Efficiently using DB if possible, or Python)
+    try:
+        # Get one random ID
+        random_candidate_id = candidates.order_by('?').values_list('id', flat=True).first()
+        new_question = Question.objects.get(id=random_candidate_id)
+        
+    except Question.DoesNotExist:
+        # Should not happen if candidate_count > 0, but safe to check
+        messages.error(request, "Swap failed: An issue occurred during random selection.")
+        return redirect('quiz:paper_detail', paper.id)
 
-    context = {
-        'paper': paper,
-        'old_pq': old_pq,
-        'old_question': old_question,
-        'criteria': criteria,
-        'candidate_questions': candidate_questions,
-        'candidate_count': candidates_queryset.count(), # Total available before display limit
-    }
-    
-    return render(request, 'quiz/paper_swap_question_select.html', context)
+    # 9. Execute the Swap
+    try:
+        with transaction.atomic():
+            # Update the PaperQuestion instance to point to the new question
+            old_pq.question = new_question
+            old_pq.save(update_fields=['question'])
+            
+            # Since marks are guaranteed to be the same, total_marks synchronization is not needed
+            # unless old_pq.marks was not correctly set before. We assume it's stable.
 
-# --- PLACEHOLDER FOR NEXT STEP ---
+            messages.success(request, f"Question (Order {old_pq.order}) successfully swapped with a new question (QID: {new_question.id}).")
 
-@login_required
-@permission_required('quiz.change_paperquestion', login_url='profile_update')
-def paper_swap_question_confirm(request, paper_id, old_question_id, new_question_id):
-    """
-    View to execute the actual swap of old_question_id with new_question_id.
-    This would involve getting the PaperQuestion instance for the old question,
-    updating its question FK to point to the new question, and saving it, 
-    all within a transaction.
-    """
-    messages.info(request, "Swap confirmation logic needs to be implemented here!")
+    except Exception as e:
+        messages.error(request, f"An error occurred while executing the swap: {e}")
+
     return redirect('quiz:paper_detail', paper_id)
+        
+
