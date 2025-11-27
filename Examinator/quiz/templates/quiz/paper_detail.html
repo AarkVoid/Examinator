@@ -290,18 +290,27 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
           {% if not paper.is_published or request.user.is_staff %}
           <!-- Action buttons for the question -->
           <div class="flex flex-col space-y-2 ml-4 flex-shrink-0">
-            <a href="{% url 'quiz:paper_remove_question' paper.id pq.question.id %}" 
-               title="Remove Question"
-               class="w-8 h-8 flex items-center justify-center text-red-500 bg-red-100 rounded-full hover:bg-red-200 transition-colors">
-              <i class="fa-solid fa-trash text-sm"></i>
-            </a>
-            
-            <!-- Placeholder for the Swap Question feature -->
-            <a href="{% url 'quiz:paper_swap_question_select' paper.id pq.question.id %}" 
-               title="Swap Question"
-               class="w-8 h-8 flex items-center justify-center text-orange-500 bg-orange-100 rounded-full hover:bg-orange-200 transition-colors">
-              <i class="fa-solid fa-shuffle text-sm"></i>
-            </a>
+              <!-- Swap Question (Alternative 1) -->
+              <a href="{% url 'quiz:paper_swap_question_select' paper.id pq.question.id %}" 
+                title="Swap Question"
+                class="w-8 h-8 flex items-center justify-center text-blue-500 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors">
+                <i class="fa-solid fa-arrow-right-arrow-left text-sm"></i>
+              </a>
+
+              <!-- Swap Question (Alternative 2) -->
+              <a href="{% url 'quiz:paper_add_questions' paper.id %}?type={{pq.question.question_type}}" 
+                title="Find Similar Questions"
+                class="w-8 h-8 flex items-center justify-center text-green-500 bg-green-100 rounded-full hover:bg-green-200 transition-colors">
+                <i class="fa-solid fa-magnifying-glass text-sm"></i>
+              </a>
+
+              <!-- Remove Question -->
+              <a href="{% url 'quiz:paper_remove_question' paper.id pq.question.id %}" 
+                title="Remove Question"
+                class="w-8 h-8 flex items-center justify-center text-red-500 bg-red-100 rounded-full hover:bg-red-200 transition-colors">
+                <i class="fa-solid fa-trash-can text-sm"></i>
+              </a>
+              
           </div>
           {% endif %}
         </div>
@@ -314,7 +323,7 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
       <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Questions Added</h3>
       <p class="text-gray-500 dark:text-gray-400 mb-6">This quiz paper doesn't have any questions yet.</p>
       {% if paper.created_by == request.user or request.user.is_staff %}
-      <a href="{% url 'quiz:paper_add_questions' paper.id %}" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+      <a href="{% url 'quiz:paper_add_questions' paper.id %}?type=default" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
         <i class="fa-solid fa-plus mr-2"></i>Select First Question
       </a>
       {% comment %} <!-- <a href="{% url 'quiz:paper_add_random_questions' paper.id %}" 
@@ -343,7 +352,7 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
 
 {% if not paper.is_published or request.user.is_staff %}
 <a href="{% url 'quiz:paper_delete' paper.id %}" class="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">
-  <i class="fa-solid fa-trash mr-2"></i>Delete Paper
+  <i class="fa-solid fa-trash mr-2"></i>Cancle/Delete Draft
 </a>
 {% endif %}
 

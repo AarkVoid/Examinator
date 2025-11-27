@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
     # Third-party apps
     'django_celery_beat',
+    'crispy_forms',
 ]
 
 MIDDLEWARE = [
@@ -182,7 +183,10 @@ AUTHENTICATION_BACKENDS = [
     # 2. Django's default ModelBackend is required for Admin Site access
     # and ensuring permissions/groups work correctly. Keep this!
     'django.contrib.auth.backends.ModelBackend',
+    'auth_backends.organization_backend.OrganizationBackend',
 ]
 
 
 QUESTIONS_PER_PAGE = 25
+
+CRISPY_TEMPLATE_PACK = 'bootstrap4'

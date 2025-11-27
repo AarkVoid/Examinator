@@ -13,7 +13,7 @@ from django.utils.crypto import get_random_string
 from curritree.models import TreeNode
 from saas.models import OrganizationProfile
 from django.utils.text import capfirst
-
+from django.contrib.auth.forms import UserCreationForm
 from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.debug import sensitive_variables
@@ -24,6 +24,26 @@ from django.utils.translation import gettext_lazy as _
 # ---------------------------------------------
 import re 
 User = get_user_model()
+
+
+
+
+
+
+TAILWIND_INPUT_CLASSES = (
+    'w-full px-4 py-2.5 border rounded-lg transition-all duration-150 '
+    'bg-gray-50 border-gray-300 text-gray-900 '
+    'dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 '
+    'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 '
+    'dark:focus:ring-blue-400 dark:focus:border-blue-400'
+)
+
+# Define the checkbox classes for proper alignment and appearance
+TAILWIND_CHECKBOX_CLASSES = (
+    'w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded '
+    'focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 '
+    'focus:ring-2 dark:bg-gray-700 dark:border-gray-600'
+)
 
 
 class RegistrationForm(forms.ModelForm):
@@ -110,23 +130,6 @@ class RegistrationForm(forms.ModelForm):
         return user
 
 
-
-
-
-TAILWIND_INPUT_CLASSES = (
-    'w-full px-4 py-2.5 border rounded-lg transition-all duration-150 '
-    'bg-gray-50 border-gray-300 text-gray-900 '
-    'dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 '
-    'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 '
-    'dark:focus:ring-blue-400 dark:focus:border-blue-400'
-)
-
-# Define the checkbox classes for proper alignment and appearance
-TAILWIND_CHECKBOX_CLASSES = (
-    'w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded '
-    'focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 '
-    'focus:ring-2 dark:bg-gray-700 dark:border-gray-600'
-)
 
 class UserEditForm(forms.ModelForm):
     """
@@ -1125,3 +1128,115 @@ class AuthenticationForm(forms.Form):
     def confirm_login_allowed(self, user):
         if not user.is_active:
             raise ValidationError(self.error_messages["inactive"], code="inactive")
+        
+    def get_user(self):
+        return self.user_cache
+    
+
+
+class StaffUserCreationForm(UserCreationForm):
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+            'placeholder': 'Enter email address'
+        })
+    )
+    first_name = forms.CharField(
+        required=True,
+        max_length=30,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+            'placeholder': 'Enter first name'
+        })
+    )
+    last_name = forms.CharField(
+        required=True,
+        max_length=30,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+            'placeholder': 'Enter last name'
+        })
+    )
+    
+    organization = forms.ModelChoiceField(
+        queryset=OrganizationProfile.objects.all(),
+        required=False,
+        empty_label="Select Organization (Optional)",
+        widget=forms.Select(attrs={
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white appearance-none bg-white dark:bg-gray-700'
+        })
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'role', 'organization')
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+                'placeholder': 'Enter username'
+            }),
+            'role': forms.Select(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white appearance-none bg-white dark:bg-gray-700'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Limit role choices to staff and admin only
+        # self.fields['role'].choices = [
+        #     ('teacher', 'Staff'),
+        #     ('admin', 'Admin'),
+        # ]
+        # Make role required
+
+        self.fields['role'].choices = dict(User.ROLE_CHOICES)
+        self.fields['role'].required = True
+        
+        # Style password fields with proper dark mode
+        self.fields['password1'].widget.attrs.update({
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+            'placeholder': 'Enter password',
+            'autocomplete': 'new-password'
+        })
+        self.fields['password2'].widget.attrs.update({
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+            'placeholder': 'Confirm password',
+            'autocomplete': 'new-password'
+        })
+        
+        # Add help text styling for dark mode
+        for field_name, field in self.fields.items():
+            if field.help_text:
+                field.widget.attrs.update({
+                    'aria-describedby': f'{field_name}_help'
+                })
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise ValidationError("A user with this email already exists.")
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.role = self.cleaned_data['role']
+        
+        # Staff users should not be superusers by default
+        user.is_superuser = False
+        user.is_staff = True  # Give staff access
+        
+        if commit:
+            user.save()
+            # Create profile and assign organization if provided
+            from accounts.models import Profile
+            profile, created = Profile.objects.get_or_create(user=user)
+            organization = self.cleaned_data.get('organization')
+            if organization:
+                profile.organization_profile = organization
+                profile.save()
+        
+        return user

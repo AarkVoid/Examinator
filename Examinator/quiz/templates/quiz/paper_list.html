@@ -166,7 +166,7 @@
             </a>
             {% if paper.created_by == request.user %}
               <a href="{% url 'quiz:publish_paper' paper.id %}" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center z-20 relative">
-                <i class="fa-solid fa-upload mr-1"></i> Publish
+                <i class="fa-solid fa-upload mr-1"></i> Save Draft
               </a>
             {% endif %}
           {% endif %}

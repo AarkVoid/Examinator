@@ -445,7 +445,10 @@ class OrganizationEditForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs=TAILWIND_INPUT_CLASSES),
             'billing_email': forms.EmailInput(attrs=TAILWIND_INPUT_CLASSES),
-            'supported_curriculum': forms.SelectMultiple(attrs=TAILWIND_INPUT_CLASSES),
+            'supported_curriculum': forms.SelectMultiple(attrs={
+                **TAILWIND_INPUT_CLASSES, 
+                'disabled': 'disabled'
+            }),
             'is_active': forms.CheckboxInput(attrs=TAILWIND_CHECKBOX_CLASSES),
             'address': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 6,'cols': 12}),
             'phone_number': forms.TextInput(attrs=TAILWIND_INPUT_CLASSES),

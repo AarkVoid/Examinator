@@ -1,0 +1,5 @@
+board_name,class_name,subject_name,chapter_name,question_type,question_text,difficulty,marks,mcq_options,correct_answer,is_case_sensitive,short_answer_sample,short_answer_max_words,match_pairs,true_false_answer,true_false_explanation
+CBSE Board,Class 10,Mathematics,Polynomials,mcq,"What is the highest power of the variable in a polynomial called?",medium,1,"A)Zero;B)Coefficient;C)Degree;D)Root",C)Degree,,,,,
+CBSE Board,Class 10,Science,Life Processes,fill_blank,"The pigment responsible for absorbing light energy in plants is called _______.",easy,1,,Chlorophyll,TRUE,,,,
+ICSE Board,Class 9,History,French Revolution,short_answer,"Briefly explain the significance of the Storming of the Bastille.",hard,3,,,The Storming of the Bastille on July 14, 1789, marked the beginning of the French Revolution, symbolizing the end of royal authority.,100,,,
+CBSE Board,Class 12,Physics,Electrostatics,match,"Match the unit with the physical quantity.",medium,2,,,,,Electric Field:Newton per Coulomb;Capacitance:Farad;Charge:Coulomb,,

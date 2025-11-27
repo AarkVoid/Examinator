@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Licenses for {{ organization.name }}{% endblock %}
+
+{% block content %}
+<style>
+/* * 🎨 UI Fixes & Enhancements 
+ * --------------------------------------
+ * The original custom-permissions-select styles are removed as the new design uses 
+ * standard Tailwind checkboxes within an accordion.
+*/
+/* Ensure the accordion transition is smooth */
+.accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out;
+}
+.accordion-open {
+    max-height: 1000px; /* Large enough value to show content */
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+</style>
+
+{# Define a set of robust, dark-mode-aware classes for all standard inputs/selects #}
+{% with TAILWIND_INPUT_CLASSES="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400" %}
+    <div class="container mx-auto px-4 py-8">
+        <div class="w-full max-w-5xl mx-auto">
+            
+            {# --- HEADER --- #}
+            <div class="flex justify-between items-center mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
+                    <i class="fa-solid fa-file-contract mr-3 text-indigo-600 dark:text-indigo-400"></i> Client Licenses: <span class="text-blue-600 dark:text-blue-400">{{ organization.name }}</span>
+                </h1>
+            </div>
+
+            {# --- GRANT NEW ACCESS FORM --- #}
+            <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 mb-12">
+                <h2 class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-6 border-b border-indigo-200 dark:border-indigo-900 pb-4">Grant New Content Access</h2>
+
+                <form method="POST" class="space-y-8">
+                    {% csrf_token %}
+
+                    {# --- STEP 1: Content Selection --- #}
+                    <div class="space-y-6">
+                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+                            <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">1</span> Select Content Scope
+                        </h3>
+                        <div class="p-6 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 border-indigo-200 dark:border-indigo-800 space-y-4">
+                            
+                            {# Curriculum Filter Section (Cascading Selects) #}
+                            <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Drill Down Filters</h4>
+                            <div id="curriculum-filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div class="filter-group" id="filter_group_1">
+                                    <label for="filter_1" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Level 1: Board or Exam</label>
+                                    <select id="filter_1" data-level="1" data-target-id="id_license_curriculum_nodes"
+                                        class="{{ TAILWIND_INPUT_CLASSES }}">
+                                        <option value="">-- Select Board or Exam --</option>
+                                        {% for node in root_nodes %}
+                                            <option value="{{ node.id }}" data-node-type="{{ node.node_type }}">
+                                                {{ node.name }} ({{ node.node_type }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <select name="curriculum_node" id="id_license_curriculum_nodes" multiple
+                                class="hidden">
+                            </select>
+
+                            {# Actionable Nodes (Buttons) #}
+                            <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 pt-4 border-t border-indigo-100 dark:border-indigo-800/50">Actionable Content Nodes</h4>
+                            <div id="curriculum-buttons-container" class="min-h-[100px] flex items-center justify-center">
+                                <p class="text-gray-500 dark:text-gray-400 text-center py-4">
+                                    Select a filter above or choose from the root nodes below.
+                                </p>
+                            </div>
+                            
+                            {# --- NEW: Selected Nodes Stream Display --- #}
+                            <div class="pt-4 border-t border-indigo-100 dark:border-indigo-800/50">
+                                <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Content Stream:</h4>
+                                <div id="selected-nodes-stream" 
+                                     class="p-4 min-h-[50px] bg-white dark:bg-gray-800 border border-indigo-300 dark:border-indigo-700 rounded-lg flex flex-wrap gap-2 items-center">
+                                    <span class="text-gray-500 dark:text-gray-400 text-sm italic" id="empty-stream-message">No content nodes selected yet.</span>
+                                </div>
+                            </div>
+                            {# --- END NEW SECTION --- #}
+                        </div>
+                    </div>
+                    
+                    {# --- STEP 2: Limit & Duration --- #}
+                    <div class="space-y-6">
+                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+                            <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">2</span> Define Limits and Validity
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 border-indigo-200 dark:border-indigo-800">
+                            
+                            {# Maximum Question Papers #}
+                            <div>
+                                <label for="max_question_papers"
+                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Maximum Question Papers (Limit)
+                                </label>
+                                <input type="number" name="max_question_papers" id="max_question_papers"
+                                    value="50" min="0" required
+                                    class="{{ TAILWIND_INPUT_CLASSES }}">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Sets the total number of papers the organization can **publish** under this license. (Default: 50)
+                                </p>
+                            </div>
+                            
+                            {# Valid Until #}
+                            <div>
+                                <label for="valid_until"
+                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Valid Until (Expiry Date)</label>
+                                <input type="date" name="valid_until" id="valid_until"
+                                    class="{{ TAILWIND_INPUT_CLASSES }}">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Leave empty for perpetual access (no expiry date).
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# --- STEP 3: Permissions (Accordion Group) --- #}
+                    <div class="space-y-6">
+                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+                            <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">3</span> Granular Permissions
+                        </h3>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-900/40 border-2 border-indigo-200 dark:border-indigo-800 rounded-xl p-3 shadow-inner">
+                            {% for model_name, perms in all_permissions_by_model.items %}
+                                <div class="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                                    <button type="button"
+                                            class="w-full flex justify-between items-center bg-transparent px-4 py-3 text-left font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg"
+                                            onclick="toggleAccordion('{{ model_name|slugify }}')">
+                                        <span class="font-semibold">{{ model_name }} Permissions</span>
+                                        <svg id="{{ model_name|slugify }}-icon" class="w-5 h-5 transition-transform text-indigo-600 dark:text-indigo-400"
+                                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+
+                                    <div id="{{ model_name|slugify }}-body" class="accordion-body bg-white dark:bg-gray-900">
+                                        <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-4">
+                                            {% for perm in perms %}
+                                                <label class="flex items-center space-x-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer">
+                                                    <input type="checkbox" name="permissions"
+                                                        value="{{ perm.id }}"
+                                                        class="rounded text-indigo-600 focus:ring-indigo-500 bg-gray-100 border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:text-indigo-500">
+                                                    <span class="text-gray-700 dark:text-gray-300 text-sm font-medium">{{ perm.display_name }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <p class="text-gray-500 dark:text-gray-400 text-sm text-center py-4">No permissions available for this organization type.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <button type="submit"
+                            class="w-full md:w-auto px-10 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/50 transition duration-200 transform hover:scale-[1.01]">
+                            <i class="fa-solid fa-plus-circle mr-2"></i> Confirm and Add License Grant
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {# --- EXISTING GRANTS LIST --- #}
+            <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+                <h2 class="text-3xl font-bold text-green-600 dark:text-green-400 mb-6 border-b border-green-200 dark:border-green-900 pb-4">Existing Grants</h2>
+
+                {% if grants %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        
+                        {# Loop over the pre-processed data grants_with_paths #}
+                        {% for grant_data in grants_with_paths %}
+                            
+                            <div class="p-5 rounded-xl shadow-lg transition duration-200 group relative
+                                {% if grant_data.is_expired %}
+                                    bg-red-50 dark:bg-red-900/30 border-2 border-red-400 dark:border-red-700 opacity-70 hover:opacity-100
+                                {% else %}
+                                    bg-gray-50 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 hover:shadow-2xl hover:border-green-500
+                                {% endif %}
+                            ">
+                                
+                                <div class="flex justify-between items-start mb-4 border-b pb-3 
+                                    {% if grant_data.is_expired %}
+                                        border-red-300 dark:border-red-700
+                                    {% else %}
+                                        border-gray-200 dark:border-gray-600
+                                    {% endif %}
+                                ">
+                                    {# Expiry status #}
+                                    <div class="flex flex-wrap gap-2">
+                                        {% if grant_data.is_expired %}
+                                            <span class="text-sm font-extrabold px-3 py-1 rounded-full uppercase tracking-wider bg-red-600 text-white shadow-md">
+                                                <i class="fa-solid fa-clock-rotate-left mr-1"></i> EXPIRED
+                                            </span>
+                                        {% elif grant_data.valid_until %}
+                                            <span class="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-100">
+                                                Expires: {{ grant_data.valid_until|date:"Y-m-d" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100">
+                                                <i class="fa-solid fa-infinity mr-1"></i> Perpetual Access
+                                            </span>
+                                        {% endif %}
+                                        
+                                    </div>
+                                    
+                                </div>
+
+                                {# QP Limit Status #}
+                                {% if grant_data.max_question_papers is not None %}
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center">
+                                    <i class="fa-solid fa-star-half-stroke mr-2 text-purple-500"></i> 
+                                    QP Limit: <span class="ml-2 px-2 py-0.5 rounded text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/50">{{ grant_data.max_question_papers }}</span>
+                                </p>
+                                {% endif %}
+
+                                <div class="mb-4">
+                                    <h3 class="text-xs font-bold mb-2 uppercase text-gray-500 dark:text-gray-300">Content Access Path(s):</h3>
+                                    
+                                    {% for path_string in grant_data.curriculum_paths %}
+                                        <div class="mb-2">
+                                            <span class="block px-3 py-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-700 shadow-sm">
+                                                <i class="fa-solid fa-graduation-cap mr-1"></i> {{ path_string }}
+                                            </span>
+                                        </div>
+                                    {% empty %}
+                                        <span class="text-gray-500 dark:text-gray-400 italic text-sm">No specific content nodes assigned</span>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="border-t pt-4 flex justify-end gap-4 
+                                    {% if grant_data.is_expired %}
+                                        border-red-300 dark:border-red-700
+                                    {% else %}
+                                        border-gray-200 dark:border-gray-600
+                                    {% endif %}
+                                ">
+                                    <a href="{% url 'saas:license_edit' grant_data.id %}" 
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors font-semibold text-sm flex items-center">
+                                        <i class="fa-solid fa-pencil mr-1"></i> Edit
+                                    </a>
+                                    <a href="{% url 'saas:license_delete' grant_data.id %}" 
+                                    class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors font-semibold text-sm flex items-center">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                                    </a>
+                                </div>
+                            </div>
+                            
+                
+                        {% endfor %}
+                        
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fa-solid fa-ticket text-6xl text-gray-400 dark:text-gray-600 mb-4"></i>
+                        <p class="text-xl text-gray-600 dark:text-gray-300 font-medium">No active or past licenses found for this organization.</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">Use the **Grant New Content Access** form above to add an access license.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // The original JS has been kept largely intact, with updates to syncButtonsToSelect 
+    // and renderRootNodeButtons to manage the new #selected-nodes-stream div.
+    
+    const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}');
+
+    // --- Configuration ---
+    const MAX_FILTER_LEVEL = 4; 
+    const filterContainer = document.getElementById('curriculum-filters');
+    const mainCurriculumSelect = document.getElementById('id_license_curriculum_nodes');
+    const buttonsContainer = document.getElementById('curriculum-buttons-container');
+    // NEW: Reference to the display stream
+    const selectedNodesStream = document.getElementById('selected-nodes-stream');
+    const emptyStreamMessage = document.getElementById('empty-stream-message');
+    
+    const SELECT_CLASSES = 'mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400';
+
+    // --- Synchronization Functions ---
+    
+    function syncButtonsToSelect() {
+        const buttons = buttonsContainer.querySelectorAll('button[data-node-id]');
+        
+        // 1. Get currently selected options
+        const selectedOptions = Array.from(mainCurriculumSelect.options)
+                                 .filter(option => option.selected);
+        
+        // 2. Update button appearance
+        const selectedIds = selectedOptions.map(option => option.value);
+
+        buttons.forEach(button => {
+            const nodeId = button.dataset.nodeId;
+            if (selectedIds.includes(nodeId)) {
+                // Active/Selected State (Blue)
+                button.classList.add('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
+                button.classList.remove('bg-gray-200', 'text-gray-900', 'dark:bg-gray-700', 'dark:text-gray-200', 'hover:bg-gray-300', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
+            } else {
+                // Default State (Gray)
+                button.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
+                button.classList.add('bg-gray-200', 'text-gray-900', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:text-gray-200', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
+            }
+        });
+
+        // 3. Update the Selected Nodes Stream
+        selectedNodesStream.innerHTML = '';
+        if (selectedOptions.length === 0) {
+            selectedNodesStream.appendChild(emptyStreamMessage);
+        } else {
+            selectedOptions.forEach(option => {
+                const badge = document.createElement('span');
+                // Use the option text, trimming any extra spaces
+                const nodeName = option.textContent.trim(); 
+                
+                badge.textContent = nodeName;
+                // Styled badge for selected nodes
+                badge.className = 'px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-sm font-medium shadow-sm';
+                selectedNodesStream.appendChild(badge);
+            });
+        }
+    }
+
+    function handleNodeButtonClick(event) {
+        const button = event.currentTarget;
+        const nodeId = button.dataset.nodeId;
+        let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+
+        if (!option) {
+            // Use button text for the option name
+            option = new Option(button.textContent.trim(), nodeId, false, false);
+            mainCurriculumSelect.add(option);
+        }
+
+        if (option) {
+            option.selected = !option.selected;
+            syncButtonsToSelect();
+        }
+    }
+
+    function renderNodeButtons(data) {
+        buttonsContainer.innerHTML = '';
+        
+        if (data.children.length === 0) {
+            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; 
+
+        data.children.forEach(node => {
+            let option = mainCurriculumSelect.querySelector(`option[value="${node.id}"]`);
+            if (!option) {
+                // Use the node name for the option text
+                option = new Option(node.name, node.id, false, false); 
+                mainCurriculumSelect.add(option);
+            }
+            
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.nodeId = node.id;
+            button.textContent = node.name;
+            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
+                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
+            
+            button.addEventListener('click', handleNodeButtonClick);
+
+            grid.appendChild(button);
+        });
+        
+        buttonsContainer.appendChild(grid);
+        syncButtonsToSelect();
+    }
+
+
+    function renderRootNodeButtons(data) {
+        buttonsContainer.innerHTML = '';
+        
+        if (data.length === 0) {
+            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; 
+
+        data.forEach(node => {
+            let option = mainCurriculumSelect.querySelector(`option[value="${node.pk}"]`);
+            if (!option) {
+                // Use the node name (from serialized fields) for the option text
+                option = new Option(node.fields.name, node.pk, false, false);
+                mainCurriculumSelect.add(option);
+            }
+            
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.nodeId = node.pk;
+            button.textContent = node.fields.name;
+            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
+                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
+            
+            button.addEventListener('click', handleNodeButtonClick);
+
+            grid.appendChild(button);
+        });
+        
+        buttonsContainer.appendChild(grid);
+        syncButtonsToSelect(); // Update the stream on initial load
+    }
+
+    // --- Core Functions (kept the same) ---
+    function fetchAndPopulate(parentId, targetElement, isFinalSelect = false) {
+        if (!parentId) {
+            if (isFinalSelect) {
+                buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to load license options.</p>';
+            } else {
+                targetElement.innerHTML = '<option value="">-- Select --</option>';
+            }
+            return;
+        }
+        
+        const url = `/quiz/nodes/${parentId}/children/`; 
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok. Status: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                if (isFinalSelect) {
+                    renderNodeButtons(data); 
+
+                } else {
+                    targetElement.innerHTML = '<option value="">-- Select --</option>';
+
+                    data.children.forEach(node => {
+                        const option = document.createElement('option');
+                        option.value = node.id;
+                        option.textContent = `${node.name} (${node.node_type})`;
+                        option.dataset.nodeType = node.node_type;
+                        targetElement.appendChild(option);
+                    });
+                    
+                    if (data.children.length === 0) {
+                        targetElement.innerHTML = '<option value="">-- No further options --</option>';
+                    }
+                }
+            })
+            .catch(error => console.error("Error fetching curriculum nodes:", error));
+    }
+
+    function createNextFilter(level, typeName) {
+        const container = document.createElement('div');
+        container.className = 'filter-group';
+        container.id = `filter_group_${level}`;
+        
+        const label = document.createElement('label');
+        label.htmlFor = `filter_${level}`;
+        label.className = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+        label.textContent = `Level ${level}: ${typeName}`;
+        container.appendChild(label);
+
+        const select = document.createElement('select');
+        select.id = `filter_${level}`;
+        select.dataset.level = level;
+        select.dataset.targetId = 'id_license_curriculum_nodes';
+        select.className = SELECT_CLASSES; 
+        select.addEventListener('change', handleFilterChange);
+        
+        select.innerHTML = '<option value="">-- Select --</option>';
+
+        container.appendChild(select);
+
+        filterContainer.appendChild(container);
+        return select;
+    }
+
+    function handleFilterChange(event) {
+        const currentSelect = event.target;
+        const parentId = currentSelect.value;
+        const currentLevel = parseInt(currentSelect.dataset.level);
+        const nextLevel = currentLevel + 1;
+
+        Array.from(filterContainer.querySelectorAll('.filter-group')).forEach(group => {
+            const level = parseInt(group.id.replace('filter_group_', ''));
+            if (level >= nextLevel) group.remove();
+        });
+        
+        buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to see final license options.</p>';
+
+        if (parentId) {
+            const selectedOption = currentSelect.options[currentSelect.selectedIndex];
+            const nextNodeType = selectedOption.dataset.nodeType || 'Item';
+            
+            fetchAndPopulate(parentId, mainCurriculumSelect, true);
+            
+            if (nextLevel <= MAX_FILTER_LEVEL) {
+                const newSelect = createNextFilter(nextLevel, nextNodeType);
+                fetchAndPopulate(parentId, newSelect, false);
+            }
+        } else {
+            if (currentLevel === 1) {
+                renderRootNodeButtons(ROOT_NODES_DATA);
+            } 
+        }
+    }
+
+    function toggleAccordion(id) {
+        const body = document.getElementById(id + '-body');
+        const icon = document.getElementById(id + '-icon');
+
+        if (body.classList.contains('accordion-open')) {
+            body.classList.remove('accordion-open');
+            icon.classList.remove('rotate-180');
+        } else {
+            body.classList.add('accordion-open');
+            icon.classList.add('rotate-180');
+        }
+    }
+
+
+    // --- Initialization ---
+    const filter1 = document.getElementById('filter_1');
+    if (filter1) {
+        filter1.addEventListener('change', handleFilterChange);
+    }
+    renderRootNodeButtons(ROOT_NODES_DATA);
+</script>
+{% endblock %}

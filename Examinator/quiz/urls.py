@@ -7,8 +7,8 @@ urlpatterns = [
     # Question URLs
     path('questions/', views.question_list, name='question_list'),
     path('questions/create/', views.question_create, name='question_create'),
-    path('questions/<int:question_id>/edit/', views.question_detail_and_edit, name='question_edit'),
-    path('questions/<int:question_id>/delete/', views.question_delete, name='question_delete'),
+    path('questions/<uuid:question_uuid>/edit/', views.question_detail_and_edit, name='question_edit'),
+    path('questions/<uuid:question_uuid>/delete/', views.question_delete, name='question_delete'),
     
     # Question type specific URLs
     path('questions/<int:question_id>/mcq-options/', views.question_mcq_options, name='question_mcq_options'),

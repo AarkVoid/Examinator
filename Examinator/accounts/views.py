@@ -1,7 +1,7 @@
 from .forms import RegistrationForm, ProfileForm, UserEditForm, \
     AdminUserCreationForm,GroupForm,ProfileEditForm,TeacherCreationForm, \
         InstituteUserEditForm,InstituteProfileEditForm,UserPermissionForm,GroupAdminUserCreationForm,OrganizationUserCreationForm, \
-            OrganizationGroupForm,OrgUserAdminForm, OrgProfileAdminForm,DjangoGroupForm,PermissionCreateForm,AuthenticationForm
+            OrganizationGroupForm,OrgUserAdminForm, OrgProfileAdminForm,DjangoGroupForm,PermissionCreateForm,AuthenticationForm,StaffUserCreationForm
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 # from django.contrib.auth.forms import AuthenticationForm
@@ -23,7 +23,6 @@ from datetime import date
 from django.urls import reverse
 
 
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 
@@ -41,6 +40,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
+from django.core import serializers
 
 
 User = get_user_model()
@@ -56,12 +56,12 @@ def is_superuser_check(user):
 superuser_required = user_passes_test(
     is_superuser_check, 
     # Use a safe fallback for the login URL
-    login_url='/login/' 
+    login_url='login' 
 )
 
 def is_staff_check(user):
     """Returns True if the user is a superuser, False otherwise."""
-    return user.is_superuser
+    return user.is_superuser or user.is_staff
 
 staff_required = user_passes_test(
     is_staff_check, 
@@ -138,7 +138,10 @@ def login_view(request):
             user = form.get_user()
             login(request, user)
             messages.success(request, "credentials correct")
-            return redirect('profile_update')
+            if user.is_staff or user.is_superuser:
+                return redirect('home')
+            else:
+                return redirect('OrgHome')
         else:
             messages.error(request, "Invalid credentials")
     else:
@@ -318,19 +321,23 @@ def manage_users_view(request):
     # Update select_related to use organization_profile
     users = User.objects.exclude(id=request.user.id).select_related('profile', 'profile__organization_profile')
 
+    role_choices_dict = dict(User.ROLE_CHOICES)
+
     if role:
         users = users.filter(role=role)
 
     if selected_organization:
         # Filter by organization name
         users = users.filter(profile__organization_profile__name=selected_organization)
+    else:
+        users = users.filter(profile__organization_profile__isnull=True)
         
     # Group users by organization and then by role
     grouped_data = defaultdict(lambda: defaultdict(list))
     for user in users:
         # Get organization name from profile or a default value
         organization_name = user.profile.organization_profile.name if user.profile and user.profile.organization_profile else "No Client Organization"
-        grouped_data[organization_name][user.role].append(user)
+        grouped_data[organization_name][role_choices_dict.get(user.role)].append(user)
         
     # Convert defaultdict to a regular dict for template rendering
     grouped_data_fixed = {
@@ -339,12 +346,14 @@ def manage_users_view(request):
     
     # Get all unique roles for the filter dropdown
     roles = User.objects.values_list("role", flat=True).distinct().exclude(role__isnull=True).exclude(role='')
+
+    roles_with_display = [(role, role_choices_dict.get(role, role)) for role in roles]
     # Get all organization profiles for filtering
     organizations = OrganizationProfile.objects.all().order_by('name')
 
     return render(request, "manage_users.html", {
         "grouped_data": grouped_data_fixed,
-        "roles": roles,
+        "roles": roles_with_display,
         "selected_role": role,
         "organizations": organizations, # Pass organizations for the filter dropdown
         "selected_organization": selected_organization,
@@ -623,6 +632,8 @@ def edit_user_permissions_and_groups(request, user_id):
     # 2. Get permissions directly assigned to the user
     user_direct_permission_ids = set(user.user_permissions.all().values_list('id', flat=True))
 
+    print("Direct User Permission IDs:", user_direct_permission_ids)
+
     # 3. Get permissions inherited from all current groups (Django's default format)
     # The format is 'app_label.codename' (e.g., 'auth.add_user')
     user_group_permissions_codenames = user.get_group_permissions() 
@@ -727,22 +738,36 @@ def create_user_by_admin(request, org_pk):
     # Placeholder implementation for LicenseGrant and filtering
     try:
         license_grants = LicenseGrant.objects.filter(organization_profile=org)
-        active_licenses_qs = org.license_grants.filter(
+        active_licenses_qs = license_grants.filter(
             Q(valid_until__isnull=True) | Q(valid_until__gte=today)
             )
 
         # Collect licensed permissions and nodes
-        licensed_permissions = Permission.objects.filter(
+        licensed_permissions_qs = Permission.objects.filter(
             id__in=active_licenses_qs.values_list('permissions', flat=True)
-        ).distinct()
+        ).select_related('content_type').distinct().order_by('content_type__model', 'name')
+
+        grouped_permissions = defaultdict(list)
+
+        for perm in licensed_permissions_qs:
+            # Use the ContentType's 'model' name for the grouping key
+            model_name = perm.content_type.model.replace('_', ' ').title() 
+            grouped_permissions[model_name].append(perm)
 
         licensed_nodes = TreeNode.objects.filter(
             id__in=[node.id for grant in active_licenses_qs for node in grant.get_all_licensed_nodes()]
         ).distinct()
-    except:
+
+        json_root_nodes = serializers.serialize('json', [
+            node for grant in active_licenses_qs for node in grant.curriculum_node.all()
+        ])
+        print("root nodes:", json_root_nodes,licensed_nodes)
+    except Exception as e:
          # Fallback if models are not fully set up
          licensed_permissions = []
          licensed_nodes = []
+         json_root_nodes = []
+         print("Error fetching licenses or nodes:", str(e))
 
 
     if request.method == "POST":
@@ -815,8 +840,10 @@ def create_user_by_admin(request, org_pk):
 
     context = {
         "page_title": "Create User",
-        "licensed_permissions": licensed_permissions,
+        "grouped_permissions": dict(grouped_permissions),
         "licensed_nodes": licensed_nodes,
+        "json_root_nodes": json_root_nodes,
+        "org": org
     }
     return render(request, "create_user_by_admin.html", context)
 
@@ -1124,7 +1151,7 @@ def delete_organization_group(request, group_id):
 
 
 @login_required
-@superuser_required
+@staff_required
 def django_group_list(request):
     """
     Displays a list of all Django Groups.
@@ -1165,7 +1192,7 @@ def django_group_create(request):
 # --- 3. Update View (Update) ---
 
 @login_required
-@superuser_required
+@staff_required
 def django_group_update(request, pk):
     """
     Handles updating an existing Django Group.
@@ -1264,7 +1291,7 @@ def permission_create(request):
 
 
 @login_required
-@staff_required
+@superuser_required
 @permission_required('auth.delete_permission',login_url='profile_update')
 def permission_delete(request, pk):
     permission = get_object_or_404(Permission, pk=pk)
@@ -1277,3 +1304,25 @@ def permission_delete(request, pk):
 
     messages.error(request, "Invalid request.")
     return redirect('permission_list')
+
+
+
+
+
+@staff_required
+def create_staff_user(request):
+    if request.method == 'POST':
+        form = StaffUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Staff user "{user.username}" created successfully!')
+            return redirect('accounts:manage_users')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = StaffUserCreationForm()
+    
+    return render(request, 'create_staff_user.html', {
+        'form': form,
+        'title': 'Create Staff User'
+    })

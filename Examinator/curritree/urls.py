@@ -13,4 +13,6 @@ urlpatterns = [
     path('api/tree/', views.api_tree, name='api_tree'),
     path('api/tree/<int:root_id>/', views.api_tree, name='api_tree_root'),
     path('node/<int:pk>/delete/', views.delete_node, name='curriculum_delete'),
+    path("nodes/<int:node_id>/ancestors/", views.get_ancestor_nodes, name="get_ancestor_nodes"),
+    path("nodes/<int:node_id>/descendant/", views.get_descendant_nodes, name="get_descendant_nodes"),
 ]

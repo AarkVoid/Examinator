@@ -65,9 +65,9 @@ CHILD_TYPE_MAP = {
     'board': ['class', 'subject'],
     'competitive': ['subject'],
     'class': ['subject'],
-    'subject': ['chapter'],
-    'chapter': ['unit'],
-    'unit': ['section'],
+    'subject': ['chapter','unit'],
+    'unit': ['chapter'],
+    'chapter': ['section'],
     # 'section' has no allowed children, thus not in the map
 }
 # --------------------------------------------------------------------------
@@ -123,6 +123,16 @@ def _validate_and_save_node(data, instance=None):
     if not node_type or node_type not in [c[0] for c in NODE_TYPE_CHOICES]:
         errors['node_type'] = 'Invalid node type selected.'
     
+    # 6. Marks Check
+    marks_str = data.get('marks', None)
+    try:
+        marks = int(marks_str) if marks_str else 0
+        if marks < 0:
+            errors['marks'] = 'Marks must be a non-negative number.'
+    except ValueError:
+        errors['marks'] = 'Marks must be a valid integer.'
+        marks = 0 # Reset to 0 if invalid 
+    
     # Hierarchy Check
     if parent_node and node_type:
         allowed_children = CHILD_TYPE_MAP.get(parent_node.node_type, [])
@@ -147,17 +157,25 @@ def _validate_and_save_node(data, instance=None):
                     instance.parent = parent_node
                     instance.order = order
                     instance.metadata = metadata
+                    if marks is not None:
+                        instance.marks = marks
                     instance.save()
                     return (instance, {})
                 else:
                     # Creating new node
-                    node = TreeNode.objects.create(
+                    node_kwargs = dict(
                         name=name,
                         node_type=node_type,
                         parent=parent_node,
                         order=order,
-                        metadata=metadata
+                        metadata=metadata,
                     )
+
+                    if marks is not None:
+                        node_kwargs["marks"] = marks
+
+                    node = TreeNode.objects.create(**node_kwargs)
+
                     return (node, {})
         except IntegrityError as e:
             errors['general'] = f"A database error occurred: {e}"
@@ -217,6 +235,8 @@ def create_child_node(request, parent_pk):
     # Pre-populate initial data with fixed parent and implied child node type
     parent_type = parent_node.node_type
     allowed_child_types = CHILD_TYPE_MAP.get(parent_type, [])
+
+    print("Allowed child types:", allowed_child_types)  # Debugging line
     
     # Default to the first allowed child type for convenience
     initial_data = {
@@ -242,7 +262,7 @@ def create_child_node(request, parent_pk):
         'parent_node': parent_node,  # Used by template for read-only parent display
         'initial_data': initial_data,
         'errors': errors,
-        'node_type_choices': NODE_TYPE_CHOICES,
+        'node_type_choices': NODE_TYPE_CHOICES if parent_type != 'subject' else [(ct, dict(NODE_TYPE_CHOICES)[ct]) for ct in allowed_child_types]   ,
     }
     return render(request, 'hierarchy/curriculum_form.html', context)
 
@@ -266,6 +286,7 @@ def edit_node(request, pk):
         'node_type': node.node_type,
         'parent': str(node.parent.pk) if node.parent else '',
         'order': node.order,
+        'marks': node.marks,
         'metadata': json.dumps(node.metadata) if node.metadata else '',
     }
     errors = {}
@@ -325,3 +346,53 @@ def delete_node(request, pk):
     return render(request, 'hierarchy/curriculum_confirm_delete.html', {'node': node})
 
 
+def get_ancestor_nodes(request, node_id):
+    try:
+        node = TreeNode.objects.get(pk=node_id)
+        ancestors = node.get_ancestors(include_self=True)
+
+        # if not request.user.is_superuser:
+        #     # Ensure the user is logged in and has a profile
+        #     if not request.user.is_authenticated:
+        #          # For security, return an empty list or unauthorized error if access is required
+        #         return JsonResponse({"error": "Authentication required"}, status=403)
+
+        #     # Get the PKs of all nodes accessible via the user's M2M field
+        #     accessible_node_pks = request.user.profile.academic_stream.values_list('pk', flat=True)
+            
+        #     # Filter the ancestors queryset to only include those whose PK 
+        #     # is in the list of accessible nodes.
+        #     ancestors = ancestors.filter(pk__in=accessible_node_pks)
+        data = [{"id": n.id, "name": n.name, "node_type": n.node_type} for n in ancestors]
+        return JsonResponse({"ancestors": data}, status=200)
+    except TreeNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+    except Exception as e:
+        print(f"An unexpected error occurred in get_ancestors: {e}")
+        return JsonResponse({"error": "An unexpected error occurred."}, status=500)
+    
+
+def get_descendant_nodes(request, node_id):
+    try:
+        node = TreeNode.objects.get(pk=node_id)
+        descendants = node.get_descendants(include_self=True)
+
+        # if not request.user.is_superuser:
+        #     # Ensure the user is logged in and has a profile
+        #     if not request.user.is_authenticated:
+        #          # For security, return an empty list or unauthorized error if access is required
+        #         return JsonResponse({"error": "Authentication required"}, status=403)
+
+        #     # Get the PKs of all nodes accessible via the user's M2M field
+        #     accessible_node_pks = request.user.profile.academic_stream.values_list('pk', flat=True)
+            
+        #     # Filter the ancestors queryset to only include those whose PK 
+        #     # is in the list of accessible nodes.
+        #     descendants = descendants.filter(pk__in=accessible_node_pks)
+        data = [{"id": n.id, "name": n.name, "node_type": n.node_type} for n in descendants]
+        return JsonResponse({"children": data}, status=200)
+    except TreeNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+    except Exception as e:
+        print(f"An unexpected error occurred in get_ancestors: {e}")
+        return JsonResponse({"error": "An unexpected error occurred."}, status=500)

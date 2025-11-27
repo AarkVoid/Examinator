@@ -1,4 +1,23 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create New User{% endblock %}
+
+{% block extra_css %}
+
+.accordion-body {
+    max-height: 0; /* Hidden state */
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out;
+}
+.accordion-open {
+    max-height: 1000px; /* Open state */
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+    {% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto p-4 sm:p-8">
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-10 border border-gray-100 dark:border-gray-700">
@@ -10,12 +29,10 @@
         <form method="POST" id="userCreateForm" class="space-y-8">
             {% csrf_token %}
 
-            <!-- Basic Info Section -->
             <div class="space-y-4">
                 <h3 class="text-xl font-semibold text-blue-600 dark:text-blue-400">User Details</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
-                    <!-- Role and Email -->
+                    {# Role and Email #}
                     <div>
                         <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
                         <select name="role" id="role" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
@@ -24,46 +41,38 @@
                             <option value="student">Student</option>
                         </select>
                     </div>
-
                     <div>
                         <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                         <input type="email" name="email" id="email" required class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
-
-                    <!-- Username and Password -->
+                    {# Username and Password #}
                     <div>
                         <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
                         <input type="text" name="username" id="username" required class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
-
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                         <input type="password" name="password" id="password" required class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
-                    
-                    <!-- Name and Surname -->
+                    {# Name and Surname #}
                     <div>
                         <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">First Name</label>
                         <input type="text" name="name" id="name" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
-
                     <div>
                         <label for="surname" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Last Name</label>
                         <input type="text" name="surname" id="surname" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
                     </div>
-
-                    <!-- Primary Phone Number (New Field) -->
+                    {# Primary Phone Number (New Field) #}
                     <div>
                         <label for="phone_number" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number (Primary)</label>
                         <input type="tel" name="phone_number" id="phone_number" required class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out" placeholder="e.g., +1 555-123-4567">
                     </div>
-
-                    <!-- Secondary Contact (Existing field, updated label) and Birth Date -->
+                    {# Secondary Contact (Existing field, updated label) and Birth Date #}
                     <div>
                         <label for="contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Secondary Contact</label>
                         <input type="text" name="contact" id="contact" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out" placeholder="Optional contact number">
                     </div>
-
                     <div>
                         <label for="birth_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Birth Date</label>
                         <input type="date" name="birth_date" id="birth_date" class="p-2.5 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150 ease-in-out">
@@ -73,7 +82,6 @@
 
             ---
 
-            <!-- Permissions (Collapsible Section) -->
             <details class="group rounded-xl border border-blue-200 dark:border-blue-800 shadow-lg transition duration-300 hover:shadow-xl">
                 <summary class="flex items-center justify-between p-4 cursor-pointer bg-blue-50 dark:bg-blue-900/50 rounded-xl group-open:rounded-b-none">
                     <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300">
@@ -84,46 +92,78 @@
                     </svg>
                 </summary>
 
-                <div class="p-4 border-t border-blue-200 dark:border-blue-800 max-h-72 overflow-y-auto">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-3 gap-x-6">
-                        {% for perm in licensed_permissions %}
-                        <label class="flex items-center space-x-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-md">
-                            <input type="checkbox" name="permissions" value="{{ perm.id }}" class="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ perm.name }}</span>
-                        </label>
-                        {% empty %}
-                        <p class="text-gray-400 text-sm col-span-full">No licensed permissions available for assignment.</p>
-                        {% endfor %}
+                <div class="p-4 border-t border-blue-200 dark:border-blue-800 max-h-96 overflow-y-auto space-y-4">
+                    
+                    {% for model_name, perms in grouped_permissions.items %}
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3" data-model-group="{{ model_name|slugify }}">
+                        <div class="flex items-center justify-between mb-3 border-b pb-2">
+                            <h4 class="text-md font-bold text-gray-800 dark:text-gray-100">{{ model_name }}</h4>
+                            
+                            <label class="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300">
+                                <input type="checkbox" 
+                                       class="select-all-group-checkbox rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" 
+                                       data-target-group="{{ model_name|slugify }}">
+                                <span>Select All</span>
+                            </label>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-3 gap-x-6 permission-group-container">
+                            {% for perm in perms %}
+                            <label class="flex items-center space-x-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-md">
+                                <input type="checkbox" 
+                                       name="permissions" 
+                                       value="{{ perm.id }}" 
+                                       class="permission-item-checkbox rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                                       data-group-model="{{ model_name|slugify }}">
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ perm.name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
                     </div>
+                    {% empty %}
+                    <p class="text-gray-400 text-sm">No licensed permissions available for assignment.</p>
+                    {% endfor %}
                 </div>
             </details>
 
-            <!-- Academic Streams (Collapsible Section) -->
             <details class="group rounded-xl border border-green-200 dark:border-green-800 shadow-lg transition duration-300 hover:shadow-xl">
                 <summary class="flex items-center justify-between p-4 cursor-pointer bg-green-50 dark:bg-green-900/50 rounded-xl group-open:rounded-b-none">
                     <h3 class="text-lg font-semibold text-green-800 dark:text-green-300">
-                        Assign Academic Stream
+                        Assign Academic Stream (Content Nodes)
                     </h3>
                     <svg class="w-5 h-5 text-green-600 dark:text-green-400 transform transition-transform duration-300 group-open:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                 </summary>
 
-                <div class="p-4 border-t border-green-200 dark:border-green-800 max-h-72 overflow-y-auto">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-3 gap-x-6">
+                <div class="p-4 border-t border-green-200 dark:border-green-800 space-y-4">
+                    <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Select Content Nodes (Board / Class / Chapter)
+                    </h4>
+                    
+                    {# The container for the JavaScript-rendered tree #}
+                    <div id="curriculum-tree-container" class="space-y-2 p-3 border rounded-lg bg-white dark:bg-gray-900/50">
+                        <p class="text-gray-400 text-sm">Loading curriculum nodes...</p>
+                    </div>
+
+                    {# The hidden select remains to hold final values #}
+                    <select name="academic_stream" id="id_academic_stream_nodes" multiple class="hidden">
                         {% for node in licensed_nodes %}
-                        <label class="flex items-center space-x-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-md">
-                            <input type="checkbox" name="academic_stream" value="{{ node.id }}" class="rounded text-green-600 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ node.get_path_display }}</span>
-                        </label>
-                        {% empty %}
-                        <p class="text-gray-400 text-sm col-span-full">No licensed academic streams available for assignment.</p>
+                        <option value="{{ node.id }}">{{ node.get_path_display }}</option>
                         {% endfor %}
+                    </select>
+                    
+                    {# Display Stream for verification #}
+                    <div class="pt-4 border-t border-green-200 dark:border-green-800">
+                        <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Nodes:</h4>
+                        <div id="selected-nodes-stream" 
+                             class="p-3 min-h-[40px] bg-gray-50 dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg flex flex-wrap gap-2 items-center">
+                            <span class="text-gray-500 dark:text-gray-400 text-sm italic" id="empty-stream-message">No content nodes selected yet.</span>
+                        </div>
                     </div>
                 </div>
             </details>
 
-            <!-- Submit Button -->
             <div class="pt-6 border-t border-gray-200 dark:border-gray-700 text-right">
                 <button type="submit" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition transform hover:scale-105 duration-200">
                     Create User
@@ -132,4 +172,414 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+    // --- Configuration & Initialization ---
+    // Note: You need to pass the root nodes data to the context for this to work.
+    // Assuming 'json_root_nodes' is added to the context by your view.
+    const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}'); 
+    
+    // NOTE: Changed ID from id_license_curriculum_nodes to id_academic_stream_nodes
+    const mainCurriculumSelect = document.getElementById('id_academic_stream_nodes');
+    const curriculumTreeContainer = document.getElementById('curriculum-tree-container');
+    const selectedNodesStream = document.getElementById('selected-nodes-stream');
+    const emptyStreamMessage = document.getElementById('empty-stream-message');
+
+
+    // --- DEPENDENCY: Backend API Fetchers (Required for Cascading Logic) ---
+    // THESE MUST BE IMPLEMENTED ON YOUR BACKEND!
+    function fetchDescendantsIds(nodeId) {
+        const url = `/curritree/nodes/${nodeId}/descendant/`; 
+        return fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
+            .then(data => {
+                console.log('Descendants data:', data);
+                const descendant_ids = [];
+                data.children.forEach(node => {
+                    console.log(`Child Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
+                    descendant_ids.push(node.id || node.pk);
+                });
+                // Assuming the API returns a structure like: { descendant_ids: ["101", "102", ...] }
+                return descendant_ids || []; 
+            })
+            .catch(error => {
+                console.error(`Error fetching descendants for node ${nodeId}:`, error);
+                return [];
+            });
+    }
+    
+    function fetchAncestorsIds(nodeId) {
+        // This is the hypothetical endpoint we agreed upon
+        const url = `/curritree/nodes/${nodeId}/ancestors/`; 
+
+        return fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
+            .then(data => {
+                // Assuming the API returns a structure like: { ancestor_ids: ["parent_id", "grandparent_id", ...] }
+                console.log('Ancestors data:', data);
+                const ancestor_ids = [];
+                data.ancestors.forEach(node => {
+                    console.log(`Ancestor Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
+                    ancestor_ids.push(node.id || node.pk);
+                });
+                return ancestor_ids || []; 
+            })
+            .catch(error => {
+                console.error(`Error fetching ancestors for node ${nodeId}:`, error);
+                return [];
+            });
+    }
+    
+    function fetchChildrenAndRender(nodeId, targetElement, nodeType) {
+        if (targetElement.children.length > 0) return; // Simple caching check
+        const url = `/quiz/nodes/${nodeId}/children/`; 
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                renderTree(data.children, targetElement, nodeType); 
+            })
+            .catch(error => {
+                console.error("Error fetching curriculum nodes:", error);
+                targetElement.innerHTML = `<p class="text-sm text-red-500 italic p-3">Failed to load ${nodeType} options.</p>`;
+            });
+    }
+
+    // --- Core Tree Logic ---
+
+    function syncNodesToSelect() {
+        // 1. Get currently selected options
+        const selectedOptions = Array.from(mainCurriculumSelect.options)
+                                 .filter(option => option.selected);
+        
+        // 2. Update the Selected Nodes Stream
+        selectedNodesStream.innerHTML = '';
+        if (selectedOptions.length === 0) {
+            // Use the original message element, not a clone
+            selectedNodesStream.innerHTML = `<span class="text-gray-500 dark:text-gray-400 text-sm italic">No content nodes selected yet.</span>`;
+        } else {
+            selectedOptions.forEach(option => {
+                const badge = document.createElement('span');
+                const nodeName = option.textContent.trim(); 
+                badge.textContent = nodeName;
+                badge.className = 'px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-xs font-medium shadow-sm';
+                selectedNodesStream.appendChild(badge);
+            });
+        }
+
+        // 3. Update the tree checkboxes state
+        document.querySelectorAll('.tree-checkbox').forEach(checkbox => {
+            checkbox.checked = selectedOptions.some(opt => opt.value === checkbox.value);
+        });
+    }
+
+    // --- Cascading Selection/Deselection Logic ---
+    function handleTreeCheckboxChange(event) {
+        const checkbox = event.target;
+        const nodeId = checkbox.value;
+        const nodeName = checkbox.dataset.nodeName;
+
+        let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+
+        if (!option) {
+            // Add new option if it doesn't exist
+            option = new Option(nodeName, nodeId, false, false);
+            mainCurriculumSelect.add(option);
+        }
+        const isSelected = checkbox.checked;
+        option.selected = isSelected;
+        
+        // 1. Handle Descendants (Top-Down)
+        const descendantPromise = fetchDescendantsIds(nodeId)
+            .then(descendantIds => {
+                descendantIds.forEach(descendantId => {
+                    let descendantOption = mainCurriculumSelect.querySelector(`option[value="${descendantId}"]`);
+                    if (!descendantOption) {
+                        descendantOption = new Option(`Node ${descendantId}`, descendantId, isSelected, isSelected);
+                        mainCurriculumSelect.add(descendantOption);
+                    } else {
+                        descendantOption.selected = isSelected;
+                    }
+                    const descendantCheckbox = document.querySelector(`.tree-checkbox[value="${descendantId}"]`);
+                    if (descendantCheckbox) {
+                        descendantCheckbox.checked = isSelected;
+                    }
+                });
+            });
+
+        // 2. Handle Ancestors (Bottom-Up)
+        if (isSelected) {
+            // --- Selection Path (Bottom-Up Selection) ---
+            // If selected, ensure all ancestors are also selected.
+            descendantPromise
+                .then(() => fetchAncestorsIds(nodeId))
+                .then(ancestorIds => {
+                    ancestorIds.forEach(parentId => {
+                        // Select the ancestor in the hidden select
+                        const parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
+                        if (parentOption) {
+                            parentOption.selected = true;
+                        }
+                        const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+                        if (parentCheckbox) {
+                            parentCheckbox.checked = true;
+                        }
+                    });
+                })
+                .finally(() => {
+                    // Final UI Sync after all async operations are done
+                    if (typeof syncNodesToSelect === 'function') {
+                        syncNodesToSelect();
+                    }
+                });
+        } else {
+            // --- Deselection Path (Top-Down & Bottom-Up Deselection) ---
+            // If deselected, deselect descendants AND deselect all ancestors.
+            descendantPromise
+                .then(() => fetchAncestorsIds(nodeId)) // Fetch ancestors for deselection
+                .then(ancestorIds => {
+                    ancestorIds.forEach(parentId => {
+                        // Deselect the ancestor in the hidden select
+                        const parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
+                        if (parentOption) {
+                            parentOption.selected = false;
+                        }
+
+                        // Deselect the ancestor in the UI (if rendered)
+                        const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+                        if (parentCheckbox) {
+                            parentCheckbox.checked = false;
+                        }
+                    });
+                })
+                .finally(() => {
+                    // Final UI Sync after all async operations are done
+                    if (typeof syncNodesToSelect === 'function') {
+                        syncNodesToSelect();
+                    }
+                });
+        }
+    }
+
+    // --- handleSelectChildren function (Used by the "Select All" button) ---
+    function handleSelectChildren(parentId, parentType) {
+        if (!parentId) return;
+
+        // 1. Ensure the parent node itself is selected
+        let parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
+        if (!parentOption) {
+            const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+            const parentName = parentCheckbox ? parentCheckbox.dataset.nodeName : `Node ${parentId}`;
+            parentOption = new Option(parentName, parentId, true, true);
+            mainCurriculumSelect.add(parentOption);
+        } else {
+            parentOption.selected = true;
+        }
+        
+        // Update the parent UI checkbox immediately
+        const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+        if (parentCheckbox) {
+            parentCheckbox.checked = true;
+        }
+
+        // 2. Fetch and select all descendants
+        fetchDescendantsIds(parentId)
+            .then(descendantIds => {
+                descendantIds.forEach(descendantId => {
+                    let option = mainCurriculumSelect.querySelector(`option[value="${descendantId}"]`);
+
+                    if (!option) {
+                        option = new Option(`Node ${descendantId}`, descendantId, true, true);
+                        mainCurriculumSelect.add(option);
+                    } else {
+                        option.selected = true;
+                    }
+
+                    const descendantCheckbox = document.querySelector(`.tree-checkbox[value="${descendantId}"]`);
+                    if (descendantCheckbox) {
+                        descendantCheckbox.checked = true;
+                    }
+                });
+            })
+            // 3. Bottom-Up Selection of Ancestors (Ensuring license path integrity)
+            .then(() => fetchAncestorsIds(parentId))
+            .then(ancestorIds => {
+                ancestorIds.forEach(ancestorId => {
+                    const ancestorOption = mainCurriculumSelect.querySelector(`option[value="${ancestorId}"]`);
+                    if (ancestorOption) {
+                        ancestorOption.selected = true;
+                    }
+                    const ancestorCheckbox = document.querySelector(`.tree-checkbox[value="${ancestorId}"]`);
+                    if (ancestorCheckbox) {
+                        ancestorCheckbox.checked = true;
+                    }
+                });
+            })
+            .finally(() => {
+                if (typeof syncNodesToSelect === 'function') {
+                    syncNodesToSelect();
+                }
+            });
+    }
+
+
+    // Renders a single node as a list item, potentially with a collapsible body for children
+    function renderNode(node, container, level) {
+        const nodeId = node.id || node.pk; // Consolidated Node ID
+        const nodeName = node.name || node.fields.name;
+        const nodeType = node.node_type || node.fields.node_type;
+        const hasChildren = true; 
+
+        const nodeContainer = document.createElement('div');
+        nodeContainer.className = `ml-${level * 4} py-1`; 
+        
+        // --- Header (Checkbox, Name, and Buttons) ---
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition';
+
+        // Left side: Checkbox and Name
+        const leftSide = document.createElement('div');
+        leftSide.className = 'flex items-center flex-grow cursor-pointer';
+
+        const checkLabel = document.createElement('label');
+        checkLabel.className = 'flex items-center space-x-2 flex-grow cursor-pointer';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'tree-checkbox rounded text-green-600 focus:ring-green-500 bg-gray-100 border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:text-green-500';
+        checkbox.value = nodeId;
+        checkbox.dataset.nodeName = nodeName;
+        checkbox.addEventListener('change', handleTreeCheckboxChange); 
+
+        const nodeNameSpan = document.createElement('span');
+        nodeNameSpan.className = 'text-gray-700 dark:text-gray-300 text-sm font-medium';
+        nodeNameSpan.textContent = `${nodeName} (${nodeType})`;
+
+        checkLabel.appendChild(checkbox);
+        checkLabel.appendChild(nodeNameSpan);
+        leftSide.appendChild(checkLabel);
+        header.appendChild(leftSide);
+
+        // Right side: Toggle Button and Select Children Button
+        const rightSide = document.createElement('div');
+        rightSide.className = 'flex items-center space-x-2';
+
+        // NEW: Select Children Button 
+        const selectChildrenButton = document.createElement('button');
+        selectChildrenButton.type = 'button';
+        selectChildrenButton.title = 'Select all children (and descendants)';
+        selectChildrenButton.className = 'p-1 text-xs text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900 rounded-lg transition font-semibold';
+        selectChildrenButton.innerHTML = '<i class="fa-solid fa-layer-group mr-1"></i> Select All';
+        
+        selectChildrenButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleSelectChildren(nodeId, nodeType); 
+        });
+        rightSide.appendChild(selectChildrenButton);
+
+
+        // Collapsible Toggle Button
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'p-1 ml-2 text-green-600 dark:text-green-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition';
+        toggleButton.innerHTML = `<svg id="tree-icon-${nodeId}" class="w-4 h-4 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
+        
+        toggleButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const bodyId = `tree-body-${nodeId}`;
+            const iconId = `tree-icon-${nodeId}`;
+            
+            const body = document.getElementById(bodyId);
+            const icon = document.getElementById(iconId);
+
+            if (body.classList.contains('accordion-open')) {
+                body.classList.remove('accordion-open');
+                icon.classList.remove('rotate-180');
+            } else {
+                body.classList.add('accordion-open');
+                icon.classList.add('rotate-180');
+                
+                // Lazy load children on first open
+                if (body.children.length === 0) {
+                    fetchChildrenAndRender(nodeId, body, nodeType);
+                }
+            }
+        });
+        rightSide.appendChild(toggleButton);
+
+        header.appendChild(rightSide);
+        nodeContainer.appendChild(header);
+
+        // --- Body (Collapsible Children) ---
+        const body = document.createElement('div');
+        body.id = `tree-body-${nodeId}`;
+        body.className = 'accordion-body bg-white dark:bg-gray-900 border-l-2 border-green-200 dark:border-green-800 ml-4';
+        nodeContainer.appendChild(body);
+
+        container.appendChild(nodeContainer);
+    }
+
+    // Renders a list of nodes at the current level
+    function renderTree(nodes, container, parentType = 'Root') {
+        if (nodes.length === 0) {
+            container.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-sm italic p-3">No further ${parentType} content found.</p>`;
+            return;
+        }
+
+        const level = container === curriculumTreeContainer ? 0 : 1; 
+        
+        nodes.forEach(node => {
+            renderNode(node, container, level);
+        });
+        
+        syncNodesToSelect(); 
+    }
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- EXISTING: Curriculum Tree Initialization ---
+        if (ROOT_NODES_DATA && curriculumTreeContainer) {
+            curriculumTreeContainer.innerHTML = ''; 
+            renderTree(ROOT_NODES_DATA, curriculumTreeContainer);
+        } else if (curriculumTreeContainer) {
+            curriculumTreeContainer.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm italic p-3">Error: Root nodes data not provided by the server.</p>';
+        }
+
+        // --- NEW: Permission Group Listener ---
+        document.querySelectorAll('.select-all-group-checkbox').forEach(masterCheckbox => {
+            masterCheckbox.addEventListener('change', function() {
+                const modelSlug = this.dataset.targetGroup;
+                // Select all item checkboxes within the specific model group
+                const itemCheckboxes = document.querySelectorAll(`.permission-item-checkbox[data-group-model="${modelSlug}"]`);
+                
+                itemCheckboxes.forEach(itemCheckbox => {
+                    itemCheckbox.checked = this.checked;
+                });
+            });
+        });
+        
+        // Optional: Implement logic to update master checkbox if individual items are unchecked
+        document.querySelectorAll('.permission-item-checkbox').forEach(itemCheckbox => {
+            itemCheckbox.addEventListener('change', function() {
+                const modelSlug = this.dataset.groupModel;
+                const groupContainer = document.querySelector(`[data-model-group="${modelSlug}"]`);
+                const masterCheckbox = groupContainer.querySelector('.select-all-group-checkbox');
+                const itemCheckboxes = groupContainer.querySelectorAll('.permission-item-checkbox');
+
+                const allChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
+                masterCheckbox.checked = allChecked;
+            });
+        });
+    });
+
+</script>
 {% endblock %}

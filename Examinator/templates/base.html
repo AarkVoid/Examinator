@@ -132,22 +132,27 @@
         <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Quizzes</p>
         
         {% if request.user|check_permissions:"quiz.view_questionpaper|or" %}
-        {% url 'quiz:paper_list' as paper_list_url %}
-        <a href="{{ paper_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-          {% if current_path == paper_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-          <i class="fa-solid fa-play-circle text-lg group-hover:text-green-500"></i>
-          <span>Question Papers</span>
-        </a>
+          {% if not user.is_staff %}
+            {% url 'quiz:paper_list' as paper_list_url %}
+            <a href="{{ paper_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+              {% if current_path == paper_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+              <i class="fa-solid fa-play-circle text-lg group-hover:text-green-500"></i>
+              <span>Question Papers</span>
+            </a>
+          {% endif %}
         {% endif %}
 
         {% if request.user|check_permissions:"quiz.view_question|or" %}
-        {% url 'quiz:question_list' as question_list_url %}
-        <a href="{{ question_list_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
-          {% if current_path == question_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
-          <i class="fa-solid fa-list-check text-lg group-hover:text-blue-500"></i>
-          <span>My Questions</span>
-        </a>
+    
+          {% url 'quiz:question_list' as question_list_url %}
+          <a href="{% if request.user.is_staff %}{{ question_list_url }}{% else %}{{ question_list_url }}?tab=organization{% endif %}" 
+            class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+            {% if current_path == question_list_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+              <i class="fa-solid fa-list-check text-lg group-hover:text-blue-500"></i>
+              <span>My Questions</span>
+          </a>
         {% endif %}
+
 
 
         {% if request.user|check_permissions:"quiz.add_question|or" %}
@@ -158,6 +163,16 @@
           <span>Create Question</span>
         </a>
         {% endif %}
+
+        {% if request.user|check_permissions:"quiz.upload_question_csv|or" %}
+        {% url 'quiz:bulk_upload_questions' as question_upload_url %}
+        <a href="{{ question_upload_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
+          {% if current_path == question_create_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
+          <i class="fa-solid fa-plus-circle text-lg group-hover:text-yellow-500"></i>
+          <span>Upload Questions </span>
+        </a>
+        {% endif %}
+
       </div>
       {% endif %}
       

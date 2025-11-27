@@ -3,11 +3,13 @@ from django.contrib.auth import get_user_model
 from curritree.models import TreeNode
 from accounts.models import TimeStampedModel,User
 import json
-
+import uuid
 
 User = get_user_model()
 
 class Question(TimeStampedModel):
+
+
     QUESTION_TYPES = [
         ('mcq', 'Multiple Choice'),
         ('fill_blank', 'Fill in the Blank'),
@@ -74,6 +76,9 @@ class Question(TimeStampedModel):
     
     def __str__(self):
         return f"{self.get_question_type_display()}: {self.question_text[:50]}..."
+    
+
+
 
 class MCQOption(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='mcq_options')

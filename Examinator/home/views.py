@@ -30,6 +30,7 @@ from accounts.views import staff_required,superuser_required
 @staff_required
 def home(request):
     # Define time thresholds
+    print("Home View Accessed by:", request.user.username)
     one_week_ago = timezone.now() - timedelta(days=7)
     one_month_from_now = timezone.now() + timedelta(days=30)
 

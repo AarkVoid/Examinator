@@ -73,7 +73,11 @@ def impersonate_user(request, user_id,pin=None):
     
     messages.success(request, f"You are now impersonating {target_user.username}.")
     
-    return redirect('OrgHome')
+    if target_user.profile.organization_profile:
+        return redirect('OrgHome')
+    
+    return redirect('home')
+    
 
 
 

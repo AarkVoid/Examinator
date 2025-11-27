@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Upload Questions - Examinator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+        
+        <!-- Page Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                Bulk Upload Questions
+            </h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Upload multiple questions at once using our CSV template. Based on your sample, here's an enhanced template with validation rules.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column - Template & Upload -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Download Template Section -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+                        <h2 class="text-xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-file-csv mr-3"></i> Download Templates
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-4">
+                            <p class="text-gray-600 dark:text-gray-400">
+                                Based on your sample data, these templates include validation rules and examples for all question types.
+                            </p>
+                            <p class="text-sm text-green-600 dark:text-green-400 font-medium">
+                                ✓ Includes CBSE Class 10 Mathematics examples
+                            </p>
+                            
+                            <!-- Download Buttons Grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <a href="{% static 'demo/uplaod questions.csv' %}" 
+                                   class="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 group">
+                                    <i class="fa-solid fa-file-csv mr-2 group-hover:scale-110 transition-transform"></i>
+                                    Download CSV Template
+                                </a>
+                                <a href="{% static 'demo/uplaod questions.xlsx' %}" 
+                                   class="inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 group">
+                                    <i class="fa-solid fa-file-excel mr-2 group-hover:scale-110 transition-transform"></i>
+                                    Download Excel Template
+                                </a>
+                            </div>
+                            
+                            <!-- Format Tips -->
+                            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mt-4">
+                                <p class="text-sm text-blue-700 dark:text-blue-300 flex items-start">
+                                    <i class="fa-solid fa-info-circle mr-2 mt-0.5 flex-shrink-0"></i>
+                                    <span><strong>Recommendation:</strong> Use Excel for better formatting and CSV for larger datasets. Both contain the same sample questions.</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+                        <h2 class="text-xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-3"></i> Upload Your Questions
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <form method="POST" enctype="multipart/form-data" class="space-y-6">
+                            {% csrf_token %}
+                            
+                            <!-- File Upload Area -->
+                            <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center transition-all duration-200 hover:border-green-400 dark:hover:border-green-500 bg-gray-50/50 dark:bg-gray-700/50">
+                                <div class="max-w-md mx-auto">
+                                    <i class="fa-solid fa-file-import text-4xl text-gray-400 dark:text-gray-500 mb-4"></i>
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                        Select your file
+                                    </h3>
+                                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                                        Supported formats: CSV, Excel (.xlsx, .xls)
+                                    </p>
+                                    
+                                    <div class="relative">
+                                        <input type="file" 
+                                               name="file" 
+                                               id="file" 
+                                               accept=".csv,.xlsx,.xls" 
+                                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                               required>
+                                        <label for="file" class="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 cursor-pointer">
+                                            <i class="fa-solid fa-folder-open mr-2"></i>
+                                            Choose File
+                                        </label>
+                                    </div>
+                                    <p id="file-name" class="text-sm text-gray-500 dark:text-gray-400 mt-2 hidden">
+                                        Selected file: <span class="font-medium"></span>
+                                    </p>
+                                    <p id="file-type" class="text-xs text-gray-400 dark:text-gray-500 mt-1 hidden"></p>
+                                </div>
+                            </div>
+
+                            <!-- Upload Stats Preview -->
+                            <div id="upload-preview" class="hidden bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                                <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                                    <i class="fa-solid fa-chart-simple mr-2"></i>
+                                    Upload Preview
+                                </h4>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                    <div class="text-center">
+                                        <div class="text-blue-600 dark:text-blue-400 font-bold" id="preview-total">0</div>
+                                        <div class="text-gray-600 dark:text-gray-400 text-xs">Total Questions</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-green-600 dark:text-green-400 font-bold" id="preview-mcq">0</div>
+                                        <div class="text-gray-600 dark:text-gray-400 text-xs">MCQ</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-purple-600 dark:text-purple-400 font-bold" id="preview-tf">0</div>
+                                        <div class="text-gray-600 dark:text-gray-400 text-xs">True/False</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-orange-600 dark:text-orange-400 font-bold" id="preview-other">0</div>
+                                        <div class="text-gray-600 dark:text-gray-400 text-xs">Other Types</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Upload Button -->
+                            <div class="text-center pt-4">
+                                <button type="submit" 
+                                        class="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 min-w-48 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        id="upload-button">
+                                    <i class="fa-solid fa-upload mr-3"></i>
+                                    Process Upload
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Messages Display -->
+                {% if messages %}
+                <div class="space-y-4">
+                    {% for message in messages %}
+                        <div class="{% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-200
+                                    {% elif message.tags == 'error' %}bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-200
+                                    {% else %}bg-yellow-50 border border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-200{% endif %} 
+                                    p-4 rounded-xl shadow-sm">
+                            <div class="flex items-center">
+                                <i class="fa-solid 
+                                    {% if message.tags == 'success' %}fa-circle-check text-green-500
+                                    {% elif message.tags == 'error' %}fa-circle-xmark text-red-500
+                                    {% else %}fa-triangle-exclamation text-yellow-500{% endif %} 
+                                    mr-3"></i>
+                                <span class="font-medium">{{ message }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Column - Quick Reference -->
+            <div class="space-y-6">
+                <!-- Quick Start Guide -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3">
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-rocket mr-2"></i> Quick Start
+                        </h3>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div class="flex items-start space-x-2">
+                            <span class="bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Download the template that matches your preferred format</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <span class="bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Fill in your questions following the examples</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <span class="bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Upload your completed file using the form</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation Rules -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3">
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-circle-check mr-2"></i> Validation Rules
+                        </h3>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div class="flex items-start space-x-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Required fields: question_type, question_text, correct_answer</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">MCQ: options required (semi-colon separated)</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Match: pairs required (pipe and colon separated)</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Difficulty: easy, medium, hard</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Types Quick Guide -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3">
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-lightbulb mr-2"></i> Quick Format Guide
+                        </h3>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <!-- MCQ -->
+                        <div>
+                            <h4 class="font-semibold text-gray-900 dark:text-white text-sm mb-1">MCQ Format:</h4>
+                            <code class="text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded block text-gray-800 dark:text-gray-200">
+options: "Option A;Option B;Option C;Option D"<br>
+correct_answer: "Option B"
+                            </code>
+                        </div>
+                        
+                        <!-- Match -->
+                        <div>
+                            <h4 class="font-semibold text-gray-900 dark:text-white text-sm mb-1">Match Format:</h4>
+                            <code class="text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded block text-gray-800 dark:text-gray-200">
+pairs: "Left 1:Right 1|Left 2:Right 2|Left 3:Right 3"
+                            </code>
+                        </div>
+                        
+                        <!-- True/False -->
+                        <div>
+                            <h4 class="font-semibold text-gray-900 dark:text-white text-sm mb-1">True/False Format:</h4>
+                            <code class="text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded block text-gray-800 dark:text-gray-200">
+correct_answer: "TRUE" or "FALSE"
+                            </code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Common Issues -->
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl p-4">
+                    <h4 class="font-semibold text-yellow-900 dark:text-yellow-200 mb-3 flex items-center">
+                        <i class="fa-solid fa-exclamation-triangle mr-2"></i> Common Issues to Avoid
+                    </h4>
+                    <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-2">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-xmark text-red-500 mr-2 mt-0.5"></i>
+                            <span>Typos in options and answers</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-xmark text-red-500 mr-2 mt-0.5"></i>
+                            <span>Missing required fields for specific question types</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-xmark text-red-500 mr-2 mt-0.5"></i>
+                            <span>Incorrect separator usage (; for options, | for pairs)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-xmark text-red-500 mr-2 mt-0.5"></i>
+                            <span>Case sensitivity in True/False answers</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// File input display with enhanced preview
+document.getElementById('file').addEventListener('change', function(e) {
+    const fileNameDisplay = document.getElementById('file-name');
+    const fileTypeDisplay = document.getElementById('file-type');
+    const fileNameSpan = fileNameDisplay.querySelector('span');
+    const uploadPreview = document.getElementById('upload-preview');
+    
+    if (this.files.length > 0) {
+        const file = this.files[0];
+        const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        const fileExtension = file.name.split('.').pop().toUpperCase();
+        
+        fileNameSpan.textContent = `${file.name} (${fileSize} MB)`;
+        fileTypeDisplay.textContent = `File type: ${fileExtension}`;
+        
+        fileNameDisplay.classList.remove('hidden');
+        fileTypeDisplay.classList.remove('hidden');
+        
+        // Show upload preview (this would need backend integration for actual stats)
+        uploadPreview.classList.remove('hidden');
+        
+        // Simulate file analysis (in real implementation, this would be done on backend)
+        simulateFileAnalysis();
+        
+    } else {
+        fileNameDisplay.classList.add('hidden');
+        fileTypeDisplay.classList.add('hidden');
+        uploadPreview.classList.add('hidden');
+    }
+});
+
+// Simulate file analysis (replace with actual backend call)
+function simulateFileAnalysis() {
+    // This is a simulation - in real implementation, you'd send the file to backend for analysis
+    setTimeout(() => {
+        document.getElementById('preview-total').textContent = '35';
+        document.getElementById('preview-mcq').textContent = '15';
+        document.getElementById('preview-tf').textContent = '8';
+        document.getElementById('preview-other').textContent = '12';
+    }, 500);
+}
+
+// Add loading state for upload button
+document.querySelector('form').addEventListener('submit', function() {
+    const button = document.getElementById('upload-button');
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-3"></i>Processing...';
+});
+</script>
+{% endblock %}

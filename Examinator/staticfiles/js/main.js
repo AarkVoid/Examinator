@@ -1,118 +1,133 @@
-// Main JavaScript file
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // Auto-hide alerts after 5 seconds
-    const alerts = document.querySelectorAll('.alert');
-    alerts.forEach(alert => {
-        setTimeout(() => {
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                alert.remove();
-            }, 300);
-        }, 5000);
+// -------------------------------
+// GLOBAL SCRIPT.JS
+// -------------------------------
+
+// ========== NAVBAR TOGGLE ==========
+document.addEventListener("DOMContentLoaded", () => {
+  const navToggle = document.querySelector("#nav-toggle");
+  const navLinks = document.querySelector(".nav-links");
+
+  if (navToggle && navLinks) {
+    navToggle.addEventListener("change", () => {
+      navLinks.classList.toggle("active", navToggle.checked);
     });
-    
-    // Confirm delete actions
-    const deleteButtons = document.querySelectorAll('[data-confirm-delete]');
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            const message = this.getAttribute('data-confirm-delete') || 'Are you sure you want to delete this item?';
-            if (!confirm(message)) {
-                e.preventDefault();
-            }
-        });
+  }
+
+  // ========== SIDEBAR TOGGLE ==========
+  const sidebarToggle = document.querySelector("#sidebar-toggle");
+  const sidebar = document.querySelector(".sidebar");
+
+  if (sidebarToggle && sidebar) {
+    sidebarToggle.addEventListener("change", () => {
+      sidebar.classList.toggle("open", sidebarToggle.checked);
     });
-    
-    // Dynamic form handling for question types
-    const questionTypeSelect = document.getElementById('id_question_type');
-    if (questionTypeSelect) {
-        questionTypeSelect.addEventListener('change', function() {
-            const selectedType = this.value;
-            // Add logic for showing/hiding form fields based on question type
-            console.log('Question type changed to:', selectedType);
-        });
+  }
+
+  // ========== DROPDOWNS ==========
+  document.querySelectorAll(".dropdown").forEach((dropdown) => {
+    const toggle = dropdown.querySelector(".dropdown-toggle");
+    if (toggle) {
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle("open");
+      });
     }
-    
-    // Subject-Chapter cascade
-    const subjectSelect = document.getElementById('id_subject');
-    const chapterSelect = document.getElementById('id_chapter');
-    
-    if (subjectSelect && chapterSelect) {
-        subjectSelect.addEventListener('change', function() {
-            const subjectId = this.value;
-            
-            if (subjectId) {
-                fetch(`/quiz/ajax/get-chapters/?subject_id=${subjectId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        chapterSelect.innerHTML = '<option value="">---------</option>';
-                        data.chapters.forEach(chapter => {
-                            chapterSelect.innerHTML += `<option value="${chapter.id}">${chapter.name}</option>`;
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error fetching chapters:', error);
-                    });
-            } else {
-                chapterSelect.innerHTML = '<option value="">---------</option>';
-            }
-        });
-    }
-    
-    // Form validation
-    const forms = document.querySelectorAll('form[data-validate]');
-    forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const requiredFields = form.querySelectorAll('[required]');
-            let isValid = true;
-            
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    field.classList.add('is-invalid');
-                    isValid = false;
-                } else {
-                    field.classList.remove('is-invalid');
-                }
-            });
-            
-            if (!isValid) {
-                e.preventDefault();
-                alert('Please fill in all required fields.');
-            }
-        });
+  });
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".dropdown.open").forEach((d) => d.classList.remove("open"));
+  });
+
+  // ========== TABS ==========
+  document.querySelectorAll("[data-tab]").forEach((tabBtn) => {
+    tabBtn.addEventListener("click", () => {
+      const target = tabBtn.dataset.tab;
+
+      document.querySelectorAll(".tab-content").forEach((c) =>
+        c.classList.remove("active")
+      );
+      document.querySelector(`#${target}`)?.classList.add("active");
+
+      document.querySelectorAll("[data-tab]").forEach((b) =>
+        b.classList.remove("active")
+      );
+      tabBtn.classList.add("active");
     });
-    
-    // Search functionality
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                // Implement search logic here
-                console.log('Searching for:', this.value);
-            }, 300);
-        });
+  });
+
+  // ========== MODALS ==========
+  document.querySelectorAll("[data-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.modal;
+      document.querySelector(`#${target}`)?.classList.add("open");
+    });
+  });
+  document.querySelectorAll(".modal .close").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.closest(".modal").classList.remove("open");
+    });
+  });
+
+  // ========== TOAST NOTIFICATIONS ==========
+  function showToast(message, type = "info", timeout = 3000) {
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.innerText = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add("show"), 50);
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, timeout);
+  }
+  window.showToast = showToast;
+
+  // Example: showToast("Welcome back!", "success");
+
+  // ========== FORM VALIDATION ==========
+  document.querySelectorAll("form.validate").forEach((form) => {
+    form.addEventListener("submit", (e) => {
+      let valid = true;
+      form.querySelectorAll("[required]").forEach((input) => {
+        if (!input.value.trim()) {
+          valid = false;
+          input.classList.add("error");
+          input.nextElementSibling?.classList.add("show");
+        } else {
+          input.classList.remove("error");
+          input.nextElementSibling?.classList.remove("show");
+        }
+      });
+      if (!valid) e.preventDefault();
+    });
+  });
+
+  // ========== COLLAPSIBLES ==========
+  document.querySelectorAll(".collapsible .toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.closest(".collapsible").classList.toggle("open");
+    });
+  });
+
+  // ========== DARK MODE ==========
+  const darkToggle = document.querySelector("#dark-mode-toggle");
+  if (darkToggle) {
+    darkToggle.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      localStorage.setItem(
+        "darkMode",
+        document.body.classList.contains("dark") ? "1" : "0"
+      );
+    });
+
+    if (localStorage.getItem("darkMode") === "1") {
+      document.body.classList.add("dark");
     }
-    
+  }
+
+  // ========== CHAT AUTOSCROLL ==========
+  const chatBox = document.querySelector(".chat-messages");
+  if (chatBox) {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 });
-
-// Utility functions
-function showAlert(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type}`;
-    alertDiv.textContent = message;
-    
-    const container = document.querySelector('.container');
-    if (container) {
-        container.insertBefore(alertDiv, container.firstChild);
-        
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
-}
-
-function confirmAction(message = 'Are you sure?') {
-    return confirm(message);
-}

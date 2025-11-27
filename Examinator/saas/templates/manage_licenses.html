@@ -5,12 +5,6 @@
 
 {% block content %}
 <style>
-/* * 🎨 UI Fixes & Enhancements 
- * --------------------------------------
- * The original custom-permissions-select styles are removed as the new design uses 
- * standard Tailwind checkboxes within an accordion.
-*/
-/* Ensure the accordion transition is smooth */
 .accordion-body {
     max-height: 0;
     overflow: hidden;
@@ -43,42 +37,28 @@
                     {% csrf_token %}
 
                     {# --- STEP 1: Content Selection --- #}
+                    {# --- STEP 1: Content Selection --- #}
                     <div class="space-y-6">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">1</span> Select Content Scope
                         </h3>
                         <div class="p-6 border-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 border-indigo-200 dark:border-indigo-800 space-y-4">
                             
-                            {# Curriculum Filter Section (Cascading Selects) #}
-                            <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Drill Down Filters</h4>
-                            <div id="curriculum-filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div class="filter-group" id="filter_group_1">
-                                    <label for="filter_1" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Level 1: Board or Exam</label>
-                                    <select id="filter_1" data-level="1" data-target-id="id_license_curriculum_nodes"
-                                        class="{{ TAILWIND_INPUT_CLASSES }}">
-                                        <option value="">-- Select Board or Exam --</option>
-                                        {% for node in root_nodes %}
-                                            <option value="{{ node.id }}" data-node-type="{{ node.node_type }}">
-                                                {{ node.name }} ({{ node.node_type }})
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
+                            {# Curriculum TREE Section (Accordion/Collapsible) #}
+                            <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Select Content Nodes (Board / Class / Chapter)</h4>
                             
+                            {# New container for the tree structure #}
+                            <div id="curriculum-tree-container" class="space-y-2">
+                                </div>
+                            
+                            {# The hidden select remains to hold final values #}
                             <select name="curriculum_node" id="id_license_curriculum_nodes" multiple
                                 class="hidden">
                             </select>
 
-                            {# Actionable Nodes (Buttons) #}
-                            <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 pt-4 border-t border-indigo-100 dark:border-indigo-800/50">Actionable Content Nodes</h4>
-                            <div id="curriculum-buttons-container" class="min-h-[100px] flex items-center justify-center">
-                                <p class="text-gray-500 dark:text-gray-400 text-center py-4">
-                                    Select a filter above or choose from the root nodes below.
-                                </p>
-                            </div>
+                            {# Actionable Nodes (Buttons) - REMOVED, as selection happens directly in the tree #}
                             
-                            {# --- NEW: Selected Nodes Stream Display --- #}
+                            {# --- NEW: Selected Nodes Stream Display (Remains the same) --- #}
                             <div class="pt-4 border-t border-indigo-100 dark:border-indigo-800/50">
                                 <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Content Stream:</h4>
                                 <div id="selected-nodes-stream" 
@@ -126,6 +106,7 @@
                     </div>
 
                     {# --- STEP 3: Permissions (Accordion Group) --- #}
+                    {# --- STEP 3: Permissions (Accordion Group) --- #}
                     <div class="space-y-6">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">3</span> Granular Permissions
@@ -133,7 +114,7 @@
                         
                         <div class="bg-gray-50 dark:bg-gray-900/40 border-2 border-indigo-200 dark:border-indigo-800 rounded-xl p-3 shadow-inner">
                             {% for model_name, perms in all_permissions_by_model.items %}
-                                <div class="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                                <div class="border-b border-gray-200 dark:border-gray-700 last:border-b-0" id="perm-group-{{ model_name|slugify }}">
                                     <button type="button"
                                             class="w-full flex justify-between items-center bg-transparent px-4 py-3 text-left font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg"
                                             onclick="toggleAccordion('{{ model_name|slugify }}')">
@@ -147,10 +128,21 @@
                                     </button>
 
                                     <div id="{{ model_name|slugify }}-body" class="accordion-body bg-white dark:bg-gray-900">
+                                        
+                                        <div class="px-4 pb-2 border-b border-gray-200 dark:border-gray-800 mb-3">
+                                            <label class="flex items-center space-x-2 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition cursor-pointer font-bold text-indigo-800 dark:text-indigo-200">
+                                                <input type="checkbox" data-select-all-model="{{ model_name|slugify }}"
+                                                    onchange="toggleAllPermissions(this)"
+                                                    class="rounded text-indigo-600 focus:ring-indigo-500 bg-white border-indigo-300 dark:bg-gray-700 dark:border-indigo-500 dark:text-indigo-500">
+                                                <!-- <span>Select/Deselect All {{ model_name }} Permissions</span> -->
+                                            </label>
+                                        </div>
+                                        
                                         <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-4">
                                             {% for perm in perms %}
                                                 <label class="flex items-center space-x-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer">
                                                     <input type="checkbox" name="permissions"
+                                                        data-model-group="{{ model_name|slugify }}"
                                                         value="{{ perm.id }}"
                                                         class="rounded text-indigo-600 focus:ring-indigo-500 bg-gray-100 border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:text-indigo-500">
                                                     <span class="text-gray-700 dark:text-gray-300 text-sm font-medium">{{ perm.display_name }}</span>
@@ -281,250 +273,21 @@
     // The original JS has been kept largely intact, with updates to syncButtonsToSelect 
     // and renderRootNodeButtons to manage the new #selected-nodes-stream div.
     
+    // --- Configuration & Initialization ---
     const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}');
-
-    // --- Configuration ---
-    const MAX_FILTER_LEVEL = 4; 
-    const filterContainer = document.getElementById('curriculum-filters');
     const mainCurriculumSelect = document.getElementById('id_license_curriculum_nodes');
-    const buttonsContainer = document.getElementById('curriculum-buttons-container');
-    // NEW: Reference to the display stream
+    const curriculumTreeContainer = document.getElementById('curriculum-tree-container'); // NEW
     const selectedNodesStream = document.getElementById('selected-nodes-stream');
     const emptyStreamMessage = document.getElementById('empty-stream-message');
     
     const SELECT_CLASSES = 'mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-indigo-400';
 
-    // --- Synchronization Functions ---
-    
-    function syncButtonsToSelect() {
-        const buttons = buttonsContainer.querySelectorAll('button[data-node-id]');
-        
-        // 1. Get currently selected options
-        const selectedOptions = Array.from(mainCurriculumSelect.options)
-                                 .filter(option => option.selected);
-        
-        // 2. Update button appearance
-        const selectedIds = selectedOptions.map(option => option.value);
-
-        buttons.forEach(button => {
-            const nodeId = button.dataset.nodeId;
-            if (selectedIds.includes(nodeId)) {
-                // Active/Selected State (Blue)
-                button.classList.add('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
-                button.classList.remove('bg-gray-200', 'text-gray-900', 'dark:bg-gray-700', 'dark:text-gray-200', 'hover:bg-gray-300', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
-            } else {
-                // Default State (Gray)
-                button.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-indigo-700', 'ring-2', 'ring-indigo-500', 'dark:bg-indigo-500', 'dark:hover:bg-indigo-600');
-                button.classList.add('bg-gray-200', 'text-gray-900', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:text-gray-200', 'dark:hover:bg-gray-600', 'border-gray-300', 'dark:border-gray-600');
-            }
-        });
-
-        // 3. Update the Selected Nodes Stream
-        selectedNodesStream.innerHTML = '';
-        if (selectedOptions.length === 0) {
-            selectedNodesStream.appendChild(emptyStreamMessage);
-        } else {
-            selectedOptions.forEach(option => {
-                const badge = document.createElement('span');
-                // Use the option text, trimming any extra spaces
-                const nodeName = option.textContent.trim(); 
-                
-                badge.textContent = nodeName;
-                // Styled badge for selected nodes
-                badge.className = 'px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-sm font-medium shadow-sm';
-                selectedNodesStream.appendChild(badge);
-            });
-        }
-    }
-
-    function handleNodeButtonClick(event) {
-        const button = event.currentTarget;
-        const nodeId = button.dataset.nodeId;
-        let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
-
-        if (!option) {
-            // Use button text for the option name
-            option = new Option(button.textContent.trim(), nodeId, false, false);
-            mainCurriculumSelect.add(option);
-        }
-
-        if (option) {
-            option.selected = !option.selected;
-            syncButtonsToSelect();
-        }
-    }
-
-    function renderNodeButtons(data) {
-        buttonsContainer.innerHTML = '';
-        
-        if (data.children.length === 0) {
-            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
-            return;
-        }
-
-        const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; 
-
-        data.children.forEach(node => {
-            let option = mainCurriculumSelect.querySelector(`option[value="${node.id}"]`);
-            if (!option) {
-                // Use the node name for the option text
-                option = new Option(node.name, node.id, false, false); 
-                mainCurriculumSelect.add(option);
-            }
-            
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.dataset.nodeId = node.id;
-            button.textContent = node.name;
-            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
-                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
-            
-            button.addEventListener('click', handleNodeButtonClick);
-
-            grid.appendChild(button);
-        });
-        
-        buttonsContainer.appendChild(grid);
-        syncButtonsToSelect();
-    }
-
-
-    function renderRootNodeButtons(data) {
-        buttonsContainer.innerHTML = '';
-        
-        if (data.length === 0) {
-            buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">There are no selectable content options at this level.</p>';
-            return;
-        }
-
-        const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; 
-
-        data.forEach(node => {
-            let option = mainCurriculumSelect.querySelector(`option[value="${node.pk}"]`);
-            if (!option) {
-                // Use the node name (from serialized fields) for the option text
-                option = new Option(node.fields.name, node.pk, false, false);
-                mainCurriculumSelect.add(option);
-            }
-            
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.dataset.nodeId = node.pk;
-            button.textContent = node.fields.name;
-            button.className = 'p-3 text-center rounded-lg font-semibold shadow-md transition duration-150 ease-in-out ' + 
-                               'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600';
-            
-            button.addEventListener('click', handleNodeButtonClick);
-
-            grid.appendChild(button);
-        });
-        
-        buttonsContainer.appendChild(grid);
-        syncButtonsToSelect(); // Update the stream on initial load
-    }
-
-    // --- Core Functions (kept the same) ---
-    function fetchAndPopulate(parentId, targetElement, isFinalSelect = false) {
-        if (!parentId) {
-            if (isFinalSelect) {
-                buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to load license options.</p>';
-            } else {
-                targetElement.innerHTML = '<option value="">-- Select --</option>';
-            }
-            return;
-        }
-        
-        const url = `/quiz/nodes/${parentId}/children/`; 
-
-        fetch(url)
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok. Status: ' + response.status);
-                return response.json();
-            })
-            .then(data => {
-                if (isFinalSelect) {
-                    renderNodeButtons(data); 
-
-                } else {
-                    targetElement.innerHTML = '<option value="">-- Select --</option>';
-
-                    data.children.forEach(node => {
-                        const option = document.createElement('option');
-                        option.value = node.id;
-                        option.textContent = `${node.name} (${node.node_type})`;
-                        option.dataset.nodeType = node.node_type;
-                        targetElement.appendChild(option);
-                    });
-                    
-                    if (data.children.length === 0) {
-                        targetElement.innerHTML = '<option value="">-- No further options --</option>';
-                    }
-                }
-            })
-            .catch(error => console.error("Error fetching curriculum nodes:", error));
-    }
-
-    function createNextFilter(level, typeName) {
-        const container = document.createElement('div');
-        container.className = 'filter-group';
-        container.id = `filter_group_${level}`;
-        
-        const label = document.createElement('label');
-        label.htmlFor = `filter_${level}`;
-        label.className = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
-        label.textContent = `Level ${level}: ${typeName}`;
-        container.appendChild(label);
-
-        const select = document.createElement('select');
-        select.id = `filter_${level}`;
-        select.dataset.level = level;
-        select.dataset.targetId = 'id_license_curriculum_nodes';
-        select.className = SELECT_CLASSES; 
-        select.addEventListener('change', handleFilterChange);
-        
-        select.innerHTML = '<option value="">-- Select --</option>';
-
-        container.appendChild(select);
-
-        filterContainer.appendChild(container);
-        return select;
-    }
-
-    function handleFilterChange(event) {
-        const currentSelect = event.target;
-        const parentId = currentSelect.value;
-        const currentLevel = parseInt(currentSelect.dataset.level);
-        const nextLevel = currentLevel + 1;
-
-        Array.from(filterContainer.querySelectorAll('.filter-group')).forEach(group => {
-            const level = parseInt(group.id.replace('filter_group_', ''));
-            if (level >= nextLevel) group.remove();
-        });
-        
-        buttonsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">Select a content category above to see final license options.</p>';
-
-        if (parentId) {
-            const selectedOption = currentSelect.options[currentSelect.selectedIndex];
-            const nextNodeType = selectedOption.dataset.nodeType || 'Item';
-            
-            fetchAndPopulate(parentId, mainCurriculumSelect, true);
-            
-            if (nextLevel <= MAX_FILTER_LEVEL) {
-                const newSelect = createNextFilter(nextLevel, nextNodeType);
-                fetchAndPopulate(parentId, newSelect, false);
-            }
-        } else {
-            if (currentLevel === 1) {
-                renderRootNodeButtons(ROOT_NODES_DATA);
-            } 
-        }
-    }
-
+    // --- Accordion Toggle (Reusable for Permissions & Tree) ---
     function toggleAccordion(id) {
         const body = document.getElementById(id + '-body');
         const icon = document.getElementById(id + '-icon');
+
+        if (!body || !icon) return;
 
         if (body.classList.contains('accordion-open')) {
             body.classList.remove('accordion-open');
@@ -536,11 +299,369 @@
     }
 
 
-    // --- Initialization ---
-    const filter1 = document.getElementById('filter_1');
-    if (filter1) {
-        filter1.addEventListener('change', handleFilterChange);
+    // --- Permission Toggle Function ---
+    function toggleAllPermissions(selectAllCheckbox) {
+        const modelSlug = selectAllCheckbox.dataset.selectAllModel;
+        // Find all checkboxes in the same model group
+        const permissionCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-model-group="${modelSlug}"]`);
+        
+        const isChecked = selectAllCheckbox.checked;
+
+        permissionCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
     }
-    renderRootNodeButtons(ROOT_NODES_DATA);
+
+
+    // --- Curriculum Tree Functions ---
+
+    function syncNodesToSelect() {
+        // 1. Get currently selected options
+        const selectedOptions = Array.from(mainCurriculumSelect.options)
+                                 .filter(option => option.selected);
+        
+        // 2. Update the Selected Nodes Stream
+        selectedNodesStream.innerHTML = '';
+        if (selectedOptions.length === 0) {
+            selectedNodesStream.appendChild(emptyStreamMessage.cloneNode(true));
+        } else {
+            selectedOptions.forEach(option => {
+                const badge = document.createElement('span');
+                const nodeName = option.textContent.trim(); 
+                
+                badge.textContent = nodeName;
+                badge.className = 'px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-sm font-medium shadow-sm';
+                selectedNodesStream.appendChild(badge);
+            });
+        }
+
+        // 3. Update the tree checkboxes state
+        document.querySelectorAll('.tree-checkbox').forEach(checkbox => {
+            checkbox.checked = selectedOptions.some(opt => opt.value === checkbox.value);
+        });
+    }
+
+    // Renders a single node as a list item, potentially with a collapsible body for children
+    function renderNode(node, container, level) {
+        const nodeId = node.id || node.pk; // Consolidated Node ID
+        const nodeName = node.name || node.fields.name;
+        const nodeType = node.node_type || node.fields.node_type;       
+        const hasChildren = true; 
+        const nodeContainer = document.createElement('div');
+        nodeContainer.className = `ml-${level * 4} py-1`; 
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition';
+        const leftSide = document.createElement('div');
+        leftSide.className = 'flex items-center flex-grow cursor-pointer';
+        const checkLabel = document.createElement('label');
+        checkLabel.className = 'flex items-center space-x-2 flex-grow cursor-pointer';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'tree-checkbox rounded text-indigo-600 focus:ring-indigo-500 bg-gray-100 border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:text-indigo-500';
+        checkbox.value = nodeId;
+        checkbox.dataset.nodeName = nodeName;
+        checkbox.addEventListener('change', handleTreeCheckboxChange); 
+        const nodeNameSpan = document.createElement('span');
+        nodeNameSpan.className = 'text-gray-700 dark:text-gray-300 text-sm font-medium';
+        nodeNameSpan.textContent = `${nodeName} (${nodeType})`;
+        checkLabel.appendChild(checkbox);
+        checkLabel.appendChild(nodeNameSpan);
+        leftSide.appendChild(checkLabel);
+        header.appendChild(leftSide);
+        // Right side: Toggle Button and Select Children Button
+        const rightSide = document.createElement('div');
+        rightSide.className = 'flex items-center space-x-2';
+        // NEW: Select Children Button (Always available for this use case)
+        const selectChildrenButton = document.createElement('button');
+        selectChildrenButton.type = 'button';
+        selectChildrenButton.title = 'Select all children (and descendants)';
+        selectChildrenButton.className = 'p-1 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 rounded-lg transition font-semibold';
+        selectChildrenButton.innerHTML = '<i class="fa-solid fa-layer-group mr-1"></i> Select All';     
+        selectChildrenButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleSelectChildren(nodeId, nodeType); 
+        });
+        rightSide.appendChild(selectChildrenButton);
+        // Collapsible Toggle Button (Always available for this use case)
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'p-1 ml-2 text-indigo-600 dark:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition';
+        toggleButton.innerHTML = `<svg id="tree-icon-${nodeId}" class="w-4 h-4 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
+        
+        toggleButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const bodyId = `tree-body-${nodeId}`;
+            const iconId = `tree-icon-${nodeId}`;
+            
+            const body = document.getElementById(bodyId);
+            const icon = document.getElementById(iconId);
+
+            if (body.classList.contains('accordion-open')) {
+                body.classList.remove('accordion-open');
+                icon.classList.remove('rotate-180');
+            } else {
+                body.classList.add('accordion-open');
+                icon.classList.add('rotate-180');
+                
+                // Lazy load children on first open
+                if (body.children.length === 0) {
+                    // If the node has no children, this fetch will return an empty list, 
+                    // and renderTree will display the "No content found" message.
+                    fetchChildrenAndRender(nodeId, body, nodeType);
+                }
+            }
+        });
+        rightSide.appendChild(toggleButton);
+
+        header.appendChild(rightSide);
+        nodeContainer.appendChild(header);
+
+        // --- Body (Collapsible Children) ---
+        // We create the body regardless, as the toggle button is always shown
+        const body = document.createElement('div');
+        body.id = `tree-body-${nodeId}`;
+        body.className = 'accordion-body bg-white dark:bg-gray-900 border-l-2 border-indigo-200 dark:border-indigo-800 ml-4';
+        nodeContainer.appendChild(body);
+
+        container.appendChild(nodeContainer);
+    }
+
+    // Renders a list of nodes at the current level
+    function renderTree(nodes, container, parentType = 'Root') {
+        if (nodes.length === 0) {
+            container.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-sm italic p-3">No further ${parentType} content found.</p>`;
+            return;
+        }
+
+        // Determine level (0 for root, 1+ for children)
+        const level = container === curriculumTreeContainer ? 0 : 1; 
+        
+        nodes.forEach(node => {
+            renderNode(node, container, level);
+        });
+        
+        syncNodesToSelect(); // Update checkboxes after rendering
+    }
+
+    function fetchChildrenAndRender(nodeId, targetElement, nodeType) {
+        if (targetElement.children.length > 0) return; // Simple caching check
+        
+        const url = `/quiz/nodes/${nodeId}/children/`; 
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok. Status: ' + response.status);
+                // The API response must be structured like: { children: [node1, node2, ...] }
+                return response.json(); 
+            })
+            .then(data => {
+                // Assumes renderTree function handles iteration and rendering
+                renderTree(data.children, targetElement, nodeType); 
+            })
+            .catch(error => {
+                console.error("Error fetching curriculum nodes:", error);
+                targetElement.innerHTML = `<p class="text-sm text-red-500 italic p-3">Failed to load ${nodeType} options.</p>`;
+            });
+    }
+
+    function fetchAncestorsIds(nodeId) {
+        // This is the hypothetical endpoint we agreed upon
+        const url = `/curritree/nodes/${nodeId}/ancestors/`; 
+
+        return fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
+            .then(data => {
+                // Assuming the API returns a structure like: { ancestor_ids: ["parent_id", "grandparent_id", ...] }
+                console.log('Ancestors data:', data);
+                const ancestor_ids = [];
+                data.ancestors.forEach(node => {
+                    console.log(`Ancestor Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
+                    ancestor_ids.push(node.id || node.pk);
+                });
+                return ancestor_ids || []; 
+            })
+            .catch(error => {
+                console.error(`Error fetching ancestors for node ${nodeId}:`, error);
+                return [];
+            });
+    }
+
+
+    function fetchDescendantsIds(nodeId) {
+        // This is the hypothetical endpoint we agreed upon
+        const url = `/curritree/nodes/${nodeId}/descendant/`; 
+
+        return fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
+            .then(data => {
+                console.log('Descendants data:', data);
+                const descendant_ids = [];
+                data.children.forEach(node => {
+                    console.log(`Child Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
+                    descendant_ids.push(node.id || node.pk);
+                });
+                // Assuming the API returns a structure like: { descendant_ids: ["101", "102", ...] }
+                return descendant_ids || []; 
+            })
+            .catch(error => {
+                console.error(`Error fetching descendants for node ${nodeId}:`, error);
+                return [];
+            });
+    }
+
+    function handleTreeCheckboxChange(event) {
+        const checkbox = event.target;
+        const nodeId = checkbox.value;
+        const nodeName = checkbox.dataset.nodeName;
+
+        let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+
+        if (!option) {
+            // Add new option if it doesn't exist
+            option = new Option(nodeName, nodeId, false, false);
+            mainCurriculumSelect.add(option);
+        }
+        const isSelected = checkbox.checked;
+        option.selected = isSelected;
+        
+        // 1. Handle Descendants (Top-Down)
+        const descendantPromise = fetchDescendantsIds(nodeId)
+            .then(descendantIds => {
+                descendantIds.forEach(descendantId => {
+                    let descendantOption = mainCurriculumSelect.querySelector(`option[value="${descendantId}"]`);
+                    if (!descendantOption) {
+                        descendantOption = new Option(`Node ${descendantId}`, descendantId, isSelected, isSelected);
+                        mainCurriculumSelect.add(descendantOption);
+                    } else {
+                        descendantOption.selected = isSelected;
+                    }
+                    const descendantCheckbox = document.querySelector(`.tree-checkbox[value="${descendantId}"]`);
+                    if (descendantCheckbox) {
+                        descendantCheckbox.checked = isSelected;
+                    }
+                });
+            });
+
+        // 2. Handle Ancestors (Bottom-Up)
+        if (isSelected) {
+            // --- Selection Path (Bottom-Up Selection) ---
+            // If selected, ensure all ancestors are also selected.
+            descendantPromise
+                .then(() => fetchAncestorsIds(nodeId))
+                .then(ancestorIds => {
+                    ancestorIds.forEach(parentId => {
+                        // Select the ancestor in the hidden select
+                        const parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
+                        if (parentOption) {
+                            parentOption.selected = true;
+                        }
+                        const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+                        if (parentCheckbox) {
+                            parentCheckbox.checked = true;
+                        }
+                    });
+                })
+                .finally(() => {
+                    // Final UI Sync after all async operations are done
+                    if (typeof syncNodesToSelect === 'function') {
+                        syncNodesToSelect();
+                    }
+                });
+        } else {
+            // --- Deselection Path (Top-Down & Bottom-Up Deselection) ---
+            // If deselected, deselect descendants AND deselect all ancestors.
+            descendantPromise
+                .then(() => fetchAncestorsIds(nodeId)) // Fetch ancestors for deselection
+                .then(ancestorIds => {
+                    ancestorIds.forEach(parentId => {
+                        // Deselect the ancestor in the hidden select
+                        const parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
+                        if (parentOption) {
+                            parentOption.selected = false;
+                        }
+
+                        // Deselect the ancestor in the UI (if rendered)
+                        const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+                        if (parentCheckbox) {
+                            parentCheckbox.checked = false;
+                        }
+                    });
+                })
+                .finally(() => {
+                    // Final UI Sync after all async operations are done
+                    if (typeof syncNodesToSelect === 'function') {
+                        syncNodesToSelect();
+                    }
+                });
+        }
+    }
+
+    function handleSelectChildren(parentId, parentType) {
+        if (!parentId) return;
+
+        
+        
+        const nodesToProcess = [parentId];
+        const newNodesToSelect = new Map(); // Map to store unique nodes (id: name)
+        const processedIds = new Set();
+        function fetchDescendants(currentId) {
+            if (processedIds.has(currentId)) return Promise.resolve();
+            processedIds.add(currentId);
+            
+            const fetchUrl = `/quiz/nodes/${currentId}/children/`; // Use provided endpoint pattern
+
+            return fetch(fetchUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok.');
+                    return response.json();
+                })
+                .then(data => {
+                    const childPromises = [];
+                    data.children.forEach(node => {
+                        // Add to the map of nodes to select
+                        newNodesToSelect.set(node.id, node.name);
+                        
+                        if (node.has_children) {
+                            childPromises.push(fetchDescendants(node.id));
+                        }
+                    });
+                    return Promise.all(childPromises);
+                });
+        }
+        console.log(`Starting selection of all descendants for node ${parentId}...`);
+        
+        fetchDescendants(parentId)
+            .then(() => {
+                newNodesToSelect.forEach((name, id) => {
+                    let option = mainCurriculumSelect.querySelector(`option[value="${id}"]`);
+                    
+                    if (!option) {
+                        option = new Option(name, id, true, true);
+                        mainCurriculumSelect.add(option);
+                    } else {
+                        option.selected = true;
+                    }
+                });
+                if (typeof syncNodesToSelect === 'function') {
+                    syncNodesToSelect(); 
+                    console.log(`Successfully selected ${newNodesToSelect.size} descendants.`);
+                } else {
+                    console.warn('syncNodesToSelect function not found. UI may not update automatically.');
+                }
+            })
+            .catch(error => console.error(`Failed to select children for ${parentType}:`, error));
+    }
+
+    if (document.getElementById('filter_1')) document.getElementById('filter_1').removeEventListener('change', handleFilterChange);
+    if (document.getElementById('curriculum-filters')) document.getElementById('curriculum-filters').remove();
+    // Start rendering the tree with the root nodes
+    renderTree(ROOT_NODES_DATA, curriculumTreeContainer);
+    
 </script>
 {% endblock %}

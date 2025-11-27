@@ -24,16 +24,29 @@
     <div class="w-full max-w-7xl mx-auto">
         <!-- Header & Filter -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-card rounded-2xl p-6 shadow-lg">
-            <h1 class="text-3xl md:text-4xl font-bold text-white mb-4 md:mb-0">Manage Users</h1>
-            <form method="get" class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4">
+            <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-white">Manage Users</h1>
+                
+                <!-- Add Staff Button -->
+                {% if request.user.is_superuser %}
+                <a href="{% url 'create_staff_user' %}" 
+                   class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <i class="fa-solid fa-user-plus mr-2"></i>
+                    Add Staff
+                </a>
+                {% endif %}
+            </div>
+            
+            <form method="get" class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4 mt-4 md:mt-0">
                 <label for="role" class="text-gray-400 font-medium">Filter by Role:</label>
                 <select name="role" id="role" 
                         class="form-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" 
                         onchange="this.form.submit()">
                     <option value="">All Roles</option>
-                    {% for role in roles %}
-                        <option value="{{ role }}" {% if role == selected_role %}selected{% endif %}>
-                            {{ role|title }}
+                   
+                     {% for role_value, role_display in roles %}
+                        <option value="{{ role_value }}" {% if role_value == selected_role %}selected{% endif %}>
+                            {{ role_display }}
                         </option>
                     {% endfor %}
                 </select>
@@ -41,7 +54,7 @@
                 <select name="organization" id="organization" 
                         class="form-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" 
                         onchange="this.form.submit()">
-                    <option value="">All Organizations</option>
+                    <option value="">Users </option>
                     {% for organization in organizations %}
                         <option value="{{ organization.name }}" {% if organization.name == selected_organization %}selected{% endif %}>
                             {{ organization.name|title }}
@@ -102,7 +115,7 @@
                                             <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.44 4.148L16.2 16.2a.75.75 0 11-1.06 1.06l-3.75-3.75A7 7 0 012 9z" clip-rule="evenodd" />
                                             <path d="M10 2a.75.75 0 01.75.75V4.5a.75.75 0 01-1.5 0V2.75A.75.75 0 0110 2zM5.5 8.5c0-.986.974-1.755 1.957-1.755.987 0 1.956.772 1.956 1.755 0 .98-.971 1.75-1.956 1.75-.983 0-1.957-.77-1.957-1.75zM14.5 8.5c0-.986-.973-1.755-1.956-1.755-.987 0-1.957.772-1.755 0 .98.97 1.75 1.957 1.75.983 0 1.956-.77 1.956-1.75zM2.5 13.5C2.5 12.67 3.393 12 4.5 12h11c1.104 0 2 0.67 2 1.5v2.75a.75.75 0 01-1.5 0V14.25c0-.294-.393-.75-.5-.75H4.5c-.107 0-.5.456-.5.75v2a.75.75 0 01-1.5 0v-2.75z" />
                                         </svg>
-                                        Impersonate
+                                        View as user
                                     </a>
                                     
                                     <!-- Existing Edit Button -->
@@ -130,7 +143,14 @@
         </div>
         {% empty %}
         <div class="text-center bg-card rounded-2xl p-10 shadow-xl border border-gray-700">
-            <p class="text-lg text-gray-400">No users found that match the criteria.</p>
+            <p class="text-lg text-gray-400 mb-4">No users found that match the criteria.</p>
+            {% if request.user.is_superuser %}
+            <a href="{% url 'create_staff_user' %}" 
+               class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                <i class="fa-solid fa-user-plus mr-2"></i>
+                Add Your First Staff Member
+            </a>
+            {% endif %}
         </div>
         {% endfor %}
     </div>

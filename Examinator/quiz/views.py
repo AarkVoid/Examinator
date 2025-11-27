@@ -96,8 +96,12 @@ def question_list(request):
     is_staff_or_superuser = request.user.is_superuser or request.user.is_staff
     
     # --- Base QuerySet Determination (CRITICAL ACCESS LOGIC) ---
+
+    has_filter_applied = bool(filter_type != "all" or search_query or selected_node_id or (is_staff_or_superuser and org_filter_id and tab_type == "organization"))
     
     if is_staff_or_superuser:
+
+        
         if tab_type == "organization":
             # Case 1: Staff/Superuser viewing ALL ORGANIZATION questions (Auditing View)
             # Content: Organization is NOT NULL
@@ -109,21 +113,23 @@ def question_list(request):
         else: # tab_type == "public" (or default)
             # Case 2: Staff/Superuser viewing STAFF/PUBLIC questions
             # Content: Organization IS NULL
-            queryset = Question.objects.filter(organization__isnull=True)
-            
+            if has_filter_applied:
+                queryset = Question.objects.filter(organization__isnull=True)
+            else:
+                # No filters applied, show all questions
+                queryset = Question.objects.none()           
     elif organization:
-        if tab_type == "organization":
-            # Case 3: Organization User viewing MY ORGANIZATION/LICENSED questions
-            # Content: Restricted by license/ownership
-            queryset = Question.objects.filter(organization=organization)
-        else: # tab_type == "public" (or default)
-            # Case 4: Organization User viewing PUBLIC questions
-            # Content: Organization IS NULL
-            queryset = filter_questions_by_license(organization)
-            # Additional filter for organization IS NULL
-            queryset = queryset.filter(is_published=True).exclude(organization=organization)
-            
-            
+        queryset = Question.objects.filter(organization=organization)
+        # if tab_type == "organization":
+        #     # Case 3: Organization User viewing MY ORGANIZATION/LICENSED questions
+        #     # Content: Restricted by license/ownership
+        #     queryset = Question.objects.filter(organization=organization)
+        # else: # tab_type == "public" (or default)
+        #     # Case 4: Organization User viewing PUBLIC questions
+        #     # Content: Organization IS NULL
+        #     queryset = filter_questions_by_license(organization)
+        #     # Additional filter for organization IS NULL
+        #     queryset = queryset.filter(is_published=True).exclude(organization=organization)          
     else:
         # Default for users with no organization affiliation (safety default: public only)
         queryset = Question.objects.filter(organization__isnull=True)
@@ -262,6 +268,8 @@ def get_child_nodes(request, node_id):
         # Catch unexpected errors (e.g., database connection issues)
         print(f"An unexpected error occurred in get_child_nodes: {e}")
         return JsonResponse({"error": "An unexpected error occurred."}, status=500)
+    
+
     
 
 
@@ -532,13 +540,13 @@ def question_true_false(request, question_id):
 
 @login_required
 @permission_required('quiz.change_question',login_url='profile_update')
-def question_detail_and_edit(request, question_id):
+def question_detail_and_edit(request, question_uuid):
     # Security: Ensure user only accesses their own questions
     UserInf = request.user
     if UserInf.is_superuser:
-        question = get_object_or_404(Question, id=question_id)
+        question = get_object_or_404(Question, question_uuid=question_uuid)
     else:
-        question = get_object_or_404(Question, id=question_id,organization=request.user.profile.organization_profile)
+        question = get_object_or_404(Question, question_uuid=question_uuid,organization=request.user.profile.organization_profile)
 
     # --- Determine which form type to use (Based on question.question_type) ---
     answer_form_class_map = {
@@ -576,7 +584,7 @@ def question_detail_and_edit(request, question_id):
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Core question details updated successfully.')
-                return redirect('quiz:question_edit', question_id=question.id)
+                return redirect('quiz:question_edit', question_uuid=question.question_uuid)
             else:
                 # Initialize answer form for context if core details fail validation (safely)
                 if AnswerFormOrSet:
@@ -595,7 +603,7 @@ def question_detail_and_edit(request, question_id):
                 if answer_form_context.is_valid():
                     answer_form_context.save()
                     messages.success(request, f'{question.get_question_type_display()} answers/options updated successfully.')
-                    return redirect('quiz:question_edit', question_id=question.id)
+                    return redirect('quiz:question_edit', question_uuid=question.question_uuid)
                 else:
                     # Initialize core form for context if answer details fail validation
                     form = QuestionForm(instance=question,user=request.user)
@@ -626,8 +634,8 @@ def question_detail_and_edit(request, question_id):
 
 @login_required
 @permission_required('quiz.delete_question',login_url='profile_update')
-def question_delete(request, question_id):
-    question = get_object_or_404(Question, id=question_id)
+def question_delete(request, question_uuid):
+    question = get_object_or_404(Question, question_uuid=question_uuid)
     
     if request.method == 'POST':
         question.delete()
@@ -1193,6 +1201,8 @@ def paper_detail(request, paper_id):
 @login_required
 @permission_required('quiz.add_paperquestion', login_url='profile_update')
 def paper_add_questions(request, paper_id):
+    Qu_type = request.GET.get('type') 
+
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     
     # Check if user can edit this paper (owner or admin)
@@ -1206,10 +1216,10 @@ def paper_add_questions(request, paper_id):
     
     # 🛑 Initial Query: Start with questions NOT already in the paper 🛑
     if request.user.is_staff or request.user.is_superuser:
-        questions = Question.objects.all()
+        questions = Question.objects.exclude(id__in=existing_question_ids)
     else:
         org = getattr(request.user.profile, "organization_profile", None)
-        questions = Question.objects.filter(
+        questions = Question.objects.exclude(id__in=existing_question_ids).filter(
             Q(is_published=True) |
             Q(organization=org)
         )
@@ -1218,7 +1228,10 @@ def paper_add_questions(request, paper_id):
     if paper.curriculum_chapters.exists():
         questions = questions.filter(
             curriculum_chapter__in=paper.curriculum_chapters.all()
-        )
+        ).distinct()
+
+    if Qu_type:
+        questions = questions.filter(question_type=Qu_type)
 
 
     
@@ -1267,18 +1280,23 @@ def paper_add_questions(request, paper_id):
                 )
             
             # The calculation method is correct
-            paper.total_marks = paper.calculate_total_marks()
+            # paper.total_marks = paper.calculate_total_marks()
             paper.save()
             
             messages.success(request, f'{len(selected_ids)} questions added to the paper!')
             return redirect('quiz:paper_detail', paper.id)
         else:
             messages.error(request, 'Please select at least one question.')
+
+    paginator = Paginator(questions, 25)  # Show 25 questions per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     
     return render(request, 'quiz/paper_add_questions.html', {
         'paper': paper,
-        'questions': questions,
-        'search_form': search_form
+        'questions': page_obj,  # Use paginated questions
+        'search_form': search_form,
+        'page_obj': page_obj,
     })
 
 # --- Remaining Views (paper_remove_question, paper_edit, paper_delete) ---
@@ -1840,7 +1858,7 @@ def bulk_upload_questions(request):
         return redirect('quiz:bulk_upload_questions')
 
     boards = TreeNode.objects.filter(node_type='board').order_by('name')
-    return render(request, 'quiz/bulk_upload_questions.html', {'boards': boards})
+    return render(request, 'upload/bulk_upload_questions.html', {'boards': boards})
 
 
 

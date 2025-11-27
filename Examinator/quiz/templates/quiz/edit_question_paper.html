@@ -26,7 +26,7 @@
       <!-- TITLE -->
       <div class="mb-10">
         <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white border-b pb-3 border-blue-100 dark:border-blue-900">
-          ✏️ Edit Question Paper
+          📝 Edit Question Paper
         </h2>
         <p class="text-gray-500 dark:text-gray-400 mt-2">
           Update your paper details, curriculum, and chapters below.
@@ -62,7 +62,7 @@
                  viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2" />
             </svg>
-            Current Curriculum
+            Syllabus Overview
           </h3>
 
           {% if question_paper.curriculum_subject %}
@@ -104,14 +104,14 @@
         <!-- Editable Curriculum Tree -->
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Select Board / Curriculum Root
+            Select Board / Curriculum 
           </label>
           <select id="root-node"
                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white">
-            <option value="">Select Root Node</option>
+            <option value="">Select Baord/Curriculum</option>
             {% for node in root_nodes %}
               <option value="{{ node.id }}" {% if node.id == initial_subject_id %}selected{% endif %}>
-                {{ node.name }} ({{ node.node_type|title }})
+                {{ node.name }} <!-- ({{ node.node_type|title }}) -->
               </option>
             {% endfor %}
           </select>

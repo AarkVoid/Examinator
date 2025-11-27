@@ -1,0 +1,7 @@
+question_type,question_text,options,correct_answer,pairs,board,class_name,subject,chapter,section,difficulty,marks,explanation,max_words,is_case_sensitive
+mcq,What is the degree of the polynomial 3x² + 2x + 7?,2;3;4,2,,CBSE,Class 10,Mathematics,Polynomials,,medium,2,The highest power of x is 2.,,
+true_false,The sum of angles in a triangle is 180 degrees.,,TRUE,,CBSE,Class 10,Mathematics,Trigonometry,,easy,1,,,
+fill_blank,The chemical symbol for water is ____,,H₂O,,CBSE,Class 10,Science,Chemical Reactions,,easy,1,,50,TRUE
+short_answer,Explain the process of photosynthesis.,,,,CBSE,Class 10,Science,Life Processes,,medium,5,Write a short answer.,100,FALSE
+match,Match the following mathematical terms with their meanings.,,,Equation:Expression;Variable:Symbol representing a quantity;Constant:Fixed value,CBSE,Class 10,Mathematics,Quadratic Equations,,medium,3,Match terms with correct definitions.,,
+mcq,Which of the following is a gas at room temperature?,Oxygen;Mercury;Iron,Oxygen,,ICSE,Class 9,Science,Chemistry,,easy,1,,,

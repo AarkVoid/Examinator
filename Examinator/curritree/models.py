@@ -26,6 +26,7 @@ class TreeNode(TimeStampedModel):
     parent = models.ForeignKey('self', null=True, blank=True, related_name='children', on_delete=models.CASCADE)
     order = models.IntegerField(default=0, help_text="Order of the node among its siblings")
     metadata = models.JSONField(default=dict, blank=True, help_text="Additional metadata for the node")
+    marks = models.IntegerField(default=0, help_text="Marks allocated to this node")
 
     class Meta:
         ordering = ['parent_id','order','name']

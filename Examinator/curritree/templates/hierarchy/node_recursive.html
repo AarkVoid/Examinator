@@ -29,13 +29,41 @@
     <div class="flex gap-2 ml-4 flex-shrink-0">
       
       {# Add Child Button - Now Dynamic #}
+      {% if node.node_type == 'board' %}
       <a href="{% url 'curritree:create_child_node' node.pk %}"
          class="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition"
          aria-label="Add Child">
         <i class="fa-solid fa-plus mr-1"></i> 
-        {% if node.node_type == 'board' %}Class{% elif node.node_type == 'competitive' %}Subject{% else %}Child{% endif %}
+        Class
+      </a>
+      {% elif node.node_type == 'competitive' or node.node_type == 'class' %}
+      <a href="{% url 'curritree:create_child_node' node.pk %}"
+         class="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition"
+         aria-label="Add Child">
+        <i class="fa-solid fa-plus mr-1"></i> 
+        Subject
       </a>
       
+      {% elif node.node_type == 'subject' %}
+      <a href="{% url 'curritree:create_child_node' node.pk %}"
+         class="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition"
+         aria-label="Add Child">
+        <i class="fa-solid fa-plus mr-1"></i> 
+        Chapter/Unit
+      </a>
+
+      {% elif node.node_type == 'uint' %}
+      <a href="{% url 'curritree:create_child_node' node.pk %}"
+         class="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition"
+         aria-label="Add Child">
+        <i class="fa-solid fa-plus mr-1"></i> 
+        Chapter
+      </a>
+
+      {% else %}
+          {# No Add Child button for 'chapter' nodes #}
+      {% endif %}
+
       {# Edit/Delete (No change) #}
       <a href="{% url 'curritree:curriculum_edit' node.pk %}"
          class="px-2 py-1 text-xs rounded bg-yellow-500 text-white hover:bg-yellow-600 transition"

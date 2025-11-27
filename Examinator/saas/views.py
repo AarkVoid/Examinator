@@ -38,7 +38,6 @@ def get_user_organization(user):
 
 
 @login_required
-@staff_required
 @permission_required('saas.view_license_summary',login_url='profile_update')
 def organization_license_overview(request):
     """
@@ -305,6 +304,17 @@ def manage_licenses(request, org_id):
 
         # 🔹 Attach curriculum nodes
         curriculum_nodes = TreeNode.objects.filter(id__in=curriculum_node_ids)
+        print("curriculum_nodes", curriculum_nodes,curriculum_node_ids)
+        exclude_ids = []
+        for curriculum_node in curriculum_nodes:
+            print("curriculum_node", curriculum_node)
+            if curriculum_node.parent is not None:
+                if str(curriculum_node.parent.id) in map(str, curriculum_node_ids):
+                    print("Parent node included")
+                    exclude_ids.append(curriculum_node.id)
+                    print(curriculum_node.parent.id,curriculum_node.id)
+                    print(curriculum_node_ids)
+        curriculum_nodes = curriculum_nodes.exclude(id__in=exclude_ids) 
         grant.curriculum_node.set(curriculum_nodes)
 
         # 🔹 Attach permissions (via LicensePermission model)

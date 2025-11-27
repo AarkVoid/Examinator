@@ -43,14 +43,14 @@
             </div>
 
             <div class="mb-8 p-5 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-200 dark:border-blue-900">
-                <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-4">Curriculum Selection</h3>
+                <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-4">Syllabus Selection</h3>
                 
                 <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Select Board / Curriculum Root</label>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Select Board / Curriculum </label>
                     <select id="root-node" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150 appearance-none bg-white">
-                        <option value="">Select Root Node</option>
+                        <option value="">Select Board/Curriculum</option>
                         {% for node in root_nodes %}
-                            <option value="{{ node.id }}">{{ node.name }} ({{ node.node_type|title }})</option>
+                            <option value="{{ node.id }}">{{ node.name }} <!--({{ node.node_type|title }}) --></option>
                         {% endfor %}
                     </select>
                 </div>
