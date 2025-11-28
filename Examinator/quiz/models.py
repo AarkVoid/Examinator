@@ -7,8 +7,79 @@ import uuid
 
 User = get_user_model()
 
-class Question(TimeStampedModel):
+class OrgQuestion(TimeStampedModel):
+    question_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
 
+    QUESTION_TYPES = [
+        ('mcq', 'Multiple Choice'),
+        ('fill_blank', 'Fill in the Blank'),
+        ('short_answer', 'Short Answer'),
+        ('match', 'Match the Following'),
+        ('true_false', 'True/False'),
+    ]
+    
+    DIFFICULTY_LEVELS = [
+        ('easy', 'Easy'),
+        ('medium', 'Medium'),
+        ('hard', 'Hard'),
+    ]
+    
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES)
+
+    question_image = models.ImageField(
+        upload_to='questions/images/', 
+        null=True, 
+        blank=True,
+        help_text="Optional image to accompany the question text."
+    )
+    
+    curriculum_board = models.ForeignKey(
+        TreeNode, 
+        on_delete=models.CASCADE, 
+        related_name='board_Org_questions',
+        limit_choices_to={'node_type': 'board'},
+        default=None, null=True, blank=True
+    )
+
+    curriculum_class = models.ForeignKey(
+        TreeNode, 
+        on_delete=models.CASCADE, 
+        related_name='class_Org_questions',
+        limit_choices_to={'node_type': 'class'},
+        default=None, null=True, blank=True
+    )
+    
+    curriculum_subject = models.ForeignKey(
+        TreeNode, 
+        on_delete=models.CASCADE, 
+        related_name='Org_questions',
+        limit_choices_to={'node_type': 'subject'}, # Hint for admin/forms
+        default=None, null=True, blank=True
+    )
+    curriculum_chapter = models.ForeignKey(
+        TreeNode, 
+        on_delete=models.SET_NULL, 
+        blank=True,
+        related_name='chapter_Org_questions',
+        limit_choices_to={'node_type': 'chapter'}, # Hint for admin/forms
+        default=None, null=True,
+    )
+    question_text = models.TextField()
+    difficulty = models.CharField(max_length=10, choices=DIFFICULTY_LEVELS, default='medium')
+    marks = models.PositiveIntegerField(default=1)
+    organization = models.ForeignKey('saas.OrganizationProfile', on_delete=models.CASCADE, null=True, blank=True)
+    is_published = models.BooleanField(default=False)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        ordering = ['-created']
+    
+    def __str__(self):
+        return f"{self.get_question_type_display()}: {self.question_text[:50]}..."
+    
+
+class Question(TimeStampedModel):
+    question_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
 
     QUESTION_TYPES = [
         ('mcq', 'Multiple Choice'),
@@ -69,6 +140,7 @@ class Question(TimeStampedModel):
     marks = models.PositiveIntegerField(default=1)
     organization = models.ForeignKey('saas.OrganizationProfile', on_delete=models.CASCADE, null=True, blank=True)
     is_published = models.BooleanField(default=False)
+    orignal_qid = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     
     class Meta:
@@ -77,6 +149,42 @@ class Question(TimeStampedModel):
     def __str__(self):
         return f"{self.get_question_type_display()}: {self.question_text[:50]}..."
     
+
+
+
+
+class MCQOptionOrg(models.Model): # Renamed: MCQOptionOrg
+    question = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, related_name='mcq_options_org') 
+    option_text = models.CharField(max_length=500)
+    is_correct = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=1)
+    
+    class Meta:
+        ordering = ['order']
+
+class FillBlankAnswerOrg(models.Model): # Renamed: FillBlankAnswerOrg
+    question = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, related_name='fill_blank_answers_org')
+    correct_answer = models.CharField(max_length=200)
+    is_case_sensitive = models.BooleanField(default=False)
+
+class ShortAnswerOrg(models.Model): # Renamed: ShortAnswerOrg
+    question = models.OneToOneField(OrgQuestion, on_delete=models.CASCADE, related_name='short_answer_org')
+    sample_answer = models.TextField()
+    max_words = models.PositiveIntegerField(default=50)
+
+class MatchPairOrg(models.Model): # Renamed: MatchPairOrg
+    question = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, related_name='match_pairs_org')
+    left_item = models.CharField(max_length=200)
+    right_item = models.CharField(max_length=200)
+    order = models.PositiveIntegerField(default=1)
+    
+    class Meta:
+        ordering = ['order']
+
+class TrueFalseAnswerOrg(models.Model): # Renamed: TrueFalseAnswerOrg
+    question = models.OneToOneField(OrgQuestion, on_delete=models.CASCADE, related_name='true_false_answer_org')
+    correct_answer = models.BooleanField()
+    explanation = models.TextField(blank=True)
 
 
 

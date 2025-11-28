@@ -2,13 +2,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponseForbidden
 from django.core.paginator import Paginator
-from .models import Question, QuestionPaper, PaperQuestion, MCQOption, MatchPair, FillBlankAnswer,ShortAnswer, TrueFalseAnswer,QuestionUploadLog
+from .models import Question, QuestionPaper, PaperQuestion, MCQOption, MatchPair, FillBlankAnswer,ShortAnswer, TrueFalseAnswer,QuestionUploadLog,OrgQuestion,MCQOptionOrg, MatchPairOrg, FillBlankAnswerOrg,ShortAnswerOrg, TrueFalseAnswerOrg
 from .forms import (
-    QuestionForm, MCQOptionFormSet, FillBlankAnswerFormSet, ShortAnswerForm,
-    MatchPairFormSet, TrueFalseAnswerForm, QuestionPaperForm,
-    QuestionSearchForm
+    QuestionForm, MCQOptionFormSet, FillBlankAnswerFormSet, ShortAnswerForm,  
+    MatchPairFormSet, TrueFalseAnswerForm, QuestionPaperForm,MCQOptionOrgFormSet,
+    QuestionSearchForm,FillBlankAnswerOrgFormSet,ShortAnswerOrgForm,MatchPairOrgFormSet,TrueFalseAnswerOrgForm,
+    OrgQuestionForm,FillBlankAnswerOrgForm
 )
 from curritree.models import TreeNode
 from django.db import transaction
@@ -97,7 +98,15 @@ def question_list(request):
     
     # --- Base QuerySet Determination (CRITICAL ACCESS LOGIC) ---
 
-    has_filter_applied = bool(filter_type != "all" or search_query or selected_node_id or (is_staff_or_superuser and org_filter_id and tab_type == "organization"))
+    has_filter_applied = bool(filter_type != "all" or search_query or selected_node_id or (is_staff_or_superuser and org_filter_id))
+
+    if not is_staff_or_superuser:
+        tab_type = "organization"
+
+    if tab_type == "organization":
+        QuestionModel = OrgQuestion
+    else:
+        QuestionModel = Question # Master/Published content for 'public' tab
     
     if is_staff_or_superuser:
 
@@ -105,21 +114,20 @@ def question_list(request):
         if tab_type == "organization":
             # Case 1: Staff/Superuser viewing ALL ORGANIZATION questions (Auditing View)
             # Content: Organization is NOT NULL
-            queryset = Question.objects.filter(organization__isnull=False)
+            queryset = QuestionModel.objects.filter(organization__isnull=False)
             
             # Apply organization filter if selected (MANDATORY for Staff filter functionality)
-            if org_filter_id:
-                queryset = queryset.filter(organization_id=org_filter_id)
         else: # tab_type == "public" (or default)
             # Case 2: Staff/Superuser viewing STAFF/PUBLIC questions
             # Content: Organization IS NULL
             if has_filter_applied:
-                queryset = Question.objects.filter(organization__isnull=True)
+                queryset = QuestionModel.objects.all()
+
             else:
                 # No filters applied, show all questions
-                queryset = Question.objects.none()           
+                queryset = QuestionModel.objects.none()           
     elif organization:
-        queryset = Question.objects.filter(organization=organization)
+        queryset = QuestionModel.objects.filter(organization=organization)
         # if tab_type == "organization":
         #     # Case 3: Organization User viewing MY ORGANIZATION/LICENSED questions
         #     # Content: Restricted by license/ownership
@@ -132,21 +140,25 @@ def question_list(request):
         #     queryset = queryset.filter(is_published=True).exclude(organization=organization)          
     else:
         # Default for users with no organization affiliation (safety default: public only)
-        queryset = Question.objects.filter(organization__isnull=True)
+        queryset = QuestionModel.objects.filter(organization__isnull=True)
 
     # --- Question Type Counts (MUST be based on the base 'queryset') ---
     
     # IMPORTANT: We gather the IDs of the base queryset BEFORE applying further filters 
     # so that the sidebar counts reflect the total bank the user has access to in this tab.
+
+    if org_filter_id:
+        queryset = queryset.filter(organization_id=org_filter_id)
+
     base_queryset_ids = queryset.values_list('id', flat=True)
     
     counts = (
-        Question.objects.filter(id__in=base_queryset_ids)
+        QuestionModel.objects.filter(id__in=base_queryset_ids)
         .values("question_type")
         .annotate(total=Count("id"))
     )
 
-    result = {key: 0 for key, _ in Question.QUESTION_TYPES}
+    result = {key: 0 for key, _ in QuestionModel.QUESTION_TYPES}
     for entry in counts:
         result[entry["question_type"]] = entry["total"]
 
@@ -229,6 +241,160 @@ def question_list(request):
         "org_filter_id": org_filter_id,
     })
 
+# @login_required
+# @permission_required('quiz.view_question', login_url='profile_update')
+# def question_list(request):
+    
+#     # 1. Parameter Setup
+#     tab_type = request.GET.get("tab", "public") 
+#     org_filter_id = request.GET.get("organization_id")
+#     filter_type = request.GET.get("filter", "all")
+#     search_query = request.GET.get("q", "")
+#     selected_node_id = request.GET.get("input_node")
+
+#     # 2. User & Context Setup
+#     organization_profile = getattr(request.user.profile, "organization_profile", None)
+#     is_staff_or_superuser = request.user.is_superuser or request.user.is_staff
+
+#     has_filter_applied = bool(filter_type != "all" or search_query or selected_node_id or (is_staff_or_superuser and org_filter_id and tab_type == "organization"))
+    
+#     # 3. CRITICAL: Model Selection
+    
+#     # OrgQuestion (Draft/Pending) is accessed ONLY via the 'organization' tab.
+#     if tab_type == "organization":
+#         QuestionModel = OrgQuestion
+#     else:
+#         QuestionModel = Question # Master/Published content for 'public' tab
+
+#     # 4. CRITICAL: Base QuerySet Determination (Access Control)
+    
+#     # Start with all questions in the selected model
+#     if has_filter_applied:
+#         base_queryset = QuestionModel.objects.all()
+
+#     else:
+#         base_queryset = QuestionModel.objects.none()
+
+#     if is_staff_or_superuser:
+#         # Case 1: Staff/Superuser auditing ALL Org DRAFTS.
+#         # Filter by organization_id if a specific organization is selected in the dropdown.
+#         if org_filter_id:
+#             base_queryset = base_queryset.filter(organization_id=org_filter_id)
+                
+#         # Case 2: Staff/Superuser viewing ALL MASTER QUESTIONS (Public + Organization-Published).
+#         # (If QuestionModel == Question, base_queryset is already Question.objects.all())
+        
+#     elif organization_profile:
+        
+#         if QuestionModel == OrgQuestion:
+#             # Case 3: Organization User viewing THEIR Org DRAFTS.
+#             base_queryset = base_queryset.filter(organization=organization_profile)
+        
+#         else: # QuestionModel == Question (Public tab)
+#             # Case 4: Organization User viewing MASTER QUESTIONS.
+#             # Show questions that are TRUE PUBLIC (organization__isnull=True) OR their own published ones.
+#             base_queryset = base_queryset.filter(
+#                 Q(organization__isnull=True) | Q(organization=organization_profile)
+#             )
+            
+#     else: # Unaffiliated User (Only sees Question Model / Public tab)
+#         # Case 5: Unaffiliated User viewing TRUE PUBLIC MASTER QUESTIONS.
+#         base_queryset = base_queryset.filter(organization__isnull=True)
+
+#     # --- END ACCESS CONTROL ---
+    
+#     # 5. Question Type Counts (Based on the accessible base_queryset)
+    
+#     # Get IDs before applying search/curriculum filters to reflect full tab count
+#     base_queryset_ids = base_queryset.values_list('id', flat=True)
+    
+#     counts = (
+#         QuestionModel.objects.filter(id__in=base_queryset_ids)
+#         .values("question_type")
+#         .annotate(total=Count("id"))
+#     )
+
+#     result = {key: 0 for key, _ in QuestionModel.QUESTION_TYPES}
+#     for entry in counts:
+#         result[entry["question_type"]] = entry["total"]
+
+#     json_type_count = json.dumps(result, indent=2)
+
+#     # 6. Apply Search and Curriculum Filters
+#     queryset_filtered = base_queryset 
+
+#     if filter_type != "all":
+#         queryset_filtered = queryset_filtered.filter(question_type=filter_type)
+
+#     if search_query:
+#         queryset_filtered = queryset_filtered.filter(Q(question_text__icontains=search_query))
+
+#     if selected_node_id:
+#         try:
+#             # Filter by any curriculum field matching the selected node ID
+#             queryset_filtered = queryset_filtered.filter(
+#                 Q(curriculum_board__id=selected_node_id)
+#                 | Q(curriculum_class__id=selected_node_id)
+#                 | Q(curriculum_subject__id=selected_node_id)
+#                 | Q(curriculum_chapter__id=selected_node_id)
+#             )
+#         except Exception:
+#             pass # Ignore invalid node ID
+
+#     final_queryset = queryset_filtered.distinct()
+
+#     # 7. Pagination
+#     paginator = Paginator(final_queryset, settings.QUESTIONS_PER_PAGE)
+#     page_number = request.GET.get('page')
+    
+#     try:
+#         questions = paginator.page(page_number)
+#     except PageNotAnInteger:
+#         questions = paginator.page(1)
+#     except EmptyPage:
+#         questions = paginator.page(paginator.num_pages)
+
+#     # 8. Root Node Counts (Based on the accessible base_queryset)
+#     root_question_counts = {}
+#     root_nodes = TreeNode.objects.filter(parent__isnull=True).order_by('name')
+
+#     for root in root_nodes:
+#         # Count questions in the base set that link to this root's descendants
+#         count = QuestionModel.objects.filter(id__in=base_queryset_ids).filter(
+#             Q(curriculum_board__in=root.get_descendants(include_self=True))
+#             | Q(curriculum_class__in=root.get_descendants(include_self=True))
+#             | Q(curriculum_subject__in=root.get_descendants(include_self=True))
+#             | Q(curriculum_chapter__in=root.get_descendants(include_self=True))
+#         ).count()
+#         root_question_counts[str(root.name)] = count
+
+#     json_root_count = json.dumps(root_question_counts, indent=2)
+
+#     # 9. Context and Render
+#     all_organizations = []
+#     if is_staff_or_superuser:
+#         # NOTE: Assumes OrganizationProfile model is available
+#         all_organizations = OrganizationProfile.objects.all().order_by('name') 
+        
+#     return render(request, "quiz/question_list.html", {
+#         "questions": questions,
+#         "filter_type": filter_type,
+#         "search_query": search_query,
+#         "question_types": QuestionModel.QUESTION_TYPES, # IMPORTANT: Use types from the active model
+#         "root_nodes": root_nodes,
+#         "selected_node_id": selected_node_id,
+#         "json_type_count": json.loads(json_type_count),
+#         "json_root_count": json.loads(json_root_count),
+        
+#         # Context flags for template logic
+#         "tab_type": tab_type,
+#         "is_staff_or_superuser": is_staff_or_superuser,
+#         "all_organizations": all_organizations,
+#         "org_filter_id": org_filter_id,
+#         "is_org_draft_tab": QuestionModel == OrgQuestion, 
+#     })
+
+
 
 
 def get_child_nodes(request, node_id):
@@ -278,18 +444,22 @@ def get_child_nodes(request, node_id):
 # --- Main CRUD View ---
 @login_required
 @permission_required('quiz.add_question',login_url='profile_update')
-def question_create(request, pk=None):
+def question_create(request):
     """
     Handles question creation/update by deriving Board and Subject from Chapter.
     """
     question = None
     posted_data = {} 
-    if pk:
-        # For edit mode, fetch the existing question
-        question = get_object_or_404(Question, pk=pk)
-        title = "Edit Question"
+   
+    title = "Add New Question"
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+
+    if is_superuser_staff:
+        # Superusers create in the Master Question table by default
+        TargetModel = Question
     else:
-        title = "Add New Question"
+        # Org users create in the Draft (OrgQuestion) table
+        TargetModel = OrgQuestion
 
     if request.method == 'POST':
         posted_data = request.POST
@@ -356,12 +526,10 @@ def question_create(request, pk=None):
         
         # --- 3. Database Save Logic ---
         try:
-            if question:
-                q = question
-            else:
-                q = Question()
+            
+            q = TargetModel()
 
-                q.created_by = request.user
+            q.created_by = request.user
             
             # Assign derived IDs
             q.curriculum_board_id = board_id 
@@ -373,10 +541,22 @@ def question_create(request, pk=None):
             q.question_text = question_text
             q.question_type = q_type
             q.difficulty = difficulty
-            if request.user.is_superuser:
+            # if request.user.is_superuser:
+            #     q.is_published = True
+            # else:
+            #     q.organization = request.user.profile.organization_profile
+            organization_profile = getattr(request.user.profile, "organization_profile", None)
+            if TargetModel == Question:
+                # Superuser: Direct creation into Master Bank
                 q.is_published = True
+            elif TargetModel == OrgQuestion:
+                # Org User: Creation into Draft Bank
+                q.organization = organization_profile
+                q.is_published = False
             else:
-                q.organization = request.user.profile.organization_profile
+                # Should be caught by permission, but as a safeguard for OrgQuestion
+                messages.error(request, "User must belong to an organization to create drafts.")
+                return redirect('quiz:question_list')
             
             q.marks = float(marks) if marks else 0
 
@@ -435,16 +615,33 @@ def question_create(request, pk=None):
 
 @login_required
 def question_mcq_options(request, question_id):
-    question = get_object_or_404(Question, id=question_id, question_type='mcq')
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+    if is_superuser_staff:
+        # Superusers create in the Master Question table by default
+        TargetModel = Question
+    else:
+        # Org users create in the Draft (OrgQuestion) table
+        TargetModel = OrgQuestion
+
+
+    question = get_object_or_404(TargetModel, id=question_id, question_type='mcq')
     
     if request.method == 'POST':
-        formset = MCQOptionFormSet(request.POST, instance=question)
+        if TargetModel == Question:
+            formset = MCQOptionFormSet(request.POST, instance=question)
+        else:
+            formset = MCQOptionOrgFormSet(request.POST, instance=question)
+        # formset = MCQOptionFormSet(request.POST, instance=question)
         if formset.is_valid():
             formset.save()
             messages.success(request, 'MCQ options saved successfully!')
             return redirect('quiz:question_list')
     else:
-        formset = MCQOptionFormSet(instance=question)
+        if TargetModel == Question:
+            formset = MCQOptionFormSet(instance=question)
+        else:
+            formset = MCQOptionOrgFormSet(instance=question)
+        # formset = MCQOptionFormSet(instance=question)
     
     return render(request, 'quiz/question_mcq_options.html', {
         'question': question,
@@ -453,16 +650,30 @@ def question_mcq_options(request, question_id):
 
 @login_required
 def question_fill_blank(request, question_id):
-    question = get_object_or_404(Question, id=question_id, question_type='fill_blank')
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+    if is_superuser_staff:
+        # Superusers create in the Master Question table by default
+        TargetModel = Question
+    else:
+        # Org users create in the Draft (OrgQuestion) table
+        TargetModel = OrgQuestion
+
+    question = get_object_or_404(TargetModel, id=question_id, question_type='fill_blank')
     
     if request.method == 'POST':
-        formset = FillBlankAnswerFormSet(request.POST, instance=question)
+        if TargetModel == Question:
+            formset = FillBlankAnswerFormSet(request.POST, instance=question)
+        else:
+            formset = FillBlankAnswerOrgFormSet(request.POST, instance=question)
         if formset.is_valid():
             formset.save()
             messages.success(request, 'Fill in the blank answers saved successfully!')
             return redirect('quiz:question_list')
     else:
-        formset = FillBlankAnswerFormSet(instance=question)
+        if TargetModel == Question:
+            formset = FillBlankAnswerFormSet(instance=question)
+        else:
+            formset = FillBlankAnswerOrgFormSet(instance=question)
     
     return render(request, 'quiz/question_fill_blank.html', {
         'question': question,
@@ -471,7 +682,15 @@ def question_fill_blank(request, question_id):
 
 @login_required
 def question_short_answer(request, question_id):
-    question = get_object_or_404(Question, id=question_id, question_type='short_answer')
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+    if is_superuser_staff:
+        # Superusers create in the Master Question table by default
+        TargetModel = Question
+    else:
+        # Org users create in the Draft (OrgQuestion) table
+        TargetModel = OrgQuestion
+
+    question = get_object_or_404(TargetModel, id=question_id, question_type='short_answer')
     
     try:
         short_answer = question.short_answer
@@ -479,7 +698,10 @@ def question_short_answer(request, question_id):
         short_answer = None
     
     if request.method == 'POST':
-        form = ShortAnswerForm(request.POST, instance=short_answer)
+        if TargetModel == Question:
+            form = ShortAnswerForm(request.POST, instance=short_answer)
+        else:
+            form = ShortAnswerOrgForm(request.POST, instance=short_answer)
         if form.is_valid():
             short_answer = form.save(commit=False)
             short_answer.question = question
@@ -487,7 +709,11 @@ def question_short_answer(request, question_id):
             messages.success(request, 'Short answer details saved successfully!')
             return redirect('quiz:question_list')
     else:
-        form = ShortAnswerForm(instance=short_answer)
+        if TargetModel == Question:
+            form = ShortAnswerForm(instance=short_answer)
+        else:
+            form = ShortAnswerOrgForm(instance=short_answer)
+        # form = ShortAnswerForm(instance=short_answer)
     
     return render(request, 'quiz/question_short_answer.html', {
         'question': question,
@@ -496,16 +722,32 @@ def question_short_answer(request, question_id):
 
 @login_required
 def question_match_pairs(request, question_id):
-    question = get_object_or_404(Question, id=question_id, question_type='match')
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+    if is_superuser_staff:
+        # Superusers create in the Master Question table by default
+        TargetModel = Question
+    else:
+        # Org users create in the Draft (OrgQuestion) table
+        TargetModel = OrgQuestion
+
+    question = get_object_or_404(TargetModel, id=question_id, question_type='match')
     
     if request.method == 'POST':
-        formset = MatchPairFormSet(request.POST, instance=question)
+        if TargetModel == Question:
+            formset = MatchPairFormSet(request.POST, instance=question)
+        else:
+            formset = MatchPairOrgFormSet(request.POST, instance=question)
+        # formset = MatchPairFormSet(request.POST, instance=question)
         if formset.is_valid():
             formset.save()
             messages.success(request, 'Match pairs saved successfully!')
             return redirect('quiz:question_list')
     else:
-        formset = MatchPairFormSet(instance=question)
+        if TargetModel == Question:
+            formset = MatchPairFormSet(instance=question)
+        else:
+            formset = MatchPairOrgFormSet(instance=question)
+        # formset = MatchPairFormSet(instance=question)
     
     return render(request, 'quiz/question_match_pairs.html', {
         'question': question,
@@ -514,7 +756,16 @@ def question_match_pairs(request, question_id):
 
 @login_required
 def question_true_false(request, question_id):
-    question = get_object_or_404(Question, id=question_id, question_type='true_false')
+
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+    if is_superuser_staff:
+        # Superusers create in the Master Question table by default
+        TargetModel = Question
+    else:
+        # Org users create in the Draft (OrgQuestion) table
+        TargetModel = OrgQuestion
+
+    question = get_object_or_404(TargetModel, id=question_id, question_type='true_false')
     
     try:
         true_false = question.true_false_answer
@@ -522,7 +773,11 @@ def question_true_false(request, question_id):
         true_false = None
     
     if request.method == 'POST':
-        form = TrueFalseAnswerForm(request.POST, instance=true_false)
+        if TargetModel == Question:
+            form = TrueFalseAnswerForm(request.POST, instance=true_false)
+        else:
+            form = TrueFalseAnswerOrgForm(request.POST, instance=true_false)
+        # form = TrueFalseAnswerForm(request.POST, instance=true_false)
         if form.is_valid():
             true_false = form.save(commit=False)
             true_false.question = question
@@ -530,7 +785,11 @@ def question_true_false(request, question_id):
             messages.success(request, 'True/False answer saved successfully!')
             return redirect('quiz:question_list')
     else:
-        form = TrueFalseAnswerForm(instance=true_false)
+        if TargetModel == Question:
+            form = TrueFalseAnswerForm(instance=true_false)
+        else:
+            form = TrueFalseAnswerOrgForm(instance=true_false)
+        # form = TrueFalseAnswerForm(instance=true_false)
     
     return render(request, 'quiz/question_true_false.html', {
         'question': question,
@@ -543,10 +802,18 @@ def question_true_false(request, question_id):
 def question_detail_and_edit(request, question_uuid):
     # Security: Ensure user only accesses their own questions
     UserInf = request.user
-    if UserInf.is_superuser:
+    
+    print("UserInf:", UserInf)
+
+    if UserInf.is_superuser or UserInf.is_staff:
+        print("User is superuser")
         question = get_object_or_404(Question, question_uuid=question_uuid)
+        print("Question fetched for superuser:", question)
     else:
-        question = get_object_or_404(Question, question_uuid=question_uuid,organization=request.user.profile.organization_profile)
+        print("User is not superuser")
+        question = Question.objects.none()
+        return HttpResponseForbidden("You do not have permission to access this question.")
+        print("Question fetched for non-superuser:", question)
 
     # --- Determine which form type to use (Based on question.question_type) ---
     answer_form_class_map = {
@@ -643,6 +910,303 @@ def question_delete(request, question_uuid):
         return redirect('quiz:question_list')
     
     return render(request, 'quiz/question_confirm_delete.html', {'question': question})
+
+
+
+
+#### Organisation Questions 
+
+
+@login_required
+@permission_required('quiz.change_question',login_url='profile_update')
+def Orgquestion_detail_and_edit(request, question_uuid):
+    # Security: Ensure user only accesses their own questions
+    UserInf = request.user
+    
+    print("UserInf:", UserInf)
+
+    if UserInf.is_superuser or UserInf.is_staff:
+        print("User is superuser")
+        question = get_object_or_404(OrgQuestion, question_uuid=question_uuid)
+        print("Question fetched for superuser:", question)
+    else:
+        print("User is not superuser")
+        question = get_object_or_404(OrgQuestion, question_uuid=question_uuid,organization=request.user.profile.organization_profile)
+        print("Question fetched for non-superuser:", question)
+
+    # --- Determine which form type to use (Based on question.question_type) ---
+    answer_form_class_map = {
+        'mcq': MCQOptionOrgFormSet,
+        'fill_blank': FillBlankAnswerOrgFormSet,
+        'match': MatchPairOrgFormSet,
+        'short_answer': ShortAnswerOrgForm,
+        'true_false': TrueFalseAnswerOrgForm,
+    }
+
+    AnswerFormOrSet = answer_form_class_map.get(question.question_type)
+    
+    # Initialize variables for safe handling
+    answer_instance = question # Default instance for FormSets
+    answer_form_context = None
+    needs_type_selection = False
+
+    if AnswerFormOrSet is None:
+        # If the type is missing or invalid, we cannot load the answer form
+        needs_type_selection = True
+    else:
+        # For one-to-one forms, we ensure the related object exists
+        if question.question_type in ['short_answer']:
+            answer_instance, _ = ShortAnswerOrg.objects.get_or_create(question=question)
+        elif question.question_type in ['true_false']:
+            answer_instance, _ = TrueFalseAnswerOrg.objects.get_or_create(question=question)
+
+    # --- POST Handling ---
+    if request.method == 'POST':
+        # Identify which form was submitted (core question details or answer details)
+        action = request.POST.get('form_action')
+        
+        if action == 'core_details':
+            form = OrgQuestionForm(request.POST, instance=question,user=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Core question details updated successfully.')
+                return redirect('quiz:Org_question_detail', question_uuid=question.question_uuid)
+            else:
+                # Initialize answer form for context if core details fail validation (safely)
+                if AnswerFormOrSet:
+                    answer_form_context = AnswerFormOrSet(instance=answer_instance)
+                messages.error(request, 'Error updating core details. Please correct the fields.')
+        
+        elif action == 'answer_details':
+            # GUARD: Prevent saving answers if the question type is undefined
+            if needs_type_selection:
+                messages.error(request, 'Cannot save answers: The question type must be set in the core details first.')
+                form = OrgQuestionForm(instance=question,user=request.user)
+            else:
+                # Handle FormSet (MCQ, Fill, Match) or single Form (Short, T/F)
+                answer_form_context = AnswerFormOrSet(request.POST, instance=answer_instance)
+                
+                if answer_form_context.is_valid():
+                    answer_form_context.save()
+                    messages.success(request, f'{question.get_question_type_display()} answers/options updated successfully.')
+                    return redirect('quiz:Org_question_detail', question_uuid=question.question_uuid)
+                else:
+                    # Initialize core form for context if answer details fail validation
+                    form = OrgQuestionForm(instance=question,user=request.user)
+                    messages.error(request, f'Error updating {question.get_question_type_display()} answers. Please correct the errors.')
+        
+        else:
+            # Fallback/Unrecognized POST
+            messages.error(request, 'Unrecognized form submission.')
+            form = OrgQuestionForm(instance=question,user=request.user)
+            if AnswerFormOrSet:
+                answer_form_context = AnswerFormOrSet(instance=answer_instance)
+
+    # --- GET Handling (or POST failure initialization) ---
+    else:
+        form = OrgQuestionForm(instance=question,user=request.user)
+        if AnswerFormOrSet:
+            answer_form_context = AnswerFormOrSet(instance=answer_instance)
+
+    context = {
+        'question': question,
+        'form': form,
+        'answer_form_context': answer_form_context,
+        # Safely check if it's a FormSet, defaulting to False if context is None
+        'is_formset': hasattr(answer_form_context, 'management_form') if answer_form_context else False,
+        'needs_type_selection': needs_type_selection, # New flag for template logic
+    }
+    return render(request, 'quiz/question_detail_edit.html', context)
+
+@login_required
+@permission_required('quiz.delete_question',login_url='profile_update')
+def Orgquestion_delete(request, question_uuid):
+    question = get_object_or_404(Question, question_uuid=question_uuid)
+    
+    if request.method == 'POST':
+        question.delete()
+        messages.success(request, 'Question deleted successfully!')
+        return redirect('quiz:question_list')
+    
+    return render(request, 'quiz/question_confirm_delete.html', {'question': question})
+
+
+
+
+# Helper function (Required by the view logic)
+def get_org_answer_form(q_type):
+    """Dynamically returns the correct FormSet or Form for the OrgQuestion's answer type."""
+    if q_type == 'mcq':
+        return MCQOptionOrgFormSet
+    elif q_type == 'match':
+        return MatchPairOrgFormSet
+    elif q_type == 'fill_blank':
+        return FillBlankAnswerOrgForm
+    elif q_type == 'short_answer':
+        return ShortAnswerOrgForm 
+    elif q_type == 'true_false':
+        return TrueFalseAnswerOrgForm
+    else:
+        return None
+
+
+@login_required
+@permission_required('quiz.publish_orgquestion', login_url='profile_update')
+def publish_review_and_transfer(request, question_uuid):
+    """
+    Fetches an OrgQuestion, allows final edits (not saved to OrgQuestion), 
+    and on POST, transfers the validated, edited data to the Master Question table.
+    """
+    UserInf = request.user
+    
+    # 1. Fetch Draft Question
+    if UserInf.is_superuser or UserInf.is_staff:
+        question = get_object_or_404(OrgQuestion, question_uuid=question_uuid)
+    else:
+        messages.error(request, "Permission denied.")
+        return redirect('quiz:question_list')
+
+    if question.is_published:
+        messages.warning(request, "This question is already published.")
+        return redirect('quiz:question_list')
+
+    # 2. Determine Forms (Uses Org forms/formsets)
+    AnswerFormOrSet = get_org_answer_form(question.question_type) 
+    
+    # Setup answer instance for FormSets/Forms initialization (required for `instance=`)
+    answer_instance = question 
+    if question.question_type == 'short_answer':
+        answer_instance, _ = ShortAnswerOrg.objects.get_or_create(question=question)
+    elif question.question_type == 'true_false':
+        answer_instance, _ = TrueFalseAnswerOrg.objects.get_or_create(question=question)
+    elif question.question_type == 'fill_blank':
+        # Need to ensure the 1-to-1 instance exists for form binding
+        answer_instance, _ = FillBlankAnswerOrg.objects.get_or_create(question=question)
+
+
+    # --- POST Handling (Transfer Action) ---
+    if request.method == 'POST':
+        action = request.POST.get('form_action') 
+        
+        if action == 'publish_transfer':
+            # 2a. Bind Forms
+            core_form = OrgQuestionForm(request.POST, request.FILES, instance=question, user=request.user)
+            answer_form = AnswerFormOrSet(request.POST, instance=answer_instance)
+            
+            if not core_form.is_valid() or not answer_form.is_valid():
+                messages.error(request, "Validation failed. Please correct the errors before publishing.")
+                form = core_form
+                answer_form_context = answer_form
+            
+            else:
+                try:
+                    with transaction.atomic():
+                        
+                        # CRITICAL STEP 1: Extract Core Question Data (using commit=False)
+                        # We use this object purely for reading the validated form data.
+                        master_question_data = core_form.save(commit=False)
+                        
+                        # CRITICAL STEP 2: CREATE the Master Question record
+                        master_question = Question.objects.create(
+                            # Read values from the form object instance (master_question_data)
+                            question_uuid=master_question_data.question_uuid,
+                            question_type=master_question_data.question_type,
+                            question_image=master_question_data.question_image,
+                            curriculum_board_id=master_question_data.curriculum_board_id,
+                            curriculum_class_id=master_question_data.curriculum_class_id,
+                            curriculum_subject_id=master_question_data.curriculum_subject_id,
+                            curriculum_chapter_id=master_question_data.curriculum_chapter_id,
+                            question_text=master_question_data.question_text,
+                            difficulty=master_question_data.difficulty,
+                            marks=master_question_data.marks,
+                            organization=question.organization, 
+                            is_published=True,
+                            orignal_qid=question, # Link to original OrgQuestion object
+                            created_by=request.user
+                        )
+                        
+                        # CRITICAL STEP 3: Create Master Answers by reading AnswerFormOrSet cleaned_data
+                        
+                        # Helper to map data fields (only needed for 1-to-many FormSets)
+                        answer_field_map = {
+                            'mcq': ['option_text', 'is_correct', 'order'],
+                            'match': ['left_item', 'right_item', 'order'],
+                            'fill_blank': ['correct_answer', 'is_case_sensitive'],
+                            'short_answer': ['sample_answer', 'max_words'],
+                            'true_false': ['correct_answer', 'explanation'],
+                        }
+
+                        # --- Handle FormSets (MCQ, Match - 1 to Many) ---
+                        if hasattr(answer_form, 'management_form'):
+                            # Create Master Answers from validated formset data
+                            MasterAnswerModel = MCQOption if question.question_type == 'mcq' else MatchPair
+                            fields = answer_field_map.get(question.question_type, [])
+                            
+                            master_answers = []
+                            for form in answer_form:
+                                if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                                    master_answers.append(
+                                        MasterAnswerModel(
+                                            question=master_question,
+                                            **{field: form.cleaned_data[field] for field in fields}
+                                        )
+                                    )
+                            MasterAnswerModel.objects.bulk_create(master_answers)
+                        
+                        # --- Handle Single Forms (Short Answer, True/False, Fill Blank - 1 to 1) ---
+                        else:
+                            # Create Master Answer from validated single form data
+                            data = answer_form.cleaned_data
+                            
+                            if question.question_type == 'short_answer':
+                                # Fields: sample_answer, max_words
+                                ShortAnswer.objects.create(question=master_question, **data)
+                                
+                            elif question.question_type == 'true_false':
+                                # Fields: correct_answer, explanation
+                                TrueFalseAnswer.objects.create(question=master_question, **data)
+                                
+                            elif question.question_type == 'fill_blank':
+                                # Fields: correct_answer, is_case_sensitive
+                                FillBlankAnswer.objects.create(question=master_question, **data)
+                            # All other single answer types (e.g., 'numeric') would be added here.
+
+                        # CRITICAL STEP 4: Mark the Draft as Published (THE ONLY CHANGE TO ORG TABLE)
+                        question.is_published = True
+                        question.save(update_fields=['is_published', 'modified'])
+                        
+                        messages.success(request, f"Edits applied and question published successfully!")
+                        return redirect('quiz:question_edit', question_uuid=master_question.question_uuid)
+                        
+                except Exception as e:
+                    messages.error(request, f"Transfer failed: {e}. Publishing cancelled.")
+                    # Pass the forms back with errors
+                    form = core_form
+                    answer_form_context = answer_form
+                    
+        else:
+            messages.error(request, 'Unrecognized submission action.')
+            form = OrgQuestionForm(request.POST, instance=question, user=request.user)
+            answer_form_context = AnswerFormOrSet(request.POST, instance=answer_instance)
+            
+    # --- GET Handling (Initialization) ---
+    else:
+        form = OrgQuestionForm(instance=question, user=request.user)
+        answer_form_context = AnswerFormOrSet(instance=answer_instance)
+
+    # 3. Context and Render
+    context = {
+        'question': question, # The OrgQuestion instance
+        'form': form,
+        'answer_form_context': answer_form_context,
+        'is_formset': hasattr(answer_form_context, 'management_form') if answer_form_context else False,
+        'is_transfer_page': True, 
+    }
+    return render(request, 'quiz/question_detail_edit.html', context)
+
+
+
+
 
 @login_required
 @permission_required('quiz.view_questionpaper',login_url='profile_update')
@@ -1578,16 +2142,56 @@ def get_subjects(request):
 
 
 # ---------- Helper: resolve curriculum nodes ----------
-def get_or_create_curriculum_nodes(board_name, class_name, subject_name, chapter_name=None, section_name=None):
-    """Auto-create or fetch the full curriculum path."""
-    board, _ = TreeNode.objects.get_or_create(name=board_name, node_type='board', parent=None)
-    class_node, _ = TreeNode.objects.get_or_create(name=class_name, node_type='class', parent=board)
-    subject, _ = TreeNode.objects.get_or_create(name=subject_name, node_type='subject', parent=class_node)
+def get_or_create_curriculum_nodes(user, board_name, class_name, subject_name, chapter_name=None, section_name=None,accessible_nodes=None):
+    """
+    Auto-create or fetch the full curriculum path.
+    Enforces restrictions for non-staff users on high-level node creation.
+    """
+    is_superuser_staff = user.is_superuser or user.is_staff
+    accessible_nodes = accessible_nodes or []
+    
+    # 1. BOARD
+    try:
+        board = TreeNode.objects.get(name=board_name, node_type='board', parent=None)
+        if str(board.id) not in map(str, accessible_nodes) and not is_superuser_staff:
+            raise PermissionError(f"User lacks permission to access Board '{board_name},{accessible_nodes},{board.id}'.")
+        
+    except TreeNode.DoesNotExist:
+        if is_superuser_staff:
+            board = TreeNode.objects.create(name=board_name, node_type='board', parent=None)
+        else:
+            raise PermissionError(f"Board '{board_name}' does not exist and user lacks permission to create it.")
 
+    # 2. CLASS
+    try:
+        class_node = TreeNode.objects.get(name=class_name, node_type='class', parent=board)
+        if str(class_node.id) not in map(str,accessible_nodes) and not is_superuser_staff:
+            raise PermissionError(f"User lacks permission to access Board '{class_name}'.")
+        
+    except TreeNode.DoesNotExist:
+        if is_superuser_staff:
+            class_node = TreeNode.objects.create(name=class_name, node_type='class', parent=board)
+        else:
+            raise PermissionError(f"Class '{class_name}' does not exist under Board '{board_name}' and user lacks permission to create it.")
+            
+    # 3. SUBJECT
+    try:
+        subject = TreeNode.objects.get(name=subject_name, node_type='subject', parent=class_node)
+        if  str(subject.id) not in map(str,accessible_nodes) and not is_superuser_staff:
+            raise PermissionError(f"User lacks permission to access Subject '{subject_name}'.")
+        
+    except TreeNode.DoesNotExist:
+        if is_superuser_staff:
+            subject = TreeNode.objects.create(name=subject_name, node_type='subject', parent=class_node)
+        else:
+            raise PermissionError(f"Subject '{subject_name}' does not exist and user lacks permission to create it.")
+
+    # 4. CHAPTER (Creation allowed for all users under existing Subject)
     chapter = None
     if chapter_name:
         chapter, _ = TreeNode.objects.get_or_create(name=chapter_name, node_type='chapter', parent=subject)
 
+    # 5. SECTION (Creation allowed for all users under existing Chapter/Subject)
     section = None
     if section_name:
         parent = chapter or subject
@@ -1601,45 +2205,47 @@ def get_or_create_curriculum_nodes(board_name, class_name, subject_name, chapter
 def bulk_upload_questions(request):
     """
     Upload mixed question types via CSV or Excel.
-    Expected file formats: .csv, .xlsx, .xls
     """
+    
+    is_superuser_staff = request.user.is_superuser or request.user.is_staff
+    organization_profile = getattr(request.user.profile, "organization_profile", None)
+
     if request.method == 'POST':
-        print("Received bulk upload request")
         uploaded_file = request.FILES.get('file')
         if not uploaded_file:
             messages.error(request, "Please attach a CSV or Excel file.")
-            return redirect('bulk_upload_questions')
+            return redirect('quiz:bulk_upload_questions') # Changed to use quiz namespace
 
-        # Get file extension
+        # ... (File type validation remains the same) ...
         file_name = uploaded_file.name.lower()
         is_csv = file_name.endswith('.csv')
         is_excel = file_name.endswith(('.xlsx', '.xls'))
         
         if not (is_csv or is_excel):
             messages.error(request, "Please upload a CSV or Excel file (.csv, .xlsx, .xls)")
-            return redirect('bulk_upload_questions')
+            return redirect('quiz:bulk_upload_questions')
 
-        # ✅ Save a copy of uploaded file for audit
+
+        # 1. Save File for Audit and Get Path
         try:
             timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
             username = request.user.username.replace(" ", "_")
             upload_dir = os.path.join(settings.MEDIA_ROOT, "question_uploads")
             os.makedirs(upload_dir, exist_ok=True)
 
-            # Keep original extension
             file_ext = os.path.splitext(uploaded_file.name)[1]
             file_path = os.path.join(upload_dir, f"{username}_{timestamp}{file_ext}")
             
+            # Use default_storage to handle file saving
             with default_storage.open(file_path, 'wb+') as dest:
                 for chunk in uploaded_file.chunks():
                     dest.write(chunk)
 
-            print(f"Uploaded file saved to {file_path}")
-
         except Exception as e:
-            messages.warning(request, f"File could not be saved: {e}")
+            messages.error(request, f"File could not be saved: {e}")
+            return redirect('quiz:bulk_upload_questions') # Stop processing if file save fails
 
-        # Create upload log
+        # 2. Create Upload Log
         question_log = QuestionUploadLog.objects.create(
             uploaded_by=request.user,
             total_questions=0,
@@ -1652,46 +2258,23 @@ def bulk_upload_questions(request):
         total, successes = 0, 0
         failures = []
 
+        # 3. Read File Content
         try:
-            # Reset file pointer
             uploaded_file.seek(0)
-            
             if is_csv:
-                # Process CSV file
                 data = uploaded_file.read().decode('utf-8-sig')
-                print(f"Reading CSV file, data length: {len(data)}")
-                
                 reader = csv.DictReader(io.StringIO(data))
                 rows = list(reader)
-                print(f"CSV headers: {reader.fieldnames}")
-                
             else:
-                # Process Excel file
-                print(f"Reading Excel file: {uploaded_file.name}")
-                
-                # Read Excel file using pandas
+                # Process Excel file (using pandas as before)
                 if file_name.endswith('.xlsx'):
                     excel_file = pd.ExcelFile(uploaded_file, engine='openpyxl')
-                else:  # .xls
+                else:
                     excel_file = pd.ExcelFile(uploaded_file, engine='xlrd')
-                
-                # Get sheet names
-                sheet_names = excel_file.sheet_names
-                print(f"Excel sheets: {sheet_names}")
-                
-                # Use first sheet by default, or allow selection if needed
-                sheet_name = sheet_names[0]
+                sheet_name = excel_file.sheet_names[0]
                 df = pd.read_excel(uploaded_file, sheet_name=sheet_name, engine='openpyxl' if file_name.endswith('.xlsx') else 'xlrd')
-                
-                # Convert NaN values to empty strings
                 df = df.fillna('')
-                
-                # Convert DataFrame to list of dictionaries
                 rows = df.to_dict('records')
-                print(f"Excel headers: {list(df.columns)}")
-                print(f"Number of rows in Excel: {len(rows)}")
-            
-            print(f"Total rows to process: {len(rows)}")
             
             if not rows:
                 messages.error(request, "File is empty or has no data rows.")
@@ -1699,29 +2282,31 @@ def bulk_upload_questions(request):
                 question_log.save()
                 return redirect('quiz:bulk_upload_questions')
                 
-            # Show sample of first row for debugging
-            if rows:
-                print(f"Sample first row: {rows[0]}")
-                
         except Exception as e:
             error_msg = f"Error reading file: {e}"
-            print(error_msg)
             messages.error(request, error_msg)
             question_log.error_details = [{'row': 0, 'error': error_msg}]
             question_log.save()
             return redirect('quiz:bulk_upload_questions')
 
-        print("Starting file processing...")
-
-        # Process each row
+        # 4. Process each row
         for rownum, row in enumerate(rows, start=1):
-            print(f"Processing row {rownum}")
             total += 1
             
             try:
                 with transaction.atomic():
-                    # Normalize fields with better handling for different file types
-                    # Excel files might have different data types, so convert to string
+                    
+                    # Target Model Selection
+                    if is_superuser_staff:
+                        TargetModel = Question
+                        # Check: Staff/Superusers can only target Master if they have permission to upload public content.
+                    elif organization_profile:
+                        TargetModel = OrgQuestion
+                    else:
+                        raise PermissionError("User is not affiliated with an organization or staff to upload questions.")
+
+
+                    # Normalize fields
                     board_name = str(row.get('board', '')).strip() or 'CBSE'
                     class_name = str(row.get('class_name', '')).strip() or 'Class 10'
                     subject_name = str(row.get('subject', '')).strip() or 'Mathematics'
@@ -1731,6 +2316,14 @@ def bulk_upload_questions(request):
                     qtype = str(row.get('question_type', '')).strip().lower()
                     q_text = str(row.get('question_text', '')).strip()
                     difficulty = str(row.get('difficulty', 'medium')).strip()
+                    marks = int(float(row.get('marks', 1)))
+
+                    # 4a. Validate and Get Curriculum Nodes (Crucial Security Check)
+                    accessible_node_pks = request.user.profile.academic_stream.values_list('pk', flat=True)
+
+                    board, class_node, subject, chapter, section = get_or_create_curriculum_nodes(
+                        request.user, board_name, class_name, subject_name, chapter_name, section_name, accessible_nodes=accessible_node_pks
+                    )
 
                     # Validate required fields
                     if not qtype:
@@ -1738,20 +2331,9 @@ def bulk_upload_questions(request):
                     if not q_text:
                         raise ValueError("question_text is required")
 
-                    try:
-                        marks = int(float(row.get('marks', 1)))  # Handle float from Excel
-                    except (ValueError, TypeError):
-                        marks = 1
 
-                    print(f"Creating curriculum nodes: board={board_name}, class={class_name}, subject={subject_name}")
-                    
-                    board, class_node, subject, chapter, section = get_or_create_curriculum_nodes(
-                        board_name, class_name, subject_name, chapter_name, section_name
-                    )
-
-                    print(f"Creating question: type={qtype}, text={q_text[:50]}...")
-                    
-                    question = Question.objects.create(
+                    # 4b. Create Question Instance
+                    question = TargetModel.objects.create(
                         question_type=qtype,
                         curriculum_class=class_node,
                         curriculum_board=board,
@@ -1761,12 +2343,31 @@ def bulk_upload_questions(request):
                         difficulty=difficulty,
                         marks=marks,
                         created_by=request.user,
-                        is_published=True if request.user.is_staff else False
+                        
+                        # Set Organization and Publication Status based on TargetModel
+                        organization=organization_profile if TargetModel == OrgQuestion else None, # 👈 CRITICAL FIX: Only set org for drafts
+                        is_published=True if TargetModel == Question else False # 👈 CRITICAL FIX: Published only if Master
                     )
 
-                    print(f"✅ Created question ID {question.id} of type {qtype}")
+                    # 4c. Handle Question Type Answers (Dynamic Model Selection)
+                    
+                    # Determine the correct Answer Model based on TargetModel
+                    if TargetModel == Question:
+                        TargetMCQOption = MCQOption
+                        TargetMatchPair = MatchPair
+                        TargetFillBlankAnswer = FillBlankAnswer
+                        TargetTrueFalseAnswer = TrueFalseAnswer
+                        TargetShortAnswer = ShortAnswer
+                    else:
+                        TargetMCQOption = MCQOptionOrg
+                        TargetMatchPair = MatchPairOrg
+                        TargetFillBlankAnswer = FillBlankAnswerOrg
+                        TargetTrueFalseAnswer = TrueFalseAnswerOrg
+                        TargetShortAnswer = ShortAnswerOrg
 
-                    # Handle each question type
+                    # ... (The rest of the answer creation logic remains the same, 
+                    # but uses the dynamically set Target Answer Models) ...
+
                     if qtype == 'mcq':
                         options_raw = str(row.get('options', '') or '')
                         correct_raw = str(row.get('correct_answer', '') or '')
@@ -1777,86 +2378,71 @@ def bulk_upload_questions(request):
                             raise ValueError("MCQ requires at least 2 options")
                         if not correct_list:
                             raise ValueError("MCQ requires at least one correct answer")
-                            
+                        
                         for i, opt in enumerate(opts, start=1):
                             is_correct = opt.strip().lower() in correct_list
-                            MCQOption.objects.create(question=question, option_text=opt, is_correct=is_correct, order=i)
-                        print(f"  Created {len(opts)} MCQ options")
+                            TargetMCQOption.objects.create(question=question, option_text=opt, is_correct=is_correct, order=i)
 
                     elif qtype == 'match':
                         pairs_raw = str(row.get('pairs', '') or '')
                         pairs = [p.strip() for p in pairs_raw.split(';') if p.strip()]
                         if not pairs:
                             raise ValueError("Match questions require pairs")
-                            
+
                         for i, pair in enumerate(pairs, start=1):
                             if ':' in pair:
                                 left, right = pair.split(':', 1)
-                                MatchPair.objects.create(question=question, left_item=left.strip(), right_item=right.strip(), order=i)
+                                TargetMatchPair.objects.create(question=question, left_item=left.strip(), right_item=right.strip(), order=i)
                             else:
                                 raise ValueError(f"Invalid pair format: {pair}")
-                        print(f"  Created {len(pairs)} match pairs")
 
                     elif qtype in ['fill_blank', 'fill', 'fillblank']:
                         correct = str(row.get('correct_answer', '') or '').strip()
                         if not correct:
                             raise ValueError("Fill in blank requires correct_answer")
                         is_case = str(row.get('is_case_sensitive', 'False')).lower() in ['true', '1', 'yes']
-                        FillBlankAnswer.objects.create(question=question, correct_answer=correct, is_case_sensitive=is_case)
-                        print(f"  Created fill blank answer: {correct}")
+                        TargetFillBlankAnswer.objects.create(question=question, correct_answer=correct, is_case_sensitive=is_case)
 
                     elif qtype in ['true_false', 'tf']:
                         val = str(row.get('correct_answer', '') or '').strip().lower()
-                        print(f"  True/False correct_answer value: '{val}'")
                         if val not in ['true', 'false']:
                             raise ValueError("True/False question must have correct_answer 'True' or 'False'")
                         correct_bool = (val == 'true')
                         explanation = str(row.get('explanation', '') or '').strip()
-                        TrueFalseAnswer.objects.create(question=question, correct_answer=correct_bool, explanation=explanation)
-                        print(f"  Created True/False answer: {correct_bool}")
+                        TargetTrueFalseAnswer.objects.create(question=question, correct_answer=correct_bool, explanation=explanation)
 
                     elif qtype in ['short_answer', 'short']:
                         sample = str(row.get('correct_answer') or row.get('sample_answer') or '').strip()
-                        try:
-                            max_words = max(1, int(float(row.get('max_words') or 50)))  # Handle float
-                        except (ValueError, TypeError):
-                            max_words = 50
-                        ShortAnswer.objects.create(question=question, sample_answer=sample, max_words=max_words)
-                        print(f"  Created short answer with max {max_words} words")
+                        max_words = max(1, int(float(row.get('max_words') or 50)))
+                        TargetShortAnswer.objects.create(question=question, sample_answer=sample, max_words=max_words)
 
                     else:
                         raise ValueError(f"Unsupported question_type '{qtype}'")
 
                     successes += 1
-                    print(f"✅ Successfully processed row {rownum}")
 
             except Exception as e:
-                tb = traceback.format_exc()
-                error_msg = f"Row {rownum} failed: {str(e)}"
-                print(f"❌ {error_msg}")
-                failures.append({'row': rownum, 'error': str(e), 'trace': tb})
+                # Catch PermissionError or ValueError from validation/curriculum logic
+                failures.append({'row': rownum, 'error': str(e), 'trace': traceback.format_exc()})
 
-        # Final summary
-        print(f"Processing complete: {successes}/{total} successful")
-        
+        # 5. Final Summary and Log Update (Remains the same)
         if successes > 0:
             messages.success(request, f"Successfully imported {successes} questions from {total} rows.")
         if failures:
             messages.warning(request, f"Failed to import {len(failures)} rows. Check details below.")
 
-        # Update upload log
         question_log.error_details = failures
         question_log.success_count = successes
         question_log.failed_count = len(failures)
         question_log.total_questions = total
         question_log.save()
 
-        # Show up to first 5 errors
         for f in failures[:5]:
             messages.error(request, f"Row {f['row']}: {f['error']}")
 
         return redirect('quiz:bulk_upload_questions')
 
+    # GET Request Logic
     boards = TreeNode.objects.filter(node_type='board').order_by('name')
     return render(request, 'upload/bulk_upload_questions.html', {'boards': boards})
 

@@ -1,0 +1,2 @@
+question_type,question_text,options,correct_answer,pairs,board,class_name,subject,chapter,section,difficulty,marks,explanation,max_words,is_case_sensitive
+true_false,The sum of the angles in any triangle is 180 degrees.,,TRUE,,CBSE,Class 10,Mathematics,Statistics,,easy,1,,,

@@ -1,6 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Question, MCQOption, FillBlankAnswer, ShortAnswer, MatchPair, TrueFalseAnswer, QuestionPaper
+from .models import Question, MCQOption, FillBlankAnswer, ShortAnswer, MatchPair, TrueFalseAnswer, QuestionPaper,FillBlankAnswerOrg,\
+    ShortAnswerOrg,MatchPairOrg,TrueFalseAnswerOrg,OrgQuestion,MCQOptionOrg
 
 from curritree.models import TreeNode 
 import json
@@ -143,6 +144,118 @@ class QuestionForm(forms.ModelForm):
             except (ValueError, TreeNode.DoesNotExist):
                 pass
 
+
+class OrgQuestionForm(forms.ModelForm):
+    class Meta:
+        model = OrgQuestion
+        fields = [
+            'question_type', 'curriculum_board', 'curriculum_class', # Added Class
+            'curriculum_subject', 'curriculum_chapter', 'question_text', 
+            'question_image',
+            'difficulty', 'marks', 'is_published'
+        ] 
+        widgets = {
+            'question_type': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
+            'curriculum_board': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
+            'curriculum_class': forms.Select(attrs=TAILWIND_INPUT_CLASSES), # Added Class widget
+            'curriculum_subject': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
+            'curriculum_chapter': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
+            'question_text': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 4}),
+            'question_image': forms.FileInput(attrs=TAILWIND_INPUT_CLASSES),
+            'difficulty': forms.Select(attrs=TAILWIND_INPUT_CLASSES),
+            'marks': forms.NumberInput(attrs={**TAILWIND_INPUT_CLASSES, 'min': 1}),
+            'is_published': forms.CheckboxInput(attrs=TAILWIND_CHECKBOX_CLASSES),
+        }
+    
+    def __init__(self, *args, **kwargs):
+
+        self.current_user = kwargs.pop('user', None)
+
+
+        super().__init__(*args, **kwargs)
+
+        if self.current_user and not (self.current_user.is_staff or self.current_user.is_superuser):
+            self.fields.pop('is_published', None)
+
+        
+        # 1. Initialize Board Field (Always populated)
+        self.fields['curriculum_board'].queryset = TreeNode.objects.filter(
+            node_type__in=['board', 'competitive']
+        ).order_by('name')
+
+
+
+        # 2. Initialize Class, Subject, and Chapter fields to empty
+        self.fields['curriculum_class'].queryset = TreeNode.objects.none()
+        self.fields['curriculum_subject'].queryset = TreeNode.objects.none()
+        self.fields['curriculum_chapter'].queryset = TreeNode.objects.none()
+        
+        # ====================================================================
+        # START: Read-Only Logic (Includes curriculum_class)
+        # ====================================================================
+
+        if self.instance.pk:
+            # Disable fields that define the fixed question structure
+            fields_to_disable = [
+                'question_type', 
+                'curriculum_board', 
+                'curriculum_class', # Added
+                'curriculum_subject', 
+                'curriculum_chapter'
+            ]
+            
+            # for field_name in fields_to_disable:
+            #     field = self.fields[field_name]
+            #     field.widget.attrs['disabled'] = True
+            #     field.required = False
+            #     field.widget.attrs['class'] += ' opacity-70 bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed'
+
+
+        # ====================================================================
+        # START: CASCADING LOGIC (Board -> Class -> Subject -> Chapter)
+        # ====================================================================
+        
+        # A. Populate Class Field (Filter by Board)
+        current_board = None
+        board_id = self.data.get('curriculum_board') if 'curriculum_board' in self.data else (self.instance.curriculum_board.pk if self.instance.pk and self.instance.curriculum_board else None)
+        
+        if board_id:
+            try:
+                current_board = TreeNode.objects.get(pk=int(board_id))
+                self.fields['curriculum_class'].queryset = TreeNode.objects.filter(
+                    parent=current_board,
+                    node_type='class'
+                ).order_by('order', 'name')
+            except (ValueError, TreeNode.DoesNotExist):
+                pass
+        
+        # B. Populate Subject Field (Filter by Class)
+        current_class = None
+        class_id = self.data.get('curriculum_class') if 'curriculum_class' in self.data else (self.instance.curriculum_class.pk if self.instance.pk and self.instance.curriculum_class else None)
+        
+        if class_id:
+            try:
+                current_class = TreeNode.objects.get(pk=int(class_id))
+                self.fields['curriculum_subject'].queryset = TreeNode.objects.filter(
+                    parent=current_class,
+                    node_type='subject'
+                ).order_by('order', 'name')
+            except (ValueError, TreeNode.DoesNotExist):
+                pass
+
+        # C. Populate Chapter Field (Filter by Subject)
+        current_subject = None
+        subject_id = self.data.get('curriculum_subject') if 'curriculum_subject' in self.data else (self.instance.curriculum_subject.pk if self.instance.pk and self.instance.curriculum_subject else None)
+        
+        if subject_id:
+            try:
+                current_subject = TreeNode.objects.get(pk=int(subject_id))
+                self.fields['curriculum_chapter'].queryset = TreeNode.objects.filter(
+                    parent=current_subject,
+                    node_type='chapter'
+                ).order_by('order', 'name')
+            except (ValueError, TreeNode.DoesNotExist):
+                pass
      
 
 
@@ -160,6 +273,21 @@ MCQOptionFormSet = inlineformset_factory(
     Question, MCQOption, form=MCQOptionForm, extra=4, can_delete=True
 )
 
+class MCQOptionOrgForm(forms.ModelForm):
+    class Meta:
+        model = MCQOptionOrg
+        fields = ['option_text', 'is_correct', 'order']
+        widgets = {
+            'option_text': forms.TextInput(attrs=TAILWIND_INPUT_CLASSES),
+            'is_correct': forms.CheckboxInput(attrs=TAILWIND_CHECKBOX_CLASSES),
+            'order': forms.NumberInput(attrs={**TAILWIND_INPUT_CLASSES, 'min': 1}),
+        }
+
+MCQOptionOrgFormSet = inlineformset_factory(
+    OrgQuestion, MCQOptionOrg, form=MCQOptionForm, extra=4, can_delete=True
+)
+
+
 class FillBlankAnswerForm(forms.ModelForm):
     class Meta:
         model = FillBlankAnswer
@@ -173,9 +301,32 @@ FillBlankAnswerFormSet = inlineformset_factory(
     Question, FillBlankAnswer, form=FillBlankAnswerForm, extra=1, can_delete=True
 )
 
+class FillBlankAnswerOrgForm(forms.ModelForm):
+    """Form for the Org (Draft) FillBlankAnswerOrg model."""
+    class Meta:
+        model = FillBlankAnswerOrg
+        fields = ['correct_answer', 'is_case_sensitive']
+        widgets = {
+            'correct_answer': forms.TextInput(attrs=TAILWIND_INPUT_CLASSES),
+            'is_case_sensitive': forms.CheckboxInput(attrs=TAILWIND_CHECKBOX_CLASSES),
+        }
+
+FillBlankAnswerOrgFormSet = inlineformset_factory(
+    OrgQuestion, FillBlankAnswerOrg, form=FillBlankAnswerOrgForm, extra=1, can_delete=True
+)
+
+
 class ShortAnswerForm(forms.ModelForm):
     class Meta:
         model = ShortAnswer
+        fields = ['sample_answer', 'max_words']
+        widgets = {
+            'sample_answer': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 3}),
+            'max_words': forms.NumberInput(attrs={**TAILWIND_INPUT_CLASSES, 'min': 1}),
+        }
+class ShortAnswerOrgForm(forms.ModelForm):
+    class Meta:
+        model = ShortAnswerOrg
         fields = ['sample_answer', 'max_words']
         widgets = {
             'sample_answer': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 3}),
@@ -196,6 +347,19 @@ MatchPairFormSet = inlineformset_factory(
     Question, MatchPair, form=MatchPairForm, extra=3, can_delete=True
 )
 
+class MatchPairOrgForm(forms.ModelForm):
+    class Meta:
+        model = MatchPairOrg
+        fields = ['left_item', 'right_item', 'order']
+        widgets = {
+            'left_item': forms.TextInput(attrs=TAILWIND_INPUT_CLASSES),
+            'right_item': forms.TextInput(attrs=TAILWIND_INPUT_CLASSES),
+            'order': forms.NumberInput(attrs={**TAILWIND_INPUT_CLASSES, 'min': 1}),
+        }
+MatchPairOrgFormSet = inlineformset_factory(
+    OrgQuestion, MatchPairOrg, form=MatchPairOrgForm, extra=3, can_delete=True
+)
+
 class TrueFalseAnswerForm(forms.ModelForm):
     class Meta:
         model = TrueFalseAnswer
@@ -204,6 +368,16 @@ class TrueFalseAnswerForm(forms.ModelForm):
             'correct_answer': forms.Select(choices=[(True, 'True'), (False, 'False')], attrs=TAILWIND_INPUT_CLASSES),
             'explanation': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 2}),
         }
+
+class TrueFalseAnswerOrgForm(forms.ModelForm):
+    class Meta:
+        model = TrueFalseAnswerOrg
+        fields = ['correct_answer', 'explanation']
+        widgets = {
+            'correct_answer': forms.Select(choices=[(True, 'True'), (False, 'False')], attrs=TAILWIND_INPUT_CLASSES),
+            'explanation': forms.Textarea(attrs={**TAILWIND_INPUT_CLASSES, 'rows': 2}),
+        }
+
 
 class QuestionPaperForm(forms.ModelForm):
     # This hidden field captures the JSON string of all selected Unit/Chapter/Section IDs (the M2M data)

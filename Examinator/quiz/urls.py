@@ -8,7 +8,11 @@ urlpatterns = [
     path('questions/', views.question_list, name='question_list'),
     path('questions/create/', views.question_create, name='question_create'),
     path('questions/<uuid:question_uuid>/edit/', views.question_detail_and_edit, name='question_edit'),
+    path('questions/org/<uuid:question_uuid>/edit/', views.Orgquestion_detail_and_edit, name='Org_question_detail'),
     path('questions/<uuid:question_uuid>/delete/', views.question_delete, name='question_delete'),
+    path('questions/org/<uuid:question_uuid>/delete/', views.Orgquestion_delete, name='Org_question_delete'),
+
+    path('draft/publish-review/<uuid:question_uuid>/', views.publish_review_and_transfer, name='publish_review_and_transfer'),
     
     # Question type specific URLs
     path('questions/<int:question_id>/mcq-options/', views.question_mcq_options, name='question_mcq_options'),
