@@ -142,16 +142,27 @@ def organization_home(request):
     # New draft paper metrics
     current_draft_papers_count = 0
     remaining_draft_papers = 0
+    
+    # Curriculum usage data
+    curriculum_usage = []
+    subject_usage = []
 
     if organization:
         # 1. Fetch standard organization metrics
-        current_papers_count = QuestionPaper.objects.filter(organization=organization).count()
+        current_papers = QuestionPaper.objects.filter(organization=organization)
+        current_papers_count = current_papers.count()
+        latest_papers = current_papers.order_by('-created')[:5]
         # Fetch current draft paper count
-        current_draft_papers_count = QuestionPaper.objects.filter(organization=organization, is_published=False).count()
+        current_draft_papers = QuestionPaper.objects.filter(organization=organization, is_published=False)
+        current_draft_papers_count = current_draft_papers.count()
+
+        current_questions = Question.objects.filter(organization=organization)
+        current_questions_count = current_questions.count()
+        latest_questions = current_questions.order_by('-created')[:5]
 
         org_metrics = {
             'total_org_users': User.objects.filter(profile__organization_profile=organization).count(),
-            'total_org_questions': Question.objects.filter(organization=organization).count(),
+            'total_org_questions': current_questions_count,
             'current_papers_count': current_papers_count,
             'current_draft_papers_count': current_draft_papers_count, # Added for metric card
         }
@@ -159,7 +170,6 @@ def organization_home(request):
         # 2. Fetch License & Usage Data
         today = date.today()
     
-        
         license_grants = organization.license_grants.filter(Q(valid_until__isnull=True) | Q(valid_until__gte=today))
         try:
             usage_limit = UsageLimit.objects.get(organization_profile=organization)
@@ -180,12 +190,99 @@ def organization_home(request):
             max_drafts = 0
             remaining_draft_papers = 0
 
+        # 5. Calculate Curriculum Usage in Papers AND Questions
+        # Get all papers and questions for this organization
+        all_papers = QuestionPaper.objects.filter(organization=organization)
+        all_questions = Question.objects.filter(organization=organization)
+        
+        # Subject Usage Analysis
+        subject_usage_data = {}
+        for paper in all_papers:
+            subject = paper.curriculum_subject
+            if subject:
+                subject_id = subject.id
+                if subject_id not in subject_usage_data:
+                    subject_usage_data[subject_id] = {
+                        'subject': subject,
+                        'paper_count': 0,
+                        'published_count': 0,
+                        'draft_count': 0,
+                        'question_count': 0  # Initialize question count
+                    }
+                subject_usage_data[subject_id]['paper_count'] += 1
+                if paper.is_published:
+                    subject_usage_data[subject_id]['published_count'] += 1
+                else:
+                    subject_usage_data[subject_id]['draft_count'] += 1
+        
+        # Count questions per subject
+        for question in all_questions:
+            # Assuming Question model has curriculum_nodes or similar field
+            # Adjust this based on your actual Question model structure
+            if hasattr(question, 'curriculum_nodes') and question.curriculum_nodes.exists():
+                for node in question.curriculum_nodes.all():
+                    # Find the subject (root) of this node
+                    subject_node = node
+                    while subject_node.parent is not None:
+                        subject_node = subject_node.parent
+                    
+                    # If this subject is in our usage data, count the question
+                    for subject_data in subject_usage_data.values():
+                        if subject_data['subject'].id == subject_node.id:
+                            subject_data['question_count'] += 1
+                            break
+        
+        subject_usage = list(subject_usage_data.values())
+        
+        # Chapter Usage Analysis
+        chapter_usage_data = {}
+        for paper in all_papers:
+            # Count chapters used in this paper
+            chapters = paper.curriculum_chapters.all()
+            for chapter in chapters:
+                chapter_id = chapter.id
+                if chapter_id not in chapter_usage_data:
+                    chapter_usage_data[chapter_id] = {
+                        'chapter': chapter,
+                        'paper_count': 0,
+                        'published_count': 0,
+                        'draft_count': 0,
+                        'question_count': 0,  # Initialize question count
+                        'subject': chapter.parent.name if chapter.parent else "No Subject"
+                    }
+                chapter_usage_data[chapter_id]['paper_count'] += 1
+                if paper.is_published:
+                    chapter_usage_data[chapter_id]['published_count'] += 1
+                else:
+                    chapter_usage_data[chapter_id]['draft_count'] += 1
+        
+        # Count questions per chapter
+        for question in all_questions:
+            # Assuming Question model has curriculum_nodes or similar field
+            # Adjust this based on your actual Question model structure
+            if hasattr(question, 'curriculum_nodes') and question.curriculum_nodes.exists():
+                for node in question.curriculum_nodes.all():
+                    chapter_id = node.id
+                    if chapter_id in chapter_usage_data:
+                        chapter_usage_data[chapter_id]['question_count'] += 1
+        
+        curriculum_usage = list(chapter_usage_data.values())
+        
+        # Sort by paper count (descending)
+        subject_usage.sort(key=lambda x: x['paper_count'], reverse=True)
+        curriculum_usage.sort(key=lambda x: x['paper_count'], reverse=True)
 
-    # 5. Context Construction
+        # 6. Total question count for the organization
+        total_question_count = all_questions.count()
+
+    # 7. Context Construction
     context = {
         'organization': organization,
         'is_superuser': request.user.is_superuser,
         'org_pk': organization.pk if organization else None,
+
+        'latest_questions': latest_questions,
+        'latest_papers': latest_papers,
         
         # Data for Admin Hub Tab
         'org_metrics': org_metrics, 
@@ -200,16 +297,18 @@ def organization_home(request):
         # New Draft Metrics
         'current_draft_papers_count': current_draft_papers_count,
         'remaining_draft_papers': remaining_draft_papers,
-        # 'max_question_papers_drafts' is available via 'usage_limit.max_question_papers_drafts'
         
+        # Curriculum Usage Data
+        'subject_usage': subject_usage,
+        'curriculum_usage': curriculum_usage,
+        'total_question_count': total_question_count,
+
         # Get current tab from URL query, default to 'hub'
         'current_tab': request.GET.get('tab', 'hub') 
     }
     
     # Render the updated hub page
-    # Render the updated hub page
     return render(request, 'organization_home.html', context)
-
 
 
 

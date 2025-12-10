@@ -140,6 +140,9 @@ class LicensePermission(models.Model):
 
     class Meta:
         unique_together = ('license', 'permission')
+        verbose_name = "License"
+        verbose_name_plural = "License"
+
 
 
 

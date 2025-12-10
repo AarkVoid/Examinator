@@ -79,7 +79,14 @@
                     {% for question in questions %}
                     <div class="p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         <label class="flex items-start space-x-3 cursor-pointer">
-                            <input type="checkbox" name="selected_questions" value="{{ question.id }}" class="form-checkbox text-blue-600 mt-1">
+                            <!-- <input type="checkbox" name="selected_questions" value="{{ question.id }}" class="form-checkbox text-blue-600 mt-1"> -->
+                              {% if question.is_org_question %}
+                                    <!-- This is an OrgQuestion -->
+                                    <input type="checkbox" name="selected_questions" value="{{ question.id }}_org" class="form-checkbox text-blue-600 mt-1">
+                                {% else %}
+                                    <!-- This is a regular Question -->
+                                    <input type="checkbox" name="selected_questions" value="{{ question.id }}_q" class="form-checkbox text-blue-600 mt-1">
+                                {% endif %}
                             <div class="flex-1 min-w-0">
                                 <!-- Question Header with Metadata -->
                                 <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -118,7 +125,7 @@
                                 <div class="mb-3">
                                     <p class="text-gray-900 dark:text-white font-medium mb-2">Question:</p>
                                     <div class="text-gray-700 dark:text-gray-300">
-                                        {{ question.question_text|linebreaks }}
+                                       {{ question.question_text|linebreaks }}
                                     </div>
                                 </div>
 

@@ -4,7 +4,7 @@
 {% block title %}Admin Hub{% endblock %}
 
 {% block content %}
-<div classT="space-y-6">
+<div class="space-y-6">
   <!-- Header -->
   <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
     <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-50">
@@ -63,8 +63,67 @@
   <!-- === TAB CONTENT === -->
   <div>
     
-    <!-- Tab Panel 1: Admin Hub (The original navigation grid) -->
-    <div id="tab-hub-content" class="{% if current_tab != 'hub' %}hidden{% endif %}">
+    <!-- Tab Panel 1: Admin Hub -->
+    <div id="tab-hub-content" class="{% if current_tab != 'hub' %}hidden{% endif %} space-y-8">
+        
+      <!-- Organization Metric Cards (Now includes Subject and Chapter Counts) -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        
+        <!-- Total Users -->
+        <div class="metric-card border-indigo-500">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Users</p>
+                <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{{ org_metrics.total_org_users|default:"0" }}</p>
+            </div>
+            <i class="fa-solid fa-users text-2xl text-indigo-600 dark:text-indigo-400"></i>
+        </div>
+
+        <!-- Total Questions -->
+        <div class="metric-card border-green-500">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Questions</p>
+                <p class="text-3xl font-bold text-green-600 dark:text-green-400">{{ org_metrics.total_org_questions|default:"0" }}</p>
+            </div>
+            <i class="fa-solid fa-question text-2xl text-green-600 dark:text-green-400"></i>
+        </div>
+
+        <!-- Total Papers (Published + Draft) -->
+        <div class="metric-card border-blue-500">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Papers</p>
+                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ org_metrics.current_papers_count|default:"0" }}</p>
+            </div>
+            <i class="fa-solid fa-file-lines text-2xl text-blue-600 dark:text-blue-400"></i>
+        </div>
+
+        <!-- Total Draft Papers -->
+        <div class="metric-card border-yellow-500">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Draft Papers</p>
+                <p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ org_metrics.current_draft_papers_count|default:"0" }}</p>
+            </div>
+            <i class="fa-solid fa-folder-open text-2xl text-yellow-600 dark:text-yellow-400"></i>
+        </div>
+
+        <!-- NEW: Total Subjects Count -->
+        <div class="metric-card border-purple-500">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Subjects</p>
+                <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">{{ org_metrics.total_subjects_count|default:"0" }}</p>
+            </div>
+            <i class="fa-solid fa-book-open text-2xl text-purple-600 dark:text-purple-400"></i>
+        </div>
+
+        <!-- NEW: Total Chapters Count -->
+        <div class="metric-card border-red-500">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Chapters</p>
+                <p class="text-3xl font-bold text-red-600 dark:text-red-400">{{ org_metrics.total_chapters_count|default:"0" }}</p>
+            </div>
+            <i class="fa-solid fa-list-check text-2xl text-red-600 dark:text-red-400"></i>
+        </div>
+      </div>
+        
       <!-- Main Navigation Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
@@ -110,7 +169,7 @@
             <a href="{% url 'quiz:question_list' %}" class="admin-link-card">
               <i class="fa-solid fa-question text-3xl text-green-500 mr-4"></i>
               <div>
-                <p class="font-semibold">Question Bank</p>
+                <p class="font-semibold">Question Bank ({{ total_question_count|default:"0" }})</p>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Manage all individual questions.</p>
               </div>
             </a>
@@ -151,6 +210,60 @@
             </a>
           </div>
         </div>
+      </div>
+      
+      <!-- NEW: Collapsible Recent Content Sections -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        
+        <!-- Latest Questions Section -->
+        <div class="collapsible-container bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-t-4 border-l-4 border-green-500">
+            <button class="collapsible-header w-full flex justify-between items-center p-4 text-left font-bold text-xl text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition duration-150" data-target="latest-questions-content">
+                <span><i class="fa-solid fa-clipboard-list mr-2 text-green-500"></i> Latest Created Questions</span>
+                <i class="fa-solid fa-chevron-down text-gray-400"></i>
+            </button>
+            <div id="latest-questions-content" class="collapsible-content space-y-2 p-4 hidden">
+                {% for question in latest_questions %}
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                        <a href="{% url 'quiz:Org_question_detail' question_uuid=question.question_uuid %}" class="block text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {{ forloop.counter }}. {{ question.question_text|striptags|truncatechars:80 }}
+                        </a>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Created by: {{ question.creator.username }} on {{ question.created_at|date:"M d, H:i" }}
+                        </p>
+                    </div>
+                {% empty %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 p-2">No questions created recently by the organization.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Latest Question Papers Section -->
+        <div class="collapsible-container bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-t-4 border-l-4 border-blue-500">
+            <button class="collapsible-header w-full flex justify-between items-center p-4 text-left font-bold text-xl text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition duration-150" data-target="latest-papers-content">
+                <span><i class="fa-solid fa-file-invoice mr-2 text-blue-500"></i> Latest Created Question Papers</span>
+                <i class="fa-solid fa-chevron-down text-gray-400"></i>
+            </button>
+            <div id="latest-papers-content" class="collapsible-content space-y-2 p-4 hidden">
+                {% for paper in latest_papers %}
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                        <a href="{% url 'quiz:paper_detail' paper_id=paper.id %}" class="block text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {{ forloop.counter }}. {{ paper.title }} 
+                            {% if paper.is_published %}
+                                <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Published</span>
+                            {% else %}
+                                <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Draft</span>
+                            {% endif %}
+                        </a>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Created by: {{ paper.creator.username }} on {{ paper.created_at|date:"M d, H:i" }}
+                        </p>
+                    </div>
+                {% empty %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 p-2">No question papers created recently by the organization.</p>
+                {% endfor %}
+            </div>
+        </div>
+      </div>
         
         <!-- 4. SYSTEM & SAAS MANAGEMENT (Superuser Only) -->
         {% if is_superuser %}
@@ -164,7 +277,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">Manage all client organizations.</p>
               </div>
             </a>
-            <a href="{% url 'saas:license_dashboard' %}" class="admin-link-card bg-red-50 dark:bg-red-900/20 hover:ring-red-500">
+            <a href="{% url 'saas:organization_license_overview' %}" class="admin-link-card bg-red-50 dark:bg-red-900/20 hover:ring-red-500">
               <i class="fa-solid fa-key text-3xl text-red-600 mr-4"></i>
               <div>
                 <p class="font-semibold">License Dashboard</p>
@@ -181,7 +294,6 @@
           </div>
         </div>
         {% endif %}
-      </div>
     </div>
 
     <!-- Tab Panel 2: License & Usage -->
@@ -192,14 +304,14 @@
         <!-- Question Papers Remaining (Total) -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-between border-l-4 border-green-500">
           <div class="space-y-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Papers Remaining</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Published Papers Remaining</p>
             <p class="text-4xl font-bold text-green-600 dark:text-green-400">{{ remaining_papers|default:"0" }}</p>
             <p class="text-xs text-gray-400 dark:text-gray-500">
               {{ current_papers_count }} used of {{ total_max_papers }} total
             </p>
           </div>
           <div class="w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
-            <i class="fa-solid fa-file-circle-plus text-2xl text-green-600 dark:text-green-400"></i>
+            <i class="fa-solid fa-file-circle-check text-2xl text-green-600 dark:text-green-400"></i>
           </div>
         </div>
 
@@ -219,7 +331,7 @@
         </div>
 
         <!-- Remaining Draft Papers (UPDATED CARD) -->
-        <div classs="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-between border-l-4 border-yellow-500">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-between border-l-4 border-yellow-500">
           <div class="space-y-1">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Remaining Draft Slots</p>
             <p class="text-4xl font-bold text-yellow-600 dark:text-yellow-400">{{ remaining_draft_papers|default:"0" }}</p>
@@ -233,6 +345,82 @@
         </div>
         {% endif %}
       </div>
+
+      <!-- Curriculum Usage Section -->
+      {% if subject_usage or curriculum_usage %}
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+            <i class="fa-solid fa-chart-bar text-blue-500 mr-3"></i>
+            Content & Curriculum Usage Analytics
+        </h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+          Shows resource utilization across different curriculum subjects and chapters (papers and questions).
+        </p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          <!-- Subject Usage -->
+          {% if subject_usage %}
+          <div class="space-y-3">
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">Subjects (Top {{ subject_usage|length }})</h3>
+            {% for item in subject_usage %}
+            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2 border border-gray-100 dark:border-gray-600">
+              <span class="font-bold text-lg text-gray-900 dark:text-gray-100 block">{{ item.subject.name }}</span>
+              <div class="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                <span class="col-span-1">Papers: 
+                    <span class="font-semibold text-blue-600 dark:text-blue-400">{{ item.paper_count }}</span>
+                </span>
+                <span class="col-span-1">Questions: 
+                    <span class="font-semibold text-green-600 dark:text-green-400">{{ item.question_count }}</span>
+                </span>
+                <span class="col-span-1 text-right">Drafts: 
+                    <span class="font-semibold text-yellow-600 dark:text-yellow-400">{{ item.draft_count }}</span>
+                </span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <!-- Chapter Usage -->
+          {% if curriculum_usage %}
+          <div class="space-y-3">
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">Chapters (Top {{ curriculum_usage|length }})</h3>
+            {% for item in curriculum_usage %}
+            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2 border border-gray-100 dark:border-gray-600">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-lg text-gray-900 dark:text-gray-100">{{ item.chapter.name }}</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500 italic">({{ item.subject }})</span>
+                </div>
+              <div class="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                <span class="col-span-1">Papers: 
+                    <span class="font-semibold text-blue-600 dark:text-blue-400">{{ item.paper_count }}</span>
+                </span>
+                <span class="col-span-1">Questions: 
+                    <span class="font-semibold text-green-600 dark:text-green-400">{{ item.question_count }}</span>
+                </span>
+                <span class="col-span-1 text-right">Drafts: 
+                    <span class="font-semibold text-yellow-600 dark:text-yellow-400">{{ item.draft_count }}</span>
+                </span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+      {% else %}
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                <i class="fa-solid fa-chart-bar text-blue-500 mr-3"></i>
+                Content & Curriculum Usage Analytics
+            </h2>
+            <p class="text-gray-500 dark:text-gray-400 p-4 border border-gray-300 dark:border-gray-600 rounded-lg">
+                No papers or questions have been tracked yet for curriculum usage. Usage data will appear here after content is created.
+            </p>
+        </div>
+      {% endif %}
 
       <!-- License Grants Table -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
@@ -263,7 +451,7 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ grant.max_question_papers }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ grant.purchased_on|date:"M d, Y" }}</td>
-                  <td classThis="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                     {% if grant.valid_until %}
                       {{ grant.valid_until|date:"M d, Y" }}
                     {% else %}
@@ -286,6 +474,32 @@
     
   </div>
 </div>
+
+<script>
+    // JavaScript for Collapsible Sections
+    function setupCollapsibles() {
+        document.querySelectorAll('.collapsible-header').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.getAttribute('data-target');
+                const targetContent = document.getElementById(targetId);
+                
+                if (targetContent) {
+                    targetContent.classList.toggle('hidden');
+                    
+                    // Optional: change icon direction
+                    const icon = button.querySelector('i.fa-chevron-down, i.fa-chevron-up');
+                    if (icon) {
+                        icon.classList.toggle('fa-chevron-down');
+                        icon.classList.toggle('fa-chevron-up');
+                    }
+                }
+            });
+        });
+    }
+
+    // Ensure the setup runs after the page loads
+    window.onload = setupCollapsibles;
+</script>
 
 <style>
 /* Custom styles for the Admin Link Cards */
@@ -318,6 +532,35 @@
   background-color: rgb(17 24 39); /* darker background on hover */
   border-color: #60A5FA; /* blue-400 */
 }
+
+/* Metric Card Styles (New) */
+.metric-card {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-left: 4px solid;
+    transition: transform 0.2s;
+}
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.dark .metric-card {
+    background-color: rgb(31 41 55);
+}
+
+/* Collapsible Section Styles */
+.collapsible-header {
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+}
+.collapsible-header:focus {
+    outline: none;
+}
+
 </style>
 {% endblock %}
-

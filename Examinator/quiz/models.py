@@ -70,9 +70,12 @@ class OrgQuestion(TimeStampedModel):
     organization = models.ForeignKey('saas.OrganizationProfile', on_delete=models.CASCADE, null=True, blank=True)
     is_published = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    paere_count = models.BigIntegerField(default=0,blank=True,null=True)
     
     class Meta:
         ordering = ['-created']
+        verbose_name = 'Client Question '
+        verbose_name_plural = 'Client Question '
     
     def __str__(self):
         return f"{self.get_question_type_display()}: {self.question_text[:50]}..."
@@ -142,9 +145,13 @@ class Question(TimeStampedModel):
     is_published = models.BooleanField(default=False)
     orignal_qid = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    paere_count = models.BigIntegerField(default=0,blank=True,null=True)
+    is_Textual =  models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-created']
+        verbose_name = 'Public Question '
+        verbose_name_plural = 'Public Question '
     
     def __str__(self):
         return f"{self.get_question_type_display()}: {self.question_text[:50]}..."
@@ -161,16 +168,24 @@ class MCQOptionOrg(models.Model): # Renamed: MCQOptionOrg
     
     class Meta:
         ordering = ['order']
+        verbose_name = 'Client MCQ Question Option'
+        verbose_name_plural = 'Client MCQ Question Options'
 
 class FillBlankAnswerOrg(models.Model): # Renamed: FillBlankAnswerOrg
     question = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, related_name='fill_blank_answers_org')
     correct_answer = models.CharField(max_length=200)
     is_case_sensitive = models.BooleanField(default=False)
+    class Meta:
+        verbose_name = 'Client FIB Question Option'
+        verbose_name_plural = 'Client FIB Question Options'
 
 class ShortAnswerOrg(models.Model): # Renamed: ShortAnswerOrg
     question = models.OneToOneField(OrgQuestion, on_delete=models.CASCADE, related_name='short_answer_org')
     sample_answer = models.TextField()
     max_words = models.PositiveIntegerField(default=50)
+    class Meta:
+        verbose_name = 'Client Short Answer Question Option'
+        verbose_name_plural = 'Client Short Answer Question Options'
 
 class MatchPairOrg(models.Model): # Renamed: MatchPairOrg
     question = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE, related_name='match_pairs_org')
@@ -180,11 +195,17 @@ class MatchPairOrg(models.Model): # Renamed: MatchPairOrg
     
     class Meta:
         ordering = ['order']
+        verbose_name = 'Client Match Question Option'
+        verbose_name_plural = 'Client Match Question Options'
 
 class TrueFalseAnswerOrg(models.Model): # Renamed: TrueFalseAnswerOrg
     question = models.OneToOneField(OrgQuestion, on_delete=models.CASCADE, related_name='true_false_answer_org')
     correct_answer = models.BooleanField()
     explanation = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = 'Client True or False Question Option'
+        verbose_name_plural = 'Client True or False Question Options'
 
 
 
@@ -196,16 +217,24 @@ class MCQOption(models.Model):
     
     class Meta:
         ordering = ['order']
+        verbose_name = 'MCQ Question Option'
+        verbose_name_plural = 'MCQ Question Options'
 
 class FillBlankAnswer(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='fill_blank_answers')
     correct_answer = models.CharField(max_length=200)
     is_case_sensitive = models.BooleanField(default=False)
+    class Meta:
+        verbose_name = 'FIB Question Option'
+        verbose_name_plural = 'FIB Question Options'
 
 class ShortAnswer(models.Model):
     question = models.OneToOneField(Question, on_delete=models.CASCADE, related_name='short_answer')
     sample_answer = models.TextField()
     max_words = models.PositiveIntegerField(default=50)
+    class Meta:
+        verbose_name = ' Short Answer Question Option'
+        verbose_name_plural = ' Short Answer Question Options'
 
 class MatchPair(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='match_pairs')
@@ -215,13 +244,22 @@ class MatchPair(models.Model):
     
     class Meta:
         ordering = ['order']
+        verbose_name = 'Match Question Option'
+        verbose_name_plural = 'Match Question Options'
 
 class TrueFalseAnswer(models.Model):
     question = models.OneToOneField(Question, on_delete=models.CASCADE, related_name='true_false_answer')
     correct_answer = models.BooleanField()
     explanation = models.TextField(blank=True)
 
+    class Meta:
+        verbose_name = 'True or False Question Option'
+        verbose_name_plural = 'True or False Question Options'
+
+
 class QuestionPaper(TimeStampedModel):
+
+    paper_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
     
     PAPER_PATTERNS = [
         ('standard', 'Standard Pattern'),
@@ -259,15 +297,18 @@ class QuestionPaper(TimeStampedModel):
     instructions = models.TextField(blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     is_published = models.BooleanField(default=False)
+    marks_distribution = models.JSONField(default={},blank=True,null=True)
     
     class Meta:
         ordering = ['-created']
+        verbose_name = 'Question Paper'
+        verbose_name_plural = 'Question Paper'
     
     def __str__(self):
         return self.title
     
     def calculate_total_marks(self):
-        return sum(pq.marks for pq in self.paper_questions.all())
+        return sum(pq.marks for pq in self.paper_questions.all()) + sum(pq.marks for pq in self.paper_orgquestions.all())
 
 class PaperQuestion(models.Model):
     paper = models.ForeignKey(QuestionPaper, on_delete=models.CASCADE, related_name='paper_questions')
@@ -279,6 +320,22 @@ class PaperQuestion(models.Model):
     class Meta:
         ordering = ['order']
         unique_together = ['paper', 'question']
+        verbose_name = 'Question In Paper'
+        verbose_name_plural = 'Question In Paper'
+
+
+class PaperOrgQuestion(models.Model):
+    paper = models.ForeignKey(QuestionPaper, on_delete=models.CASCADE, related_name='paper_orgquestions')
+    question = models.ForeignKey(OrgQuestion, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()
+    marks = models.PositiveIntegerField()
+    section = models.CharField(max_length=50, blank=True)
+    
+    class Meta:
+        ordering = ['order']
+        unique_together = ['paper', 'question']
+        verbose_name = 'Client Question In Paper'
+        verbose_name_plural = 'Client Question In Paper'
 
 class QuestionPaperAttempt(models.Model):
     paper = models.ForeignKey(QuestionPaper, on_delete=models.CASCADE)
@@ -290,6 +347,8 @@ class QuestionPaperAttempt(models.Model):
     
     class Meta:
         unique_together = ['paper', 'student']
+        verbose_name = 'Attempts on Question Paper'
+        verbose_name_plural = 'Attempts on Question Paper'
 
 
 class QuestionUploadLog(TimeStampedModel):
@@ -302,3 +361,7 @@ class QuestionUploadLog(TimeStampedModel):
     
     def __str__(self):
         return f"Upload by {self.uploaded_by.username} on {self.created.strftime('%Y-%m-%d %H:%M:%S')}"
+    
+    class Meta:
+        verbose_name = 'Bulk Upload Of Question'
+        verbose_name_plural = 'Bulk Upload Of Question'

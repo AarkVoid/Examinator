@@ -26,16 +26,15 @@ urlpatterns = [
     path('permissions/', views.permission_list, name='permission_list'),
     path('permissions/create/', views.permission_create, name='permission_add'),
     path('permissions/delete/<int:pk>/', views.permission_delete, name='permission_delete'),
-
     path('UserPermission/<int:user_id>/',views.edit_user_permissions_and_groups, name='UserPermission'),
     path('institute-admin/UserPermissions/<int:user_id>/', views.edit_permissions_by_institute_admin, name='edit_permissions_by_institute_admin'),
     path('users/create/<int:org_pk>/', views.create_user_by_admin, name='create_user_by_admin'),
     path('view_organization_users/<int:org_pk>/', views.list_organization_users, name='view_organization_users_list'),
     path('organization/<int:org_pk>/users/<int:user_pk>/edit/', views.edit_organization_user, name='view_organization_users_edit'),
+
+
     path('manage/', views.manage_organization_groups, name='manage_groups'),
-    # Path for editing an existing group
     path('manage/<int:group_id>/', views.manage_organization_groups, name='manage_groups'),
-    # Path for deleting a group (requires a confirmation page/modal)
     path('delete/<int:group_id>/', views.delete_organization_group, name='delete_group'),
 
     path('impersonate/<int:user_id>/', impersonate_user, name='impersonate_user'),

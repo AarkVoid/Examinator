@@ -7,16 +7,15 @@ from django.db.models import Q
 # --- NOTE: Replace these placeholder imports with your actual models ---
 # Assuming these models are accessible in your project:
 # from your_app.models import LicenseGrant, OrganizationProfile, Profile, TreeNode
-# from django.contrib.auth.models import User, Permission
+# from django.contrib.auth.models import User, Permission, Group
 # -----------------------------------------------------------------------
 
 # --- Placeholder definitions for running the command independently ---
-# You MUST replace these with your actual model imports.
 from saas.models import LicenseGrant
 from saas.models import OrganizationProfile
 from accounts.models import User, Profile
 from curritree.models import TreeNode
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Permission, Group  # Added Group import
 # -----------------------------------------------------------------------
 
 logger = logging.getLogger(__name__)
@@ -29,10 +28,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Starting license synchronization check for {today}...")
 
         # 1. Identify all organizations that have at least one license that expired before today.
-        # We look for organizations whose *active* license count might have just changed.
         affected_orgs = OrganizationProfile.objects.filter(
             license_grants__valid_until__lt=today,
-            license_grants__valid_until__isnull=False # Ensure we only check for licenses with explicit expiration dates
+            license_grants__valid_until__isnull=False
         ).distinct()
 
         if not affected_orgs.exists():
@@ -52,6 +50,7 @@ class Command(BaseCommand):
                     )
                     
                     # --- A. ACADEMIC STREAM & CURRICULUM SYNC (Global Revocation) ---
+
                     
                     # 1. Recalculate all licensed nodes based ONLY on currently active licenses
                     all_licensed_nodes_qs = TreeNode.objects.filter(
@@ -77,56 +76,121 @@ class Command(BaseCommand):
                     # 2. Sync User Profile Streams (M2M field)
                     # 🛑 CRITICAL: Target ALL users for stream recalculation to ensure revocation for everyone.
                     user_profiles = Profile.objects.filter(organization_profile=org) 
-                    
+
+                    is_license_active = active_licenses_qs.exists()
                     for profile in user_profiles:
-                        # Use .set() to efficiently synchronize the M2M field
-                        profile.academic_stream.set(all_active_nodes_pk)
+                        profile.is_license_active = is_license_active
+                        profile.academic_stream.set(all_active_nodes_pk) # Use .set() to efficiently synchronize the M2M field
+                        profile.save()
 
                     self.stdout.write(f"  -> Synced {len(all_active_nodes_pk)} stream nodes for {user_profiles.count()} users (All Users).")
 
+                    
                     # 3. Sync Organization Supported Boards/Curriculum
-                    root_board_pks = TreeNode.objects.filter(
+                    board_pks = TreeNode.objects.filter(
                         pk__in=all_active_nodes_pk,
-                        node_type__in=["board", "competitive"],
+                        node_type__in=["board", "competitive","class","subject","unit","chapter","section"],
                         parent__isnull=True  # This guarantees it's a top-level node
                     ).values_list('pk', flat=True)
                     
-                    org.supported_curriculum.set(root_board_pks)
+                    org.supported_curriculum.set(all_active_nodes_pk)
+              
                     org.save()
+
+                    
+                    # --- CONDITIONAL STOP ADDED HERE ---
+                    if not is_license_active:
+                        self.stdout.write(self.style.WARNING(f"  -> Organization {org.name} has NO active licenses remaining. Stopping further sync for this organization (Curriculum/Permissions)."))
+                        total_synced_orgs += 1
+                        continue # Skip the rest of the loop for this organization
+                    # ----------------------------------
 
 
                     # --- B. PERMISSION SYNC (Global Revocation) ---
 
                     # 1. Get aggregate permissions from the calculated active licenses
-                    all_perms = Permission.objects.filter(
+                    all_perms_qs = Permission.objects.filter(
                         licensepermission__license__in=active_licenses_qs
                     ).distinct()
+                    # Get the PKs for efficient set comparison
+                    licensed_perms_pks = set(all_perms_qs.values_list('pk', flat=True))
                     
-                    # 2. Find target users
-                    # 🛑 FIX: Target ALL users for global permission revocation on expiry.
+                    # 2. Sync Organization Custom Groups 
+                    # This logic ensures unlicensed permissions are revoked from groups.
+                    try:
+                        organization_groups = org.custom_groups.all() 
+                        total_groups_synced = 0
+
+                        for group in organization_groups:
+                            current_group_perms_pks = set(group.permissions.values_list('pk', flat=True))
+
+                            # Permissions to KEEP are the intersection of currently held and currently licensed
+                            perms_to_keep_pks = current_group_perms_pks.intersection(licensed_perms_pks)
+                            
+                            # We set the group permissions to the set of permissions that should remain.
+                            group.permissions.set(list(perms_to_keep_pks))
+                            total_groups_synced += 1
+
+                        self.stdout.write(f"  -> Synced {total_groups_synced} custom groups, revoking unlicensed permissions.")
+                    except AttributeError:
+                        self.stdout.write(self.style.WARNING("  -> WARNING: Skipping Group Sync. 'custom_groups' field not found on OrganizationProfile."))
+
+
+                    # 3. Find target users and sync permissions
                     users_to_update = User.objects.filter(
                         profile__organization_profile=org
                     )
 
-                    # 3. Use the bulk approach for efficient update
+                    # 4. Use the bulk approach for efficient update of direct user permissions (FIXED LOGIC)
                     UserPermissionM2M = User._meta.get_field('user_permissions').remote_field.through
                     
-                    # The clearing/setting process below ensures that only permissions 
-                    # from ACTIVE licenses remain on ANY user.
                     for user in users_to_update:
-                        # Clear old permissions (Crucial for revocation)
-                        UserPermissionM2M.objects.filter(user=user).delete() 
+                        
+                        # 4.1. Get the primary keys of the permissions currently held directly by the user.
+                        current_user_direct_perms_pks = set(
+                            user.user_permissions.all().values_list('pk', flat=True)
+                        )
 
-                        # Bulk create new permissions (if the user is an admin, they will get them back 
-                        # if they are in the all_perms set, if not, they remain cleared).
-                        if all_perms and user.role == 'admin': # Only re-add permissions to admins
-                            new_user_perms = [
-                                UserPermissionM2M(user=user, permission=perm)
-                                for perm in all_perms
-                            ]
-                            UserPermissionM2M.objects.bulk_create(new_user_perms, ignore_conflicts=True)
+                        # 4.2. Identify permissions that are no longer licensed (and thus must be revoked).
+                        # These are permissions the user holds (A) that are NOT in the active licensed set (B).
+                        perms_to_revoke_pks = current_user_direct_perms_pks.difference(licensed_perms_pks)
+                        
+                        # 4.3. REVOCATION: Remove only the permissions identified for revocation.
+                        if perms_to_revoke_pks:
+                            # Delete M2M entries where the permission PK is in the revocation set for this user.
+                            UserPermissionM2M.objects.filter(
+                                user=user, 
+                                permission__pk__in=perms_to_revoke_pks
+                            ).delete()
+                            self.stdout.write(f"    -> Revoked {len(perms_to_revoke_pks)} unlicensed direct perms for {user.username}.")
+                        
+                        # 4.4. RE-GRANT/SYNC (Admin Specific: Full Sync)
+                        if user.role == 'admin':
+                            # Get the licensed permissions that the admin *does not* currently hold directly
+                            # This prevents revoking existing licenses that they might have for other reasons,
+                            # and only ensures they have the *full* set granted by licenses.
+                            perms_to_add_pks = licensed_perms_pks.difference(current_user_direct_perms_pks)
+
+                            if perms_to_add_pks:
+                                # Bulk create M2M entries for the missing licensed permissions
+                                perms_to_add = all_perms_qs.filter(pk__in=perms_to_add_pks)
+                                new_user_perms = [
+                                    UserPermissionM2M(user=user, permission=perm)
+                                    for perm in perms_to_add
+                                ]
+                                UserPermissionM2M.objects.bulk_create(new_user_perms, ignore_conflicts=True)
+                                self.stdout.write(f"    -> Added {len(new_user_perms)} licensed direct perms for Admin {user.username}.")
+
+
+                        # 4.5. 🛑 CRITICAL FIX: Invalidate the user's permission cache
+                        if hasattr(user, '_perm_cache'):
+                            del user._perm_cache
+                        if hasattr(user, '_user_perm_cache'):
+                            del user._user_perm_cache
+                        if hasattr(user, '_group_perm_cache'):
+                            del user._group_perm_cache
                             
-                    self.stdout.write(f"  -> Synced {all_perms.count()} permissions for {users_to_update.count()} users.")
+                    self.stdout.write(f"  -> Processed direct permissions for {users_to_update.count()} users.")
                     total_synced_orgs += 1
                     
             except Exception as e:

@@ -37,7 +37,6 @@
                     {% csrf_token %}
 
                     {# --- STEP 1: Content Selection --- #}
-                    {# --- STEP 1: Content Selection --- #}
                     <div class="space-y-6">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">1</span> Select Content Scope
@@ -56,9 +55,7 @@
                                 class="hidden">
                             </select>
 
-                            {# Actionable Nodes (Buttons) - REMOVED, as selection happens directly in the tree #}
-                            
-                            {# --- NEW: Selected Nodes Stream Display (Remains the same) --- #}
+                            {# --- NEW: Selected Nodes Stream Display --- #}
                             <div class="pt-4 border-t border-indigo-100 dark:border-indigo-800/50">
                                 <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Content Stream:</h4>
                                 <div id="selected-nodes-stream" 
@@ -106,7 +103,6 @@
                     </div>
 
                     {# --- STEP 3: Permissions (Accordion Group) --- #}
-                    {# --- STEP 3: Permissions (Accordion Group) --- #}
                     <div class="space-y-6">
                         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
                             <span class="text-indigo-500 border border-indigo-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 font-extrabold">3</span> Granular Permissions
@@ -115,10 +111,23 @@
                         <div class="bg-gray-50 dark:bg-gray-900/40 border-2 border-indigo-200 dark:border-indigo-800 rounded-xl p-3 shadow-inner">
                             {% for model_name, perms in all_permissions_by_model.items %}
                                 <div class="border-b border-gray-200 dark:border-gray-700 last:border-b-0" id="perm-group-{{ model_name|slugify }}">
+                                    
                                     <button type="button"
                                             class="w-full flex justify-between items-center bg-transparent px-4 py-3 text-left font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg"
                                             onclick="toggleAccordion('{{ model_name|slugify }}')">
-                                        <span class="font-semibold">{{ model_name }} Permissions</span>
+                                        
+                                        <div class="flex items-center space-x-3">
+                                            <label class="flex items-center space-x-2 cursor-pointer" onclick="event.stopPropagation()">
+                                                <input type="checkbox" data-select-all-model="{{ model_name|slugify }}"
+                                                    onchange="toggleAllPermissions(this)"
+                                                    class="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 bg-white border-indigo-300 dark:bg-gray-700 dark:border-indigo-500 dark:text-indigo-500">
+                                            
+                                                <!-- This will now display the friendly name from the view's grouping logic -->
+                                                <span class="font-semibold">{{ model_name }} Permissions</span>
+                                            </label>
+                                        </div>
+
+                                        <!-- RIGHT SIDE: Accordion Icon -->
                                         <svg id="{{ model_name|slugify }}-icon" class="w-5 h-5 transition-transform text-indigo-600 dark:text-indigo-400"
                                             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                             stroke="currentColor">
@@ -126,17 +135,9 @@
                                                 d="M19 9l-7 7-7-7"/>
                                         </svg>
                                     </button>
+                                    
 
                                     <div id="{{ model_name|slugify }}-body" class="accordion-body bg-white dark:bg-gray-900">
-                                        
-                                        <div class="px-4 pb-2 border-b border-gray-200 dark:border-gray-800 mb-3">
-                                            <label class="flex items-center space-x-2 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition cursor-pointer font-bold text-indigo-800 dark:text-indigo-200">
-                                                <input type="checkbox" data-select-all-model="{{ model_name|slugify }}"
-                                                    onchange="toggleAllPermissions(this)"
-                                                    class="rounded text-indigo-600 focus:ring-indigo-500 bg-white border-indigo-300 dark:bg-gray-700 dark:border-indigo-500 dark:text-indigo-500">
-                                                <!-- <span>Select/Deselect All {{ model_name }} Permissions</span> -->
-                                            </label>
-                                        </div>
                                         
                                         <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-4">
                                             {% for perm in perms %}
@@ -268,11 +269,9 @@
 {% endwith %}
 {% endblock %}
 
+
 {% block extra_scripts %}
 <script>
-    // The original JS has been kept largely intact, with updates to syncButtonsToSelect 
-    // and renderRootNodeButtons to manage the new #selected-nodes-stream div.
-    
     // --- Configuration & Initialization ---
     const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}');
     const mainCurriculumSelect = document.getElementById('id_license_curriculum_nodes');
@@ -371,17 +370,6 @@
         // Right side: Toggle Button and Select Children Button
         const rightSide = document.createElement('div');
         rightSide.className = 'flex items-center space-x-2';
-        // NEW: Select Children Button (Always available for this use case)
-        const selectChildrenButton = document.createElement('button');
-        selectChildrenButton.type = 'button';
-        selectChildrenButton.title = 'Select all children (and descendants)';
-        selectChildrenButton.className = 'p-1 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 rounded-lg transition font-semibold';
-        selectChildrenButton.innerHTML = '<i class="fa-solid fa-layer-group mr-1"></i> Select All';     
-        selectChildrenButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleSelectChildren(nodeId, nodeType); 
-        });
-        rightSide.appendChild(selectChildrenButton);
         // Collapsible Toggle Button (Always available for this use case)
         const toggleButton = document.createElement('button');
         toggleButton.type = 'button';
@@ -474,7 +462,7 @@
                 return response.json();
             })
             .then(data => {
-                // Assuming the API returns a structure like: { ancestor_ids: ["parent_id", "grandparent_id", ...] }
+                // Assuming the API returns a structure like: { ancestors: [{id: "parent_id", name: "Parent"}, ...] }
                 console.log('Ancestors data:', data);
                 const ancestor_ids = [];
                 data.ancestors.forEach(node => {
@@ -502,11 +490,10 @@
             .then(data => {
                 console.log('Descendants data:', data);
                 const descendant_ids = [];
+                // Assuming the API returns a flat list of all descendants, including the immediate children
                 data.children.forEach(node => {
-                    console.log(`Child Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
                     descendant_ids.push(node.id || node.pk);
                 });
-                // Assuming the API returns a structure like: { descendant_ids: ["101", "102", ...] }
                 return descendant_ids || []; 
             })
             .catch(error => {
@@ -530,17 +517,25 @@
         const isSelected = checkbox.checked;
         option.selected = isSelected;
         
-        // 1. Handle Descendants (Top-Down)
+        // 1. Handle Descendants (Top-Down Selection/Deselection)
+        // This promise handles selecting all children if the parent is selected, 
+        // OR deselecting all children if the parent is deselected.
         const descendantPromise = fetchDescendantsIds(nodeId)
             .then(descendantIds => {
                 descendantIds.forEach(descendantId => {
                     let descendantOption = mainCurriculumSelect.querySelector(`option[value="${descendantId}"]`);
+                    // Find the node name from the already rendered options if possible, otherwise use a placeholder
+                    const renderedNode = document.querySelector(`.tree-checkbox[value="${descendantId}"]`);
+                    const descNodeName = renderedNode ? renderedNode.dataset.nodeName : `Node ${descendantId}`;
+
                     if (!descendantOption) {
-                        descendantOption = new Option(`Node ${descendantId}`, descendantId, isSelected, isSelected);
+                        descendantOption = new Option(descNodeName, descendantId, isSelected, isSelected);
                         mainCurriculumSelect.add(descendantOption);
                     } else {
                         descendantOption.selected = isSelected;
                     }
+
+                    // Update UI checkbox state for rendered descendants
                     const descendantCheckbox = document.querySelector(`.tree-checkbox[value="${descendantId}"]`);
                     if (descendantCheckbox) {
                         descendantCheckbox.checked = isSelected;
@@ -548,25 +543,12 @@
                 });
             });
 
-        // 2. Handle Ancestors (Bottom-Up)
+        // 2. Handle Ancestors
         if (isSelected) {
-            // --- Selection Path (Bottom-Up Selection) ---
-            // If selected, ensure all ancestors are also selected.
+            // --- Selection Path: Only Top-Down Selection remains ---
+            // We explicitly SKIP fetching/selecting ancestors (Bottom-Up Selection).
+            
             descendantPromise
-                .then(() => fetchAncestorsIds(nodeId))
-                .then(ancestorIds => {
-                    ancestorIds.forEach(parentId => {
-                        // Select the ancestor in the hidden select
-                        const parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
-                        if (parentOption) {
-                            parentOption.selected = true;
-                        }
-                        const parentCheckbox = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
-                        if (parentCheckbox) {
-                            parentCheckbox.checked = true;
-                        }
-                    });
-                })
                 .finally(() => {
                     // Final UI Sync after all async operations are done
                     if (typeof syncNodesToSelect === 'function') {
@@ -574,8 +556,9 @@
                     }
                 });
         } else {
-            // --- Deselection Path (Top-Down & Bottom-Up Deselection) ---
-            // If deselected, deselect descendants AND deselect all ancestors.
+            // --- Deselection Path: Top-Down Deselection (via descendantPromise) 
+            // and Bottom-Up Deselection (via ancestor fetch) are KEPT.
+            
             descendantPromise
                 .then(() => fetchAncestorsIds(nodeId)) // Fetch ancestors for deselection
                 .then(ancestorIds => {
@@ -625,11 +608,13 @@
                     const childPromises = [];
                     data.children.forEach(node => {
                         // Add to the map of nodes to select
-                        newNodesToSelect.set(node.id, node.name);
+                        newNodesToSelect.set(node.id || node.pk, node.name || node.fields.name);
                         
-                        if (node.has_children) {
-                            childPromises.push(fetchDescendants(node.id));
-                        }
+                        // Recursive call to get deeper descendants
+                        // We assume the response for the child endpoint doesn't return the full hierarchy, 
+                        // so we need to recursively fetch.
+                        childPromises.push(fetchDescendants(node.id || node.pk));
+                        
                     });
                     return Promise.all(childPromises);
                 });
@@ -638,6 +623,12 @@
         
         fetchDescendants(parentId)
             .then(() => {
+                // Ensure the starting parent node is also selected
+                const parentNode = document.querySelector(`.tree-checkbox[value="${parentId}"]`);
+                if (parentNode) {
+                    newNodesToSelect.set(parentId, parentNode.dataset.nodeName);
+                }
+
                 newNodesToSelect.forEach((name, id) => {
                     let option = mainCurriculumSelect.querySelector(`option[value="${id}"]`);
                     
@@ -647,10 +638,17 @@
                     } else {
                         option.selected = true;
                     }
+
+                    // Also update the rendered checkbox
+                    const checkbox = document.querySelector(`.tree-checkbox[value="${id}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
                 });
+
                 if (typeof syncNodesToSelect === 'function') {
                     syncNodesToSelect(); 
-                    console.log(`Successfully selected ${newNodesToSelect.size} descendants.`);
+                    console.log(`Successfully selected ${newNodesToSelect.size} nodes.`);
                 } else {
                     console.warn('syncNodesToSelect function not found. UI may not update automatically.');
                 }

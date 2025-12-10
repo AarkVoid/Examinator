@@ -101,6 +101,9 @@ def _validate_and_save_node(data, instance=None):
         
     # 3. Metadata Validation
     metadata_raw = data.get('metadata', '').strip()
+    print('Data :',data)
+
+    print("metadata_raw :",metadata_raw)
     metadata = {}
     if metadata_raw:
         try:
@@ -193,28 +196,44 @@ def _validate_and_save_node(data, instance=None):
 @staff_required
 @permission_required('curritree.add_treenode',login_url='profile_update')
 def create_node(request):
-    """View to create a new root node."""
     initial_data = {}
     errors = {}
     
     if request.method == 'POST':
-        # Data from POST request
         initial_data = request.POST.dict()
-        
-        # Manually set parent to empty string for validation as a root node
         initial_data['parent'] = '' 
+        
+        # NOTE: Your _validate_and_save_node function should handle 
+        # converting the JSON string back into a Python dict before saving.
         
         node, errors = _validate_and_save_node(initial_data)
         
         if node:
             return redirect('curritree:curriculum_detail', pk=node.pk)
     
+    # --- Data Preparation for GET/Error Case (CRITICAL CHANGE) ---
+    
+    # 1. Get the raw JSON string (default to an empty string)
+    metadata_json_str = initial_data.get('metadata', '')
+    
+    # 2. Prepare a dictionary for template iteration
+    parsed_metadata = {}
+    if metadata_json_str:
+        try:
+            # Safely convert the JSON string to a Python dict
+            parsed_metadata = json.loads(metadata_json_str)
+        except json.JSONDecodeError:
+            # Handle invalid JSON gracefully
+            errors['metadata'] = "Invalid JSON format detected."
+            parsed_metadata = {}
+
     context = {
         'is_editing': False,
         'initial_data': initial_data,
         'errors': errors,
-        'node_type_choices': NODE_TYPE_CHOICES, # Full list for root node selector
-        # parent_node is None for root creation
+        'node_type_choices': NODE_TYPE_CHOICES,
+        # PASS THE PARSED DICTIONARY TO THE TEMPLATE
+        'parsed_metadata': parsed_metadata, 
     }
     return render(request, 'hierarchy/curriculum_form.html', context)
 
@@ -287,7 +306,7 @@ def edit_node(request, pk):
         'parent': str(node.parent.pk) if node.parent else '',
         'order': node.order,
         'marks': node.marks,
-        'metadata': json.dumps(node.metadata) if node.metadata else '',
+        'metadata': node.metadata,
     }
     errors = {}
     
@@ -311,6 +330,7 @@ def edit_node(request, pk):
         'initial_data': initial_data,
         'errors': errors,
         'node_type_choices': NODE_TYPE_CHOICES,
+        'parsed_metadata' : node.metadata,
     }
     return render(request, 'hierarchy/curriculum_form.html', context)
 

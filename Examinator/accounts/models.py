@@ -106,7 +106,7 @@ class Profile(TimeStampedModel):
         blank=True, # blank=True is necessary for M2M fields to be optional
         verbose_name="Academic Stream/Content Boundary",
         # Allow linking to Board, Class, Subject, etc., depending on the enrollment level
-        limit_choices_to={'node_type__in': ['board', 'competitive', 'class', 'subject']} 
+        limit_choices_to={'node_type__in': ['board', 'competitive', 'class', 'subject','chapter','unit','section']} 
     )
     # SAAS CLIENT RELATIONSHIP (from saas app)
     # This directly links the user to the paying entity/tenant.
@@ -134,6 +134,11 @@ class Profile(TimeStampedModel):
         default=12345,
         # NOTE: For production, this field MUST store a secure hash, not the plaintext PIN.
         help_text="A security PIN required for staff/admin users (non-superusers) to impersonate this user. Use a hashing function before saving in production."
+    )
+
+    is_license_active = models.BooleanField(
+        default=True,
+        help_text="Indicates if the user's license is currently active."
     )
 
 
@@ -171,17 +176,18 @@ class OrganizationGroup(TimeStampedModel):
         verbose_name="Permissions"
     )
 
-    class Meta:
-        # CRUCIAL: Ensures a group name is only unique within the scope of its organization.
-        # This allows multiple organizations to have a group named "Managers" without conflict.
-        unique_together = (('organization', 'name'),)
-        verbose_name = "Organization Group"
-        verbose_name_plural = "Organization Groups"
     
     def __str__(self):
         # We try to use the name attribute of the organization object.
         org_name = self.organization.name if hasattr(self.organization, 'name') else 'Organization ID: ' + str(self.organization_id)
         return f"{self.name} ({org_name})"
+    
+    class Meta:
+        # CRUCIAL: Ensures a group name is only unique within the scope of its organization.
+        # This allows multiple organizations to have a group named "Managers" without conflict.
+        unique_together = (('organization', 'name'),)
+        verbose_name = "Client Group"
+        verbose_name_plural ="Client Group"
     
 
 

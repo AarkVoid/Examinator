@@ -100,7 +100,7 @@
                                     <i class="fa-solid fa-chart-simple mr-2"></i> Usage Limits
                                 </a>
 
-                                <a href="{% url 'create_user_by_admin' org.id %}"
+                                <a href="{% url 'saas:create_ClientOrgination' %}?orgId={{ org.id }}"
                                 class="px-3 py-2 text-sm font-semibold rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors flex items-center border border-transparent hover:border-purple-200">
                                     <i class="fa-solid fa-user-shield mr-2"></i> Add Admins
                                 </a>

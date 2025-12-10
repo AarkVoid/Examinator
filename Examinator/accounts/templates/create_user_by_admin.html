@@ -4,7 +4,7 @@
 {% block title %}Create New User{% endblock %}
 
 {% block extra_css %}
-
+/* CSS for the Curriculum Tree Accordion */
 .accordion-body {
     max-height: 0; /* Hidden state */
     overflow: hidden;
@@ -15,8 +15,10 @@
     padding-top: 1rem;
     padding-bottom: 1rem;
 }
-
-    {% endblock %}
+.rotate-180 {
+    transform: rotate(180deg);
+}
+{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto p-4 sm:p-8">
@@ -82,7 +84,7 @@
 
             ---
 
-            <details class="group rounded-xl border border-blue-200 dark:border-blue-800 shadow-lg transition duration-300 hover:shadow-xl">
+            <details class="group rounded-xl border border-blue-200 dark:border-blue-800 shadow-lg transition duration-300 hover:shadow-xl" open>
                 <summary class="flex items-center justify-between p-4 cursor-pointer bg-blue-50 dark:bg-blue-900/50 rounded-xl group-open:rounded-b-none">
                     <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300">
                         Assign Permissions
@@ -94,11 +96,13 @@
 
                 <div class="p-4 border-t border-blue-200 dark:border-blue-800 max-h-96 overflow-y-auto space-y-4">
                     
+                    {# Permission Group Rendering #}
                     {% for model_name, perms in grouped_permissions.items %}
                     <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3" data-model-group="{{ model_name|slugify }}">
                         <div class="flex items-center justify-between mb-3 border-b pb-2">
                             <h4 class="text-md font-bold text-gray-800 dark:text-gray-100">{{ model_name }}</h4>
                             
+                            {# MASTER CHECKBOX FOR SYNCHRONIZATION #}
                             <label class="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300">
                                 <input type="checkbox" 
                                        class="select-all-group-checkbox rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" 
@@ -141,7 +145,7 @@
                         Select Content Nodes (Board / Class / Chapter)
                     </h4>
                     
-                    {# The container for the JavaScript-rendered tree #}
+                    {# The container for the JavaScript-rendered tree (Curriculum Select) #}
                     <div id="curriculum-tree-container" class="space-y-2 p-3 border rounded-lg bg-white dark:bg-gray-900/50">
                         <p class="text-gray-400 text-sm">Loading curriculum nodes...</p>
                     </div>
@@ -180,9 +184,9 @@
     // --- Configuration & Initialization ---
     // Note: You need to pass the root nodes data to the context for this to work.
     // Assuming 'json_root_nodes' is added to the context by your view.
-    const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}'); 
+    // This is a placeholder for the Django variable, which must be correctly rendered by the server.
+    const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}' || '[]'); 
     
-    // NOTE: Changed ID from id_license_curriculum_nodes to id_academic_stream_nodes
     const mainCurriculumSelect = document.getElementById('id_academic_stream_nodes');
     const curriculumTreeContainer = document.getElementById('curriculum-tree-container');
     const selectedNodesStream = document.getElementById('selected-nodes-stream');
@@ -190,8 +194,12 @@
 
 
     // --- DEPENDENCY: Backend API Fetchers (Required for Cascading Logic) ---
-    // THESE MUST BE IMPLEMENTED ON YOUR BACKEND!
+    // NOTE: These functions rely on specific backend endpoints being implemented.
     function fetchDescendantsIds(nodeId) {
+        // Mock implementation for demonstration: Replace with actual fetch
+        console.log(`[API MOCK] Fetching descendants for ${nodeId}...`);
+        
+        // This should be replaced with:
         const url = `/curritree/nodes/${nodeId}/descendant/`; 
         return fetch(url)
             .then(response => {
@@ -199,14 +207,12 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Descendants data:', data);
                 const descendant_ids = [];
+                // Assuming the API returns a structure where children contain 'id' or 'pk'
                 data.children.forEach(node => {
-                    console.log(`Child Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
                     descendant_ids.push(node.id || node.pk);
                 });
-                // Assuming the API returns a structure like: { descendant_ids: ["101", "102", ...] }
-                return descendant_ids || []; 
+                return descendant_ids; 
             })
             .catch(error => {
                 console.error(`Error fetching descendants for node ${nodeId}:`, error);
@@ -215,7 +221,10 @@
     }
     
     function fetchAncestorsIds(nodeId) {
-        // This is the hypothetical endpoint we agreed upon
+        // Mock implementation for demonstration: Replace with actual fetch
+        console.log(`[API MOCK] Fetching ancestors for ${nodeId}...`);
+
+        // This should be replaced with:
         const url = `/curritree/nodes/${nodeId}/ancestors/`; 
 
         return fetch(url)
@@ -224,14 +233,12 @@
                 return response.json();
             })
             .then(data => {
-                // Assuming the API returns a structure like: { ancestor_ids: ["parent_id", "grandparent_id", ...] }
-                console.log('Ancestors data:', data);
                 const ancestor_ids = [];
+                // Assuming the API returns a structure where ancestors contain 'id' or 'pk'
                 data.ancestors.forEach(node => {
-                    console.log(`Ancestor Node ID: ${node.id || node.pk}, Name: ${node.name || node.fields.name}`);
                     ancestor_ids.push(node.id || node.pk);
                 });
-                return ancestor_ids || []; 
+                return ancestor_ids; 
             })
             .catch(error => {
                 console.error(`Error fetching ancestors for node ${nodeId}:`, error);
@@ -241,10 +248,20 @@
     
     function fetchChildrenAndRender(nodeId, targetElement, nodeType) {
         if (targetElement.children.length > 0) return; // Simple caching check
+        
+        // Mock URL and data for demonstration: Replace with actual fetch
         const url = `/quiz/nodes/${nodeId}/children/`; 
+        
+        // Simulate loading
+        targetElement.innerHTML = `<p class="text-sm text-gray-400 italic p-3">Loading ${nodeType} children...</p>`;
+
         fetch(url)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
             .then(data => {
+                targetElement.innerHTML = ''; // Clear loading message
                 renderTree(data.children, targetElement, nodeType); 
             })
             .catch(error => {
@@ -263,7 +280,6 @@
         // 2. Update the Selected Nodes Stream
         selectedNodesStream.innerHTML = '';
         if (selectedOptions.length === 0) {
-            // Use the original message element, not a clone
             selectedNodesStream.innerHTML = `<span class="text-gray-500 dark:text-gray-400 text-sm italic">No content nodes selected yet.</span>`;
         } else {
             selectedOptions.forEach(option => {
@@ -318,7 +334,6 @@
         // 2. Handle Ancestors (Bottom-Up)
         if (isSelected) {
             // --- Selection Path (Bottom-Up Selection) ---
-            // If selected, ensure all ancestors are also selected.
             descendantPromise
                 .then(() => fetchAncestorsIds(nodeId))
                 .then(ancestorIds => {
@@ -335,16 +350,14 @@
                     });
                 })
                 .finally(() => {
-                    // Final UI Sync after all async operations are done
                     if (typeof syncNodesToSelect === 'function') {
                         syncNodesToSelect();
                     }
                 });
         } else {
             // --- Deselection Path (Top-Down & Bottom-Up Deselection) ---
-            // If deselected, deselect descendants AND deselect all ancestors.
             descendantPromise
-                .then(() => fetchAncestorsIds(nodeId)) // Fetch ancestors for deselection
+                .then(() => fetchAncestorsIds(nodeId)) // Fetch ancestors for potential deselection
                 .then(ancestorIds => {
                     ancestorIds.forEach(parentId => {
                         // Deselect the ancestor in the hidden select
@@ -361,7 +374,6 @@
                     });
                 })
                 .finally(() => {
-                    // Final UI Sync after all async operations are done
                     if (typeof syncNodesToSelect === 'function') {
                         syncNodesToSelect();
                     }
@@ -434,10 +446,10 @@
     // Renders a single node as a list item, potentially with a collapsible body for children
     function renderNode(node, container, level) {
         const nodeId = node.id || node.pk; // Consolidated Node ID
-        const nodeName = node.name || node.fields.name;
-        const nodeType = node.node_type || node.fields.node_type;
-        const hasChildren = true; 
-
+        // The node object might be wrapped in Django serialization format (fields)
+        const nodeName = node.name || (node.fields ? node.fields.name : `Node ${nodeId}`);
+        const nodeType = node.node_type || (node.fields ? node.fields.node_type : 'Unknown');
+        
         const nodeContainer = document.createElement('div');
         nodeContainer.className = `ml-${level * 4} py-1`; 
         
@@ -508,7 +520,7 @@
                 icon.classList.add('rotate-180');
                 
                 // Lazy load children on first open
-                if (body.children.length === 0) {
+                if (body.children.length === 0 || body.querySelector('.text-gray-400')) {
                     fetchChildrenAndRender(nodeId, body, nodeType);
                 }
             }
@@ -529,7 +541,7 @@
 
     // Renders a list of nodes at the current level
     function renderTree(nodes, container, parentType = 'Root') {
-        if (nodes.length === 0) {
+        if (!nodes || nodes.length === 0) {
             container.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-sm italic p-3">No further ${parentType} content found.</p>`;
             return;
         }
@@ -547,14 +559,16 @@
     document.addEventListener('DOMContentLoaded', () => {
         
         // --- EXISTING: Curriculum Tree Initialization ---
-        if (ROOT_NODES_DATA && curriculumTreeContainer) {
+        if (ROOT_NODES_DATA && curriculumTreeContainer && Array.isArray(ROOT_NODES_DATA)) {
             curriculumTreeContainer.innerHTML = ''; 
             renderTree(ROOT_NODES_DATA, curriculumTreeContainer);
         } else if (curriculumTreeContainer) {
-            curriculumTreeContainer.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm italic p-3">Error: Root nodes data not provided by the server.</p>';
+            curriculumTreeContainer.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm italic p-3">Error: Root nodes data not provided or is invalid.</p>';
         }
 
-        // --- NEW: Permission Group Listener ---
+        // --- Permissions Two-Way Synchronization Logic ---
+        
+        // 1. Master -> Item Synchronization (Toggle All)
         document.querySelectorAll('.select-all-group-checkbox').forEach(masterCheckbox => {
             masterCheckbox.addEventListener('change', function() {
                 const modelSlug = this.dataset.targetGroup;
@@ -567,17 +581,29 @@
             });
         });
         
-        // Optional: Implement logic to update master checkbox if individual items are unchecked
+        // 2. Item -> Master Synchronization (Check if all are checked)
+        const updateMasterCheckbox = (modelSlug) => {
+            const groupContainer = document.querySelector(`[data-model-group="${modelSlug}"]`);
+            if (!groupContainer) return;
+            
+            const masterCheckbox = groupContainer.querySelector('.select-all-group-checkbox');
+            const itemCheckboxes = groupContainer.querySelectorAll('.permission-item-checkbox');
+            
+            if (!masterCheckbox) return;
+
+            const allChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
+            masterCheckbox.checked = allChecked;
+        };
+
         document.querySelectorAll('.permission-item-checkbox').forEach(itemCheckbox => {
             itemCheckbox.addEventListener('change', function() {
-                const modelSlug = this.dataset.groupModel;
-                const groupContainer = document.querySelector(`[data-model-group="${modelSlug}"]`);
-                const masterCheckbox = groupContainer.querySelector('.select-all-group-checkbox');
-                const itemCheckboxes = groupContainer.querySelectorAll('.permission-item-checkbox');
-
-                const allChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
-                masterCheckbox.checked = allChecked;
+                updateMasterCheckbox(this.dataset.groupModel);
             });
+        });
+        
+        // 3. Initial state check for Master Checkboxes
+        document.querySelectorAll('.select-all-group-checkbox').forEach(masterCheckbox => {
+             updateMasterCheckbox(masterCheckbox.dataset.targetGroup);
         });
     });
 

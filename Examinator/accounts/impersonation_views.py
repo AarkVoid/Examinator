@@ -156,8 +156,10 @@ def exit_impersonation(request):
     if not original_user_id:
         # Failsafe: if the key is missing, redirect to admin home
         messages.error(request, "Could not find original user session key.")
-        return redirect('manage_users')
-
+        
+        return redirect('login')
+        
+        
     # 2. Retrieve the original superuser object
     original_user = get_object_or_404(User, pk=original_user_id)
 
@@ -178,4 +180,7 @@ def exit_impersonation(request):
     messages.success(request, f"Returned to original account: {original_user.username}.")
     
     # 6. Redirect back to the admin dashboard
-    return redirect('manage_users')
+    if request.user.is_superuser or request.user.is_staff:
+        return redirect('manage_users')
+    else:
+        return redirect('view_organization_users_list',org_pk=request.user.profile.organization_profile.id)

@@ -1,157 +1,725 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load form_tags %}
+{% load crispy_forms_tags %}
+{% load dict_filters %}
+
+{% block title %}Edit User - {{ org.name }}{% endblock %}
+{% block extra_css %}
+/* Add this to your CSS */
+.accordion-content {
+    transition: max-height 0.3s ease-out;
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-6 py-8">
-    <h1 class="text-3xl font-extrabold mb-6 text-gray-900 dark:text-gray-50">
-        {{ page_title }}
-    </h1>
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            {{ page_title }}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            Managing user in <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ org.name }}</span>
+        </p>
+    </div>
 
     <!-- Alerts -->
     {% if messages %}
-        <div class="space-y-2 mb-4">
+        <div class="space-y-3 mb-6">
             {% for message in messages %}
-                <div class="p-3 rounded-md text-sm 
-                    {% if message.tags == 'success' %} bg-green-100 text-green-700
-                    {% elif message.tags == 'error' %} bg-red-100 text-red-700
-                    {% else %} bg-gray-100 text-gray-700 {% endif %}">
+                <div class="p-4 rounded-lg text-sm font-medium
+                    {% if message.tags == 'success' %} 
+                        bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300
+                    {% elif message.tags == 'error' %} 
+                        bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300
+                    {% else %} 
+                        bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300
+                    {% endif %}">
                     {{ message }}
                 </div>
             {% endfor %}
         </div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="space-y-8 bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 sm:p-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-8 bg-white dark:bg-gray-800 shadow-xl rounded-xl p-6">
         {% csrf_token %}
 
-        <!-- User Form -->
-        <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-indigo-700 dark:text-indigo-400">User Details</h2>
+        <!-- User Details Card -->
+        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                <i class="fa-solid fa-user mr-3 text-indigo-600 dark:text-indigo-400"></i>
+                User Details
+            </h2>
             <div class="grid md:grid-cols-2 gap-6">
                 {% for field in user_form %}
+                    {% if field.name != 'new_password' and field.name != 'confirm_password' %}
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
-                        {{ field|add_class:"p-3 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out" }}
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {{ field.label }}
+                            {% if field.field.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+                        </label>
+                        {{ field|add_class:"w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white transition-colors" }}
+                        {% if field.help_text %}
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>
+                        {% endif %}
                         {% if field.errors %}
-                            <p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>
+                            <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                                {{ field.errors|striptags }}
+                            </div>
                         {% endif %}
                     </div>
+                    {% endif %}
                 {% endfor %}
+                
+                <!-- Password fields if they exist -->
+                {% if user_form.new_password %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {{ user_form.new_password.label }}
+                    </label>
+                    {{ user_form.new_password|add_class:"w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white transition-colors" }}
+                    {% if user_form.new_password.help_text %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ user_form.new_password.help_text }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if user_form.confirm_password %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {{ user_form.confirm_password.label }}
+                    </label>
+                    {{ user_form.confirm_password|add_class:"w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white transition-colors" }}
+                    {% if user_form.confirm_password.help_text %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ user_form.confirm_password.help_text }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Profile Form -->
-        <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-indigo-700 dark:text-indigo-400">Profile Details</h2>
-
+        <!-- Profile Details Card -->
+        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                <i class="fa-solid fa-id-card mr-3 text-indigo-600 dark:text-indigo-400"></i>
+                Profile Details
+            </h2>
+            
             <div class="grid md:grid-cols-2 gap-6">
-                {% for field in profile_form %}
-                    {% if field.name != 'pic' %}
+                {% for field in profile_form|exclude_fields:"pic,academic_stream,organization_groups" %}
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
-                            {{ field|add_class:"p-3 text-base mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out" }}
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                {{ field.label }}
+                                {% if field.field.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+                            </label>
+                            {{ field|add_class:"w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white transition-colors" }}
+                            {% if field.help_text %}
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>
+                            {% endif %}
                             {% if field.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>
+                                <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                                    {{ field.errors|striptags }}
+                                </div>
                             {% endif %}
                         </div>
-                    {% endif %}
+                 
                 {% endfor %}
             </div>
 
             <!-- Profile Picture -->
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Picture</label>
-                {% if target_user.profile.pic %}
-                    <img src="{{ target_user.profile.pic.url }}" alt="Profile Picture"
-                         class="h-24 w-24 object-cover rounded-full mb-2 border border-gray-300">
-                {% endif %}
-                {{ profile_form.pic|add_class:"mt-1 w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" }}
+            <div class="mt-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Profile Picture
+                </label>
+                <div class="flex items-center space-x-6">
+                    {% if target_user.profile.pic %}
+                        <img src="{{ target_user.profile.pic.url }}" alt="Profile Picture"
+                             class="h-20 w-20 object-cover rounded-full border-2 border-gray-300 dark:border-gray-600">
+                    {% else %}
+                        <div class="h-20 w-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-user text-gray-400 text-xl"></i>
+                        </div>
+                    {% endif %}
+                    <div class="flex-1">
+                        {{ profile_form.pic|add_class:"w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300" }}
+                    </div>
+                </div>
             </div>
         </div>
+        <!--  curriculam nodes  -->
+        <details class="group rounded-xl border border-green-200 dark:border-green-800 shadow-lg transition duration-300 hover:shadow-xl">
+                <summary class="flex items-center justify-between p-4 cursor-pointer bg-green-50 dark:bg-green-900/50 rounded-xl group-open:rounded-b-none">
+                    <h3 class="text-lg font-semibold text-green-800 dark:text-green-300">
+                        Assign Academic Stream (Content Nodes)
+                    </h3>
+                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 transform transition-transform duration-300 group-open:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </summary>
 
-        <!-- Organization Groups -->
-        <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-indigo-700 dark:text-indigo-400">Organization Groups</h2>
-            <div class="grid md:grid-cols-3 gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-700">
+                <div class="p-4 border-t border-green-200 dark:border-green-800 space-y-4">
+                    <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Select Content Nodes (Board / Class / Chapter)
+                    </h4>
+                    
+                    {# The container for the JavaScript-rendered tree (Curriculum Select) #}
+                    <div id="curriculum-tree-container" class="space-y-2 p-3 border rounded-lg bg-white dark:bg-gray-900/50">
+                        <p class="text-gray-400 text-sm">Loading curriculum nodes...</p>
+                    </div>
+
+                    {# The hidden select remains to hold final values #}
+                    <select name="academic_stream" id="id_academic_stream_nodes" multiple class="hidden">
+                        {% for node in licensed_nodes.all %}
+                        <option value="{{ node.id }}" selected data-name="{{ node.name }}">{{ node.name }}</option>
+                        {% endfor %}
+                    </select>
+                    
+                    {# Display Stream for verification #}
+                    <div class="pt-4 border-t border-green-200 dark:border-green-800">
+                        <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Nodes:</h4>
+                        <div id="selected-nodes-stream" 
+                             class="p-3 min-h-[40px] bg-gray-50 dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg flex flex-wrap gap-2 items-center">
+                            <span class="text-gray-500 dark:text-gray-400 text-sm italic" id="empty-stream-message">No content nodes selected yet.</span>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+        <!-- Organization Groups Card -->
+        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                <i class="fa-solid fa-users mr-3 text-indigo-600 dark:text-indigo-400"></i>
+                Organization Groups
+            </h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
                 {% for group in all_org_groups %}
-                    <label class="flex items-center space-x-2">
+                    <label class="flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
                         <input type="checkbox" name="organization_groups[]"
                                value="{{ group.id }}"
                                {% if group.id in user_group_ids %}checked{% endif %}
-                               class="rounded text-indigo-600 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500">
-                        <span class="text-gray-700 dark:text-gray-300 text-sm">{{ group.name }} </span>
+                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500">
+                        <span class="text-gray-700 dark:text-gray-300">{{ group.name }}</span>
                     </label>
                 {% empty %}
-                    <p class="text-gray-500 text-sm">No organization groups available.</p>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm col-span-3 text-center py-4">
+                        No organization groups available.
+                    </p>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Permissions Accordion -->
-        <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-indigo-700 dark:text-indigo-400">Direct User Permissions</h2>
+        <!-- Permissions Card -->
+        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                <i class="fa-solid fa-key mr-3 text-indigo-600 dark:text-indigo-400"></i>
+                Direct User Permissions
+            </h2>
 
-            <div class="space-y-4">
+            <div class="space-y-3">
                 {% for app_label, models in app_perm_dict.items %}
-                    <div class="border rounded-lg overflow-hidden shadow-sm">
+                    <div class="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
                         <button type="button"
-                                class="w-full flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                                onclick="toggleAccordion('{{ app_label }}')">
+                                class="w-full flex justify-between items-center px-4 py-3 text-left font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                onclick="toggleAccordion('{{ app_label }}')"
+                                aria-expanded="false"
+                                aria-controls="{{ app_label }}-body">
                             <span class="font-semibold">{{ app_label|title }}</span>
-                            <svg id="{{ app_label }}-icon" class="w-5 h-5 transition-transform"
-                                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                 stroke="currentColor">
+                            <svg id="{{ app_label }}-icon" class="w-5 h-5 transition-transform duration-200"
+                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                      d="M19 9l-7 7-7-7"/>
+                                    d="M19 9l-7 7-7-7"/>
                             </svg>
                         </button>
 
-                        <div id="{{ app_label }}-body" class="hidden p-4 bg-white dark:bg-gray-800">
-                            {% for model_name, perms in models.items %}
-                                <div class="mb-3 p-2 rounded-md border border-gray-100 dark:border-gray-700">
-                                    <h3 class="font-bold text-indigo-600 dark:text-indigo-400 text-sm mb-2">{{ model_name }}</h3>
-                                    <div class="grid md:grid-cols-3 gap-2">
-                                        {% for perm in perms %}
-                                            <label class="flex items-center space-x-2">
-                                                <input type="checkbox" name="user_permissions" value="{{ perm.id }}"
-                                                       {% if perm.id in user_direct_permission_ids %}checked{% endif %}
-                                                       class="rounded text-indigo-600 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500">
-                                                <span class="text-gray-700 dark:text-gray-300 text-sm">{{ perm.name }}</span>
-                                            </label>
-                                        {% endfor %}
+                        <div id="{{ app_label }}-body" 
+                            class="accordion-content border-t border-gray-200 dark:border-gray-600 overflow-hidden transition-all duration-300 ease-in-out max-h-0">
+                            <div class="p-4 space-y-4">
+                                {% for model_name, perms in models.items %}
+                                    <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 text-sm mb-2">{{ model_name }}</h3>
+                                        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {% for perm in perms %}
+                                                <label class="flex items-center space-x-2 p-1 hover:bg-white dark:hover:bg-gray-600 rounded transition-colors">
+                                                    <input type="checkbox" name="user_permissions" value="{{ perm.id }}"
+                                                        {% if perm.id in user_direct_permission_ids %}checked{% endif %}
+                                                        class="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500">
+                                                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ perm.name }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        </div>
                                     </div>
-                                </div>
-                            {% endfor %}
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
+                {% empty %}
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-4">
+                        No permissions available for your current license.
+                    </p>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Submit -->
-        <div class="flex justify-end gap-4 pt-4">
+        <!-- Action Buttons -->
+        <div class="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
             <a href="{% url 'view_organization_users_list' org_pk=org.pk %}"
-               class="px-5 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition duration-150 ease-in-out dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">Cancel</a>
+               class="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+                Cancel
+            </a>
             <button type="submit"
-                    class="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-700 transition duration-150 ease-in-out">
+                    class="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors">
                 Save Changes
             </button>
         </div>
     </form>
 </div>
 
+{% endblock %}
+
+
+{% block extra_scripts %}
+
 <script>
     function toggleAccordion(id) {
         const body = document.getElementById(id + '-body');
         const icon = document.getElementById(id + '-icon');
-        if (body.classList.contains('hidden')) {
-            body.classList.remove('hidden');
-            icon.classList.add('rotate-180');
-        } else {
-            body.classList.add('hidden');
+        const button = document.querySelector(`[onclick="toggleAccordion('${id}')"]`);
+        
+        // Toggle based on current max-height
+        if (body.style.maxHeight && body.style.maxHeight !== '0px') {
+            // Collapse
+            body.style.maxHeight = '0px';
             icon.classList.remove('rotate-180');
+            button.setAttribute('aria-expanded', 'false');
+        } else {
+            // Expand - use scrollHeight for dynamic height
+            body.style.maxHeight = body.scrollHeight + 'px';
+            icon.classList.add('rotate-180');
+            button.setAttribute('aria-expanded', 'true');
         }
     }
+
+
+    // --- Configuration & Initialization ---
+    // Note: You need to pass the root nodes data to the context for this to work.
+    // Assuming 'json_root_nodes' is added to the context by your view.
+    // This is a placeholder for the Django variable, which must be correctly rendered by the server.
+    // --- Global Declarations ---
+const ROOT_NODES_DATA = JSON.parse('{{ json_root_nodes|safe|escapejs }}' || '[]'); 
+
+const mainCurriculumSelect = document.getElementById('id_academic_stream_nodes');
+const curriculumTreeContainer = document.getElementById('curriculum-tree-container');
+const selectedNodesStream = document.getElementById('selected-nodes-stream');
+const emptyStreamMessage = document.getElementById('empty-stream-message');
+
+// Set for quick lookup of initially selected nodes. Ensure all IDs are strings.
+const SELECTED_NODE_IDS = new Set(JSON.parse('{{ target_stream_ids|safe|escapejs }}').map(String)); 
+
+// Map to store parent relationships for easier traversal, especially for ancestor recalculation
+const NODE_PARENT_MAP = new Map(); 
+
+// --- Utility Functions ---
+
+/**
+ * Recalculates the max-height of all ancestor accordion bodies 
+ * to ensure the newly expanded content (bodyElement) is visible.
+ * @param {HTMLElement} bodyElement The newly expanded body.
+ */
+function recalculateAncestorHeight(bodyElement) {
+    let current = bodyElement.parentElement; // Start from the node container
+    
+    // Safety break limit for deep nesting
+    let depthLimit = 20; 
+
+    while (current && depthLimit > 0) {
+        depthLimit--;
+        
+        // Find the nearest ancestor accordion body
+        if (current.classList.contains('accordion-body')) {
+            // Only update if it's currently "open" (i.e., not maxHeight: '0px')
+            const isAncestorOpen = current.style.maxHeight !== '0px' && current.style.maxHeight !== '';
+            
+            if (isAncestorOpen) {
+                // Set max-height to a large value or its total scrollHeight to allow full content visibility
+                // We use a large number (1000px) as scrollHeight can be inaccurate during transitions.
+                current.style.maxHeight = '1000px'; 
+            }
+        }
+        current = current.parentElement;
+    }
+}
+
+
+// --- DEPENDENCY: Backend API Fetchers (Required for Cascading Logic) ---
+function fetchDescendantsIds(nodeId) {
+    // NOTE: Replace with actual Django endpoint URL
+    const url = `/curritree/nodes/${nodeId}/descendant/`; 
+    return fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok.');
+            return response.json();
+        })
+        .then(data => {
+            // Assuming API returns an array or object containing descendants
+            // Ensure all IDs are converted to strings
+            return data.descendant_ids ? data.descendant_ids.map(String) : [];
+        })
+        .catch(error => {
+            console.error(`Error fetching descendants for node ${nodeId}:`, error);
+            return [];
+        });
+}
+
+function fetchAncestorsIds(nodeId) {
+    // NOTE: Replace with actual Django endpoint URL
+    const url = `/curritree/nodes/${nodeId}/ancestors/`; 
+    return fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok.');
+            return response.json();
+        })
+        .then(data => {
+            // Assuming API returns an object with an 'ancestors' array. Ensure IDs are strings.
+            return data.ancestors ? data.ancestors.map(a => String(a.id || a.pk)) : []; 
+        })
+        .catch(error => {
+            console.error(`Error fetching ancestors for node ${nodeId}:`, error);
+            return [];
+        });
+}
+
+function fetchChildrenAndRender(nodeId, targetElement, nodeType, level) {
+    // Simple caching check: check if it already has content and is not the loading state
+    if (targetElement.children.length > 0 && !targetElement.innerHTML.includes('Loading')) {
+        return Promise.resolve(); 
+    }
+    
+    // NOTE: Replace with actual Django endpoint URL for children
+    const url = `/quiz/nodes/${nodeId}/children/`; 
+    
+    targetElement.innerHTML = `<p class="text-sm text-gray-400 italic p-3">Loading ${nodeType} children...</p>`;
+
+    return fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok.');
+            return response.json();
+        })
+        .then(data => {
+            targetElement.innerHTML = ''; // Clear loading message
+            // Render children with the current nodeId as their parentId
+            renderTree(data.children, targetElement, level, nodeId); 
+        })
+        .catch(error => {
+            console.error("Error fetching curriculum nodes:", error);
+            targetElement.innerHTML = `<p class="text-sm text-red-500 italic p-3">Failed to load ${nodeType} options.</p>`;
+            // Reject the promise on failure
+            return Promise.reject(error);
+        });
+}
+
+// --- Core Tree Logic ---
+
+/**
+ * Synchronizes the visible checkboxes and the selected stream badges
+ * with the state of the hidden <select> element.
+ */
+function syncNodesToSelect() {
+    // 1. Get currently selected options
+    const selectedOptions = Array.from(mainCurriculumSelect.options)
+                             .filter(option => option.selected);
+    
+    // 2. Update the Selected Nodes Stream (Visual Badge List)
+    selectedNodesStream.innerHTML = '';
+    if (selectedOptions.length === 0) {
+        selectedNodesStream.innerHTML = `<span class="text-gray-500 dark:text-gray-400 text-sm italic">No content nodes selected yet.</span>`;
+    } else {
+        selectedOptions.forEach(option => {
+            const badge = document.createElement('span');
+            const nodeName = option.textContent.trim(); 
+            badge.textContent = nodeName;
+            badge.className = 'px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-xs font-medium shadow-sm mr-2 mb-2';
+            selectedNodesStream.appendChild(badge);
+        });
+    }
+
+    // 3. Update the tree checkboxes state based on the hidden select
+    const selectedValues = new Set(selectedOptions.map(opt => opt.value));
+    document.querySelectorAll('.tree-checkbox').forEach(checkbox => {
+        checkbox.checked = selectedValues.has(checkbox.value);
+    });
+}
+
+
+/**
+ * Handles checkbox change, propagating selection/deselection to descendants 
+ * and selection to ancestors (cascading logic).
+ */
+function handleTreeCheckboxChange(event) {
+    const checkbox = event.target;
+    const nodeId = checkbox.value; // Already a string
+    const nodeName = checkbox.dataset.nodeName;
+    const isSelected = checkbox.checked;
+
+    let option = mainCurriculumSelect.querySelector(`option[value="${nodeId}"]`);
+
+    if (!option) {
+        // Add new option if it doesn't exist
+        option = new Option(nodeName, nodeId, false, false);
+        mainCurriculumSelect.add(option);
+    }
+    // Update the current node's selection state in the hidden select
+    option.selected = isSelected;
+    
+    // 1. Handle Descendants (Top-Down Selection/Deselection for all descendants)
+    const descendantPromise = fetchDescendantsIds(nodeId)
+        .then(descendantIds => {
+            descendantIds.forEach(descendantId => {
+                let descendantOption = mainCurriculumSelect.querySelector(`option[value="${descendantId}"]`);
+                
+                if (!descendantOption) {
+                    // Create option if it doesn't exist to ensure it gets submitted
+                    descendantOption = new Option(`Node ${descendantId}`, descendantId, isSelected, isSelected);
+                    mainCurriculumSelect.add(descendantOption);
+                } else {
+                    descendantOption.selected = isSelected;
+                }
+                
+                // Update checkbox state if rendered (will be updated by syncNodesToSelect, but this is faster)
+                const descendantCheckbox = document.querySelector(`.tree-checkbox[value="${descendantId}"]`);
+                if (descendantCheckbox) {
+                    descendantCheckbox.checked = isSelected;
+                }
+            });
+        });
+
+    // 2. Handle Ancestors (Bottom-Up Selection only on check)
+    if (isSelected) {
+        descendantPromise
+            .then(() => fetchAncestorsIds(nodeId))
+            .then(ancestorIds => {
+                ancestorIds.forEach(parentId => {
+                    // Select the ancestor in the hidden select
+                    let parentOption = mainCurriculumSelect.querySelector(`option[value="${parentId}"]`);
+                    if (!parentOption) {
+                        // Use a placeholder name if not found
+                        parentOption = new Option(`Node ${parentId}`, parentId, true, true);
+                        mainCurriculumSelect.add(parentOption);
+                    } else {
+                        parentOption.selected = true;
+                    }
+                });
+            })
+            .finally(() => {
+                // Final synchronization after all async updates are done
+                syncNodesToSelect();
+            });
+    } else {
+        // --- Deselection Path: Only need to wait for descendants update. ---
+        descendantPromise.finally(() => {
+            // Final synchronization after all async updates are done
+            syncNodesToSelect();
+        });
+    }
+}
+
+
+/**
+ * Renders a single node as a list item, with a checkbox and a toggle button.
+ */
+function renderNode(node, container, level, parentId = null) {
+    // Handle both plain objects and Django serialized objects
+    const nodeId = String(node.id || node.pk); 
+    const nodeName = node.name || (node.fields ? node.fields.name : 'Unknown Node');
+    const nodeType = node.node_type || (node.fields ? node.fields.node_type : 'Type');
+    
+    // Store relationship for ancestor recalculation
+    if (parentId !== null) {
+        NODE_PARENT_MAP.set(nodeId, String(parentId));
+    }
+
+    const nodeContainer = document.createElement('div');
+    // Calculate indentation based on level
+    const indent = Math.min(level * 4, 16); // Max 16 padding to prevent excessive indentation
+    nodeContainer.className = `pl-${indent} py-1`; 
+    
+    const header = document.createElement('div');
+    // Added 'flex-wrap' and 'min-w-0' to improve mobile responsiveness and truncation
+    header.className = 'flex flex-wrap items-center justify-between pr-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition';
+
+    const checkLabel = document.createElement('label');
+    checkLabel.className = 'flex items-center space-x-2 flex-grow cursor-pointer p-2 min-w-0';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'tree-checkbox w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-gray-100 border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:text-indigo-500 flex-shrink-0';
+    checkbox.value = nodeId;
+    checkbox.dataset.nodeName = nodeName;
+    
+    // Check if the node was initially selected (FIX 1: Ensure strong string matching)
+    if (SELECTED_NODE_IDS.has(nodeId)) {
+         checkbox.checked = true;
+    }
+
+    checkbox.addEventListener('change', handleTreeCheckboxChange); 
+
+    const nodeNameSpan = document.createElement('span');
+    nodeNameSpan.className = 'text-gray-700 dark:text-gray-300 text-sm font-medium truncate min-w-0';
+    nodeNameSpan.textContent = `${nodeName} (${nodeType})`;
+
+    checkLabel.appendChild(checkbox);
+    checkLabel.appendChild(nodeNameSpan);
+    header.appendChild(checkLabel);
+
+    // Right side: Toggle Button 
+    const rightSide = document.createElement('div');
+    rightSide.className = 'flex items-center space-x-2 flex-shrink-0';
+    
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'p-1 ml-2 text-indigo-600 dark:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition';
+    toggleButton.innerHTML = `<svg id="tree-icon-${nodeId}" class="w-4 h-4 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
+    
+    // FIX 2 & 3: Reworked Toggle Logic for reliable opening and closing
+    toggleButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const bodyId = `tree-body-${nodeId}`;
+        const iconId = `tree-icon-${nodeId}`;
+        
+        const body = document.getElementById(bodyId);
+        const icon = document.getElementById(iconId);
+
+        if (!body || !icon) return;
+
+        const isCurrentlyOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
+        
+        if (isCurrentlyOpen) {
+            // Closing
+            body.style.maxHeight = '0px'; 
+            icon.classList.remove('rotate-180');
+        } else {
+            // Opening - Lazy load children first
+            
+            // Check if content needs to be fetched
+            const contentPromise = (body.children.length === 0 || body.innerHTML.includes('Loading')) 
+                                ? fetchChildrenAndRender(nodeId, body, nodeType, level + 1)
+                                : Promise.resolve();
+
+            // After content is ready, open the accordion smoothly
+            contentPromise.then(() => {
+                // Set max-height to scrollHeight for smooth transition to full size
+                // Use a slight delay to allow the DOM to update before getting scrollHeight
+                setTimeout(() => {
+                    body.style.maxHeight = body.scrollHeight + "px"; 
+                    recalculateAncestorHeight(body); 
+                }, 10);
+                
+                icon.classList.add('rotate-180');
+            }).catch(error => {
+                // Keep the icon closed if loading failed
+                icon.classList.remove('rotate-180');
+            });
+        }
+    });
+
+    rightSide.appendChild(toggleButton);
+    header.appendChild(rightSide);
+    nodeContainer.appendChild(header);
+
+    // --- Body (Collapsible Children) ---
+    const body = document.createElement('div');
+    body.id = `tree-body-${nodeId}`;
+    body.className = 'accordion-body bg-white dark:bg-gray-900 overflow-hidden transition-all duration-300 ease-in-out border-l-2 border-indigo-200 dark:border-indigo-800 relative';
+    body.style.maxHeight = '0px'; // Initial closed state
+    nodeContainer.appendChild(body);
+
+    container.appendChild(nodeContainer);
+    
+}
+
+/**
+ * Renders a list of nodes at the current level.
+ */
+function renderTree(nodes, container, level = 0, parentId = null) {
+    if (!nodes || nodes.length === 0) {
+        container.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-sm italic p-3">No further content found.</p>`;
+        return;
+    }
+    
+    nodes.forEach(node => {
+        renderNode(node, container, level, parentId);
+    });
+    
+    // Only call sync after rendering the main root nodes
+    if (level === 0) {
+        syncNodesToSelect(); 
+    }
+}
+
+
+// --- Permissions Two-Way Synchronization Logic (Unchanged) ---
+const updateMasterCheckbox = (modelSlug) => {
+    const groupContainer = document.querySelector(`[data-model-group="${modelSlug}"]`);
+    if (!groupContainer) return;
+    
+    const masterCheckbox = groupContainer.querySelector('.select-all-group-checkbox');
+    const itemCheckboxes = groupContainer.querySelectorAll('.permission-item-checkbox');
+    
+    if (!masterCheckbox) return;
+
+    const allChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
+    masterCheckbox.checked = allChecked;
+};
+
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- Curriculum Tree Initialization ---
+    if (ROOT_NODES_DATA && curriculumTreeContainer && Array.isArray(ROOT_NODES_DATA)) {
+        curriculumTreeContainer.innerHTML = ''; 
+        renderTree(ROOT_NODES_DATA, curriculumTreeContainer, 0);
+    } else if (curriculumTreeContainer) {
+        curriculumTreeContainer.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm italic p-3">Error: Root nodes data not provided or is invalid.</p>';
+    }
+
+    // --- Permissions Two-Way Synchronization Logic ---
+    
+    // 1. Master -> Item Synchronization (Toggle All)
+    document.querySelectorAll('.select-all-group-checkbox').forEach(masterCheckbox => {
+        masterCheckbox.addEventListener('change', function() {
+            const modelSlug = this.dataset.targetGroup;
+            // Select all item checkboxes within the specific model group
+            const itemCheckboxes = document.querySelectorAll(`.permission-item-checkbox[data-group-model="${modelSlug}"]`);
+            
+            itemCheckboxes.forEach(itemCheckbox => {
+                itemCheckbox.checked = this.checked;
+            });
+        });
+    });
+    
+    // 2. Item -> Master Synchronization (Check if all are checked)
+   // Find the first accordion button and open it
+    const firstAccordion = document.querySelector('[onclick^="toggleAccordion"]');
+    if (firstAccordion) {
+        // Get the id from the onclick attribute
+        const match = firstAccordion.getAttribute('onclick').match(/toggleAccordion\('([^']+)'\)/);
+        if (match && match[1]) {
+            toggleAccordion(match[1]);
+        }
+    }
+    
+    // 3. Initial state check for Master Checkboxes
+    document.querySelectorAll('.select-all-group-checkbox').forEach(masterCheckbox => {
+         updateMasterCheckbox(masterCheckbox.dataset.targetGroup);
+    });
+});
+
 </script>
 {% endblock %}

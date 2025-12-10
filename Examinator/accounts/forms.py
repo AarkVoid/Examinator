@@ -24,7 +24,8 @@ from django.utils.translation import gettext_lazy as _
 # ---------------------------------------------
 import re 
 User = get_user_model()
-
+from django.db.models import Q
+from datetime import date
 
 
 
@@ -245,13 +246,20 @@ class ProfileEditForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
         label="Last Name" # Added label for clarity
     )
+
+    Contact = forms.CharField(
+        max_length=150, 
+        required=False, 
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        label="Contact" # Added label for clarity
+    )
     # -----------------------------
     
     class Meta:
         model = Profile
         fields = [
             'MiddleName', 
-            'Contact',
+            'impersonation_pin',
             'BirthDate',
             'address', 
             'academic_stream',
@@ -261,7 +269,7 @@ class ProfileEditForm(forms.ModelForm):
         ]
         widgets = {
             'MiddleName': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'Contact': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'impersonation_pin': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
             'BirthDate': forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'}),
             'address': forms.Textarea(attrs={'class': TAILWIND_INPUT_CLASSES, 'rows': 3}),
             'academic_stream': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
@@ -280,14 +288,16 @@ class ProfileEditForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             self.fields['first_name'].initial = self.instance.user.first_name
             self.fields['last_name'].initial = self.instance.user.last_name
+            self.fields['Contact'].initial = self.instance.user.phone_number
 
         # --- Initialization Error Handling & Disabling Fields ---
         
         # Academic Stream Queryset & Disabling
         try:
-            self.fields['academic_stream'].queryset = TreeNode.objects.filter(
-                node_type__in=['board', 'competitive', 'class', 'subject']
-            ).order_by('node_type', 'name')
+            # self.fields['academic_stream'].queryset = TreeNode.objects.filter(
+            #     node_type__in=['board', 'competitive', 'class', 'subject','chapter','unit','section']
+            # ).order_by('node_type', 'name')
+            self.fields['academic_stream'].queryset = self.instance.academic_stream.all()
             self.fields['academic_stream'].disabled = True 
         except Exception as e:
             print(f"ERROR: Could not set academic_stream queryset. Details: {e}")
@@ -354,6 +364,7 @@ class ProfileEditForm(forms.ModelForm):
             user = profile.user
             user.first_name = self.cleaned_data.get('first_name', '')
             user.last_name = self.cleaned_data.get('last_name', '')
+            user.phone_number = self.cleaned_data.get('Contact', '')
             
             if commit:
                 user.save()
@@ -391,70 +402,233 @@ class OrganizationGroupForm(forms.ModelForm):
 class OrgUserAdminForm(forms.ModelForm):
     """
     Form for Organization Admins to edit a standard user's core details.
-    Includes first name, last name, and now the primary phone number.
     """
     
     new_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+        widget=forms.PasswordInput(attrs={
+            'class': TAILWIND_INPUT_CLASSES,
+            'placeholder': 'Enter new password',
+            'autocomplete': 'new-password'
+        }),
         required=False,
         label="Set New Password",
-        help_text="Leave blank to keep the current password."
+        help_text="Leave blank to keep current password. Must be at least 8 characters.",
+        min_length=8
+    )
+    
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': TAILWIND_INPUT_CLASSES,
+            'placeholder': 'Confirm new password',
+            'autocomplete': 'new-password'
+        }),
+        required=False,
+        label="Confirm New Password"
     )
     
     class Meta:
         model = User
-        # ✅ ADDED 'phone_number' to core fields
         fields = ['username', 'first_name', 'last_name', 'email', 'phone_number', 'is_active', 'role']
         widgets = {
-            'username': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'first_name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'last_name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            'email': forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            # ✅ ADDED widget for phone_number
-            'phone_number': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'e.g., +15551234567'}),
-            'is_active': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
-            'role': forms.Select(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'username': forms.TextInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES,
+                'placeholder': 'Username (unique)'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES,
+                'placeholder': 'First name'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES,
+                'placeholder': 'Last name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES,
+                'placeholder': 'email@example.com'
+            }),
+            'phone_number': forms.TextInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES, 
+                'placeholder': 'e.g., +15551234567',
+                'type': 'tel'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': TAILWIND_CHECKBOX_CLASSES
+            }),
+            'role': forms.Select(attrs={
+                'class': TAILWIND_INPUT_CLASSES
+            }),
+        }
+        help_texts = {
+            'username': '150 characters or fewer. Letters, digits and @/./+/-/_ only.',
+            'email': 'A valid email address for login and notifications.',
+            'phone_number': 'Primary contact number (optional).',
+            'role': 'User role determines permissions.',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        try:
-             # Assuming User.ROLE_CHOICES is defined
-             role_choices = [(r, label) for r, label in self.instance.ROLE_CHOICES if r not in ('admin', 'main_admin')]
-        except AttributeError:
-             role_choices = []
+        # Make email required
+        self.fields['email'].required = True
         
-        # If the user being edited is an admin/main_admin, lock the role and active status
-        if self.instance.pk and self.instance.role in ('admin', 'main_admin'):
-             role_choices.append((self.instance.role, self.instance.get_role_display()))
-             self.fields['role'].widget.attrs['disabled'] = True
-             self.fields['is_active'].widget.attrs['disabled'] = True
+        # Get role choices from User model
+        try:
+            # Get all role choices except main_admin if current user is not main_admin
+            role_choices = self.instance.ROLE_CHOICES
+            
+            # If editing an existing user who is main_admin, lock the role
+            if self.instance.pk and self.instance.role == 'main_admin':
+                # Keep only main_admin choice
+                role_choices = [(r, l) for r, l in self.instance.ROLE_CHOICES if r == 'main_admin']
+                self.fields['role'].widget.attrs['disabled'] = True
+                self.fields['role'].help_text = "Main Admin role cannot be changed."
+                self.fields['is_active'].widget.attrs['disabled'] = True
+                self.fields['is_active'].help_text = "Main Admin account cannot be deactivated."
+            else:
+                # Exclude main_admin from choices for non-main-admin users
+                role_choices = [(r, l) for r, l in self.instance.ROLE_CHOICES if r != 'main_admin']
+                
+        except AttributeError:
+            # Fallback if ROLE_CHOICES is not defined
+            role_choices = [
+                ('student', 'Student'),
+                ('teacher', 'Staff'),
+                ('admin', 'Admin'),
+            ]
 
         self.fields['role'].choices = role_choices
+        
+        # Add organization context if available
+        if hasattr(self, 'organization'):
+            self.fields['phone_number'].help_text = f"Primary phone number for {self.organization.name} communications"
+
+    def clean_username(self):
+        """Validate username"""
+        username = self.cleaned_data.get('username')
+        
+        if not username:
+            raise forms.ValidationError("Username is required.")
+            
+        # Check if username already exists (excluding current user)
+        if User.objects.filter(username=username).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("This username is already taken.")
+            
+        # Username validation
+        if not re.match(r'^[\w.@+-]+$', username):
+            raise forms.ValidationError(
+                "Username can only contain letters, numbers, and @/./+/-/_ characters."
+            )
+            
+        if len(username) < 3:
+            raise forms.ValidationError("Username must be at least 3 characters long.")
+            
+        return username
+
+    def clean_email(self):
+        """Validate email"""
+        email = self.cleaned_data.get('email')
+        
+        if not email:
+            raise forms.ValidationError("Email is required.")
+            
+        # Check if email already exists (excluding current user)
+        if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("This email is already registered to another user.")
+            
+        return email
+
+    def clean_phone_number(self):
+        """Validate phone number"""
+        phone_number = self.cleaned_data.get('phone_number')
+        
+        if phone_number:
+            # Remove any non-digit characters except plus sign
+            cleaned_number = re.sub(r'[^\d+]', '', phone_number)
+            
+            # Basic validation
+            if not cleaned_number.replace('+', '').isdigit():
+                raise forms.ValidationError("Phone number must contain only digits and optional '+' prefix.")
+                
+            # Check length
+            if len(cleaned_number.replace('+', '')) < 10:
+                raise forms.ValidationError("Phone number must be at least 10 digits.")
+                
+            if len(cleaned_number) > 20:
+                raise forms.ValidationError("Phone number cannot exceed 20 characters.")
+                
+        return phone_number
 
     def clean_new_password(self):
+        """Validate new password"""
         new_password = self.cleaned_data.get('new_password')
+        
         if new_password:
+            # Check minimum length
+            if len(new_password) < 8:
+                raise forms.ValidationError("Password must be at least 8 characters long.")
+                
+            # Django's built-in password validation
             try:
                 validate_password(new_password, self.instance)
             except ValidationError as e:
                 raise forms.ValidationError(e.messages)
+                
         return new_password
 
+    def clean(self):
+        """Cross-field validation"""
+        cleaned_data = super().clean()
+        
+        new_password = cleaned_data.get('new_password')
+        confirm_password = cleaned_data.get('confirm_password')
+        role = cleaned_data.get('role')
+        
+        # Check if passwords match when both are provided
+        if new_password and confirm_password:
+            if new_password != confirm_password:
+                self.add_error('confirm_password', "Passwords do not match.")
+                
+        # Check if confirm_password is provided when new_password is provided
+        if new_password and not confirm_password:
+            self.add_error('confirm_password', "Please confirm the new password.")
+            
+        if confirm_password and not new_password:
+            self.add_error('new_password', "Please enter a new password.")
+            
+        # Role-specific validations
+        if role == 'admin' and not self.instance.pk:
+            # New admin users might require special handling
+            pass
+            
+        # Prevent changing main_admin role
+        if self.instance.pk and self.instance.role == 'main_admin':
+            if role and role != 'main_admin':
+                self.add_error('role', "Cannot change Main Admin role.")
+                
+        return cleaned_data
+
     def save(self, commit=True):
+        """Save the user with password handling"""
         user = super().save(commit=False)
         
         new_password = self.cleaned_data.get('new_password')
+        
+        # Set new password if provided
         if new_password:
             user.set_password(new_password)
+        
+        # Preserve main_admin status
+        if self.instance.pk and self.instance.role == 'main_admin':
+            user.role = 'main_admin'
+            user.is_active = True  # Always active for main_admin
+            
+            # Ensure main_admin has correct permissions
+            user.is_staff = True
+            user.is_superuser = True
 
         if commit:
-            if self.instance.pk and self.instance.role in ('admin', 'main_admin') and user.role != self.instance.role:
-                user.role = self.instance.role
-                user.is_active = self.instance.is_active
-            
             user.save()
+            
         return user
 
 
@@ -465,45 +639,157 @@ class OrgProfileAdminForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = [
-             'MiddleName', 'Contact', 'BirthDate',
+            'MiddleName', 'Contact', 'BirthDate',
             'address', 
             'academic_stream', 
             'organization_groups',
             'pic'
         ]
         widgets = {
-            'MiddleName': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
-            # NOTE: Keeping Contact as NumberInput, but changing label in __init__
-            'Contact': forms.NumberInput(attrs={'class': TAILWIND_INPUT_CLASSES}), 
-            'BirthDate': forms.DateInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'type': 'date'}),
-            'address': forms.Textarea(attrs={'class': TAILWIND_INPUT_CLASSES, 'rows': 3}),
-            'academic_stream': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'}), 
-            'organization_groups': forms.SelectMultiple(attrs={'class': TAILWIND_INPUT_CLASSES + ' h-32'})
+            'MiddleName': forms.TextInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES,
+                'placeholder': 'Optional middle name'
+            }),
+            'Contact': forms.NumberInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES,
+                'placeholder': 'Secondary contact number'
+            }), 
+            'BirthDate': forms.DateInput(attrs={
+                'class': TAILWIND_INPUT_CLASSES, 
+                'type': 'date'
+            }),
+            'address': forms.Textarea(attrs={
+                'class': TAILWIND_INPUT_CLASSES, 
+                'rows': 3,
+                'placeholder': 'Optional address'
+            }),
+            'academic_stream': forms.SelectMultiple(attrs={
+                'class': TAILWIND_INPUT_CLASSES + ' h-32',
+                'style': 'display: none;'  # Hide since we use custom checkboxes
+            }), 
+            'organization_groups': forms.SelectMultiple(attrs={
+                'class': TAILWIND_INPUT_CLASSES + ' h-32',
+                'style': 'display: none;'  # Hide since we use custom checkboxes
+            })
+        }
+        help_texts = {
+            'Contact': 'Optional secondary contact number',
+            'BirthDate': 'User\'s date of birth',
+            'academic_stream': 'Curriculum nodes the user can access',
+            'organization_groups': 'Groups within the organization',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # ✅ UPDATED label for clarity, assuming OrgUserAdminForm now handles the primary phone number
+        # Updated label for clarity
         self.fields['Contact'].label = "Secondary Contact Number"
         
+        # Get organization from instance
+        organization = None
+        if self.instance and hasattr(self.instance, 'organization_profile') and self.instance.organization_profile:
+            organization = self.instance.organization_profile
+        
+        # Set academic_stream queryset
         try:
-            self.fields['academic_stream'].queryset = TreeNode.objects.filter(
-                node_type__in=['board', 'competitive']
-            ).order_by('node_type', 'name')
-        except:
-             self.fields['academic_stream'].queryset = TreeNode.objects.none()
+            if organization:
+                # Get licensed curriculum nodes for this organization
+                from curritree.models import TreeNode
+                from saas.models import LicenseGrant
+                from datetime import date
+                from django.db.models import Q
+                
+                today = date.today()
+                active_licenses_qs = organization.license_grants.filter(
+                    Q(valid_until__isnull=True) | Q(valid_until__gte=today)
+                )
+                
+                # Get licensed nodes
+                licensed_nodes_qs = TreeNode.objects.filter(
+                    licensegrant__in=active_licenses_qs
+                ).distinct()
+                
+                # Filter by allowed node types as per model
+                self.fields['academic_stream'].queryset = licensed_nodes_qs.filter(
+                    node_type__in=['board', 'competitive', 'class', 'subject','chapter','unit']
+                ).order_by('node_type', 'name')
+            else:
+                # Fallback to all allowed nodes
+                self.fields['academic_stream'].queryset = TreeNode.objects.filter(
+                    node_type__in=['board', 'competitive', 'class', 'subject','chapter','unit']
+                ).order_by('node_type', 'name')
+                
+        except Exception as e:
+            print(f"Error setting academic_stream queryset: {e}")
+            self.fields['academic_stream'].queryset = TreeNode.objects.none()
 
+        # Set organization_groups queryset
         try:
-            self.fields['organization_groups'].queryset = OrganizationGroup.objects.filter(
-                organization=self.instance.organization_profile
-            ).order_by('name')
-        except:
-             self.fields['organization_groups'].queryset = Group.objects.none() 
+            if organization:
+                self.fields['organization_groups'].queryset = organization.custom_groups.all().order_by('name')
+            else:
+                # Fallback if no organization
+                self.fields['organization_groups'].queryset = OrganizationGroup.objects.none()
+        except Exception as e:
+            print(f"Error setting organization_groups queryset: {e}")
+            self.fields['organization_groups'].queryset = OrganizationGroup.objects.none()
 
         # Make all fields optional
-        for fieldName in self.fields:
-            self.fields[fieldName].required = False
+        for field_name in self.fields:
+            self.fields[field_name].required = False
+
+    def clean_Contact(self):
+        """Validate secondary contact number"""
+        contact = self.cleaned_data.get('Contact')
+        
+        if contact:
+            # Convert to string for validation
+            contact_str = str(contact)
+            
+            # Check length
+            if len(contact_str) < 10:
+                raise forms.ValidationError("Contact number should be at least 10 digits.")
+                
+            if len(contact_str) > 15:
+                raise forms.ValidationError("Contact number cannot exceed 15 digits.")
+                
+            # Check if it's numeric
+            if not contact_str.isdigit():
+                raise forms.ValidationError("Contact number must contain only digits.")
+                
+        return contact
+
+    def clean_BirthDate(self):
+        """Validate birth date"""
+        birth_date = self.cleaned_data.get('BirthDate')
+        
+        if birth_date:
+            from datetime import date
+            
+            # Ensure birth date is not in the future
+            if birth_date > date.today():
+                raise forms.ValidationError("Birth date cannot be in the future.")
+            
+            # Ensure user is at least 13 years old
+            from dateutil.relativedelta import relativedelta
+            min_age_date = date.today() - relativedelta(years=13)
+            if birth_date > min_age_date:
+                raise forms.ValidationError("User must be at least 13 years old.")
+                
+        return birth_date
+
+    def clean_pic(self):
+        """Validate profile picture"""
+        pic = self.cleaned_data.get('pic')
+        
+        if pic:
+            import os
+            
+            # Check file size (max 2MB as per typical profile picture)
+            max_size = 2 * 1024 * 1024  # 2MB
+            if pic.size > max_size:
+                raise forms.ValidationError("Image file too large ( > 2MB )")
+
 
 
 

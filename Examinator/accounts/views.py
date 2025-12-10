@@ -66,7 +66,22 @@ def is_staff_check(user):
 staff_required = user_passes_test(
     is_staff_check, 
     # Use a safe fallback for the login URL
-    login_url='profile_update' 
+    login_url='login' 
+)
+
+def license_active_status(user):
+    """Check if the user's license is active."""
+    try:
+        if user.is_superuser or user.is_staff:
+            return True
+        return user.profile.is_license_active
+    except Profile.DoesNotExist:
+        return False
+
+license_active_required = user_passes_test(
+    license_active_status,
+    # Use a safe fallback for the login URL
+    login_url='OrgHome'
 )
 
 # Create your views here.
@@ -590,9 +605,21 @@ def delete_institute_user_view(request, user_id):
 def get_permissions_by_app_and_model(permissions_queryset):
     grouped = defaultdict(lambda: defaultdict(list))
     for perm in permissions_queryset:
+        model_class = perm.content_type.model_class()
+       
+
+        # 2. Check if the model class exists (it should, but safety first).
+        if model_class:
+            # Access the verbose_name_plural from the related model's metadata
+            model_name = model_class._meta.verbose_name_plural.title()
+        else:
+            print('hi')
+            # Fallback for custom or unlinked permissions
+            model_name = perm.content_type.model.replace('_', ' ').title()
         # Ensure that content_type is pre-fetched or accessed carefully
         # Accessing content_type.app_label and content_type.model implies ContentType is related
-        grouped[perm.content_type.app_label][perm.content_type.model].append(perm)
+       
+        grouped[perm.content_type.app_label][model_name].append(perm)
     return grouped
 
 
@@ -707,6 +734,7 @@ def edit_permissions_by_institute_admin(request, user_id):
 
 
 @login_required
+@license_active_required
 @permission_required('accounts.add_organisation_user',login_url='profile_update')
 def create_user_by_admin(request, org_pk):
     """
@@ -718,7 +746,7 @@ def create_user_by_admin(request, org_pk):
     # Check if current user is admin
     if admin_user.role != "admin" or not admin_user.is_active:
         messages.error(request, "You do not have permission to create users.")
-        return redirect("dashboard")
+        return redirect("OrgHome")
 
     # Fetch the organization
     org = None
@@ -728,11 +756,11 @@ def create_user_by_admin(request, org_pk):
              org = OrganizationProfile.objects.get(pk=org_pk)
         except:
              messages.error(request, "Organization not found.")
-             return redirect("dashboard")
+             return redirect("OrgHome")
     
     if not org:
         messages.error(request, "No organization linked to your account.")
-        return redirect("dashboard")
+        return redirect("OrgHome")
 
     # Get all license grants for the org
     # Placeholder implementation for LicenseGrant and filtering
@@ -751,16 +779,40 @@ def create_user_by_admin(request, org_pk):
 
         for perm in licensed_permissions_qs:
             # Use the ContentType's 'model' name for the grouping key
-            model_name = perm.content_type.model.replace('_', ' ').title() 
+            # model_name = perm.content_type.model.replace('_', ' ').title() 
+            
+            model_class = perm.content_type.model_class()
+       
+
+            # 2. Check if the model class exists (it should, but safety first).
+            if model_class:
+                # Access the verbose_name_plural from the related model's metadata
+                model_name = model_class._meta.verbose_name_plural.title()
+            else:
+                # Fallback for custom or unlinked permissions
+                model_name = perm.content_type.model.replace('_', ' ').title()
+            
+
+            if model_name not in grouped_permissions:
+                grouped_permissions[model_name] = []
+
             grouped_permissions[model_name].append(perm)
 
         licensed_nodes = TreeNode.objects.filter(
-            id__in=[node.id for grant in active_licenses_qs for node in grant.get_all_licensed_nodes()]
+            id__in=[node.id for grant in active_licenses_qs for node in grant.get_all_licensed_nodes() if node.is_root]
+        ).distinct()
+
+        root_nodes = TreeNode.objects.filter(
+            # Filter for nodes that are in any active license
+            licensegrant__in=active_licenses_qs,
+            # Only get root nodes (parent is None)
+            parent__isnull=True
         ).distinct()
 
         json_root_nodes = serializers.serialize('json', [
-            node for grant in active_licenses_qs for node in grant.curriculum_node.all()
+            node for node in root_nodes.all()
         ])
+        # json_root_nodes = serializers.serialize('json', [nodes for nodes in root_nodes.all()]),
         print("root nodes:", json_root_nodes,licensed_nodes)
     except Exception as e:
          # Fallback if models are not fully set up
@@ -772,71 +824,79 @@ def create_user_by_admin(request, org_pk):
 
     if request.method == "POST":
         with transaction.atomic():
-            # Gather POST data manually
-            role = request.POST.get("role")
-            email = request.POST.get("email")
-            username = request.POST.get("username")
-            password = request.POST.get("password")
-            
-            # ✅ NEW: Retrieve phone_number from the form
-            phone_number = request.POST.get("phone_number") 
-            
-            # NOTE: Mapping 'name' and 'surname' from HTML to User model fields
-            first_name = request.POST.get("name")
-            last_name = request.POST.get("surname")
-            contact = request.POST.get("contact")
-            birth_date = request.POST.get("birth_date")
+            try:
+                # Gather POST data manually
+                role = request.POST.get("role")
+                email = request.POST.get("email")
+                username = request.POST.get("username")
+                password = request.POST.get("password")
+                
+                # ✅ NEW: Retrieve phone_number from the form
+                phone_number = request.POST.get("phone_number") 
+                
+                # NOTE: Mapping 'name' and 'surname' from HTML to User model fields
+                first_name = request.POST.get("name")
+                last_name = request.POST.get("surname")
+                contact = request.POST.get("contact") if request.POST.get("contact") != '' else 0
+                birth_date = request.POST.get("birth_date")
 
-            permission_ids = request.POST.getlist("permissions")
-            stream_ids = request.POST.getlist("academic_stream")
+                permission_ids = request.POST.getlist("permissions")
+                stream_ids = request.POST.getlist("academic_stream")
 
-            # Basic Validation
-            if role not in ["teacher", "student"]:
-                messages.error(request, "Invalid role selected.")
-                return redirect("home")
+                # Basic Validation
+                if role not in ["teacher", "student"]:
+                    messages.error(request, "Invalid role selected.")
+                    return redirect("OrgHome")
 
-            if User.objects.filter(email=email).exists():
-                messages.error(request, "Email already exists.")
-                return redirect("home")
+                if User.objects.filter(email=email).exists():
+                    messages.error(request, "Email already exists.")
+                    return redirect("OrgHome")
 
-            # ✅ Create User: Included first_name, last_name, and phone_number
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                role=role,
-                first_name=first_name,
-                last_name=last_name,
-                phone_number=phone_number # Added phone_number
-            )
+                # ✅ Create User: Included first_name, last_name, and phone_number
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    role=role,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone_number=phone_number # Added phone_number
+                )
 
-            # ✅ Assign permissions (restricted to licensed ones)
-            valid_permissions = licensed_permissions.filter(id__in=permission_ids)
-            user.user_permissions.set(valid_permissions)
+                # ✅ Assign permissions (restricted to licensed ones)
+                licensed_permissions = Permission.objects.filter(
+                    id__in=active_licenses_qs.values_list('permissions', flat=True)
+                ).select_related('content_type').distinct().order_by('content_type__model', 'name')
 
-            # ✅ Create Profile
-            # Profile fields are 'MiddleName', 'Contact', 'BirthDate', etc.
-            profile = user.profile
-    
-            # Assuming 'name' and 'surname' are saved on the User object (first_name/last_name)
-            # and 'contact' maps to Profile.Contact (Secondary Contact)
-            
-            # profile.Name=name # This line is likely incorrect if 'Name' is not a Profile field
-            # profile.Surname=surname # This line is likely incorrect if 'Surname' is not a Profile field
-            
-            profile.Contact=contact
-            profile.BirthDate=birth_date or None
-            profile.organization_profile=org
+                valid_permissions = licensed_permissions.filter(id__in=permission_ids)
+                user.user_permissions.set(valid_permissions)
 
-            profile.save()
+                # ✅ Create Profile
+                # Profile fields are 'MiddleName', 'Contact', 'BirthDate', etc.
+                profile = user.profile
         
+                # Assuming 'name' and 'surname' are saved on the User object (first_name/last_name)
+                # and 'contact' maps to Profile.Contact (Secondary Contact)
+                
+                # profile.Name=name # This line is likely incorrect if 'Name' is not a Profile field
+                # profile.Surname=surname # This line is likely incorrect if 'Surname' is not a Profile field
+                
+                
+                profile.Contact=int(contact)
+                profile.BirthDate=birth_date or None
+                profile.organization_profile=org
 
-            # ✅ Assign academic stream (restricted)
-            valid_streams = licensed_nodes.filter(id__in=stream_ids)
-            profile.academic_stream.set(valid_streams)
+                profile.save()
+            
 
-            messages.success(request, f"{role.title()} '{username}' created successfully 🎉")
-            return redirect("home")
+                # ✅ Assign academic stream (restricted)
+                valid_streams = licensed_nodes.filter(id__in=stream_ids)
+                profile.academic_stream.set(valid_streams)
+
+                messages.success(request, f"{role.title()} '{username}' created successfully 🎉")
+            except Exception as e:
+                messages.error(request,f"{role.title()} '{username}' not created, error is {e}")
+            return redirect("view_organization_users_list")
 
     context = {
         "page_title": "Create User",
@@ -883,14 +943,16 @@ def list_organization_users(request, org_pk):
     return render(request, "Organisations/list_organization_users.html", context)
 
 
-
 @login_required
+@license_active_required
 @permission_required('accounts.change_organisation_user',login_url='profile_update')
 def edit_organization_user(request, org_pk, user_pk):
     """
     Allows an organization admin to edit a specific user's details,
     organization groups, direct permissions, and academic stream.
     """
+    today = date.today()
+    
     # 1. Authorization & Tenant Check
     
     # Ensure the logged-in user is an Admin
@@ -901,27 +963,22 @@ def edit_organization_user(request, org_pk, user_pk):
     org = get_object_or_404(OrganizationProfile, pk=org_pk)
     
     # Ensure the admin is managing a user within their own organization.
-    # Note: If request.user is a Superuser, this check might need adjustment.
     try:
         if request.user.profile.organization_profile != org:
              messages.error(request, "Authorization Failed: You can only manage users in your own organization.")
              return redirect("dashboard")
     except AttributeError:
-        # Fails if the admin user somehow doesn't have a profile linked
         messages.error(request, "Authorization Failed: Admin profile missing organization link.")
         return redirect("dashboard")
-
 
     # Fetch the target user, ensuring they belong to the current organization
     target_user = get_object_or_404(User.objects.select_related('profile'), 
                                     pk=user_pk, 
                                     profile__organization_profile=org)
-    print(" target_user : ", target_user)
-    print(" target_user.user_permissions :", target_user.user_permissions.all())
     target_profile = target_user.profile
 
-    print(" organization_groups : ",target_profile.organization_groups.name)
-    
+    print(" Profile :",target_profile.organization_groups.all())
+
     # Initialize Forms
     user_form = OrgUserAdminForm(request.POST or None, instance=target_user)
     profile_form = OrgProfileAdminForm(request.POST or None, request.FILES or None, instance=target_profile)
@@ -929,75 +986,111 @@ def edit_organization_user(request, org_pk, user_pk):
     # Get current M2M IDs for initial state/POST processing
     user_group_ids = list(target_profile.organization_groups.all().values_list('id', flat=True))
     user_direct_permission_ids = list(target_user.user_permissions.all().values_list('id', flat=True))
+    target_stream_ids = list(target_profile.academic_stream.all().values_list('id', flat=True))
 
     # 2. Handle POST Request
     if request.method == 'POST':
-        groups_ids = []
-        print(" post request ",request.POST.getlist('organization_groups[]'))
         groups_ids = request.POST.getlist('organization_groups[]')
         permission_ids = request.POST.getlist('user_permissions')
-
-        print(" groups_ids : ",groups_ids)
-
+        academic_stream_ids = request.POST.getlist('academic_stream')
+        
+        print("Academic Stream IDs from POST:", academic_stream_ids)
+        print("Forms valid: user=", user_form.is_valid(), "profile=", profile_form.is_valid())
+        
         if user_form.is_valid() and profile_form.is_valid():
+            print("Forms are valid, proceeding to save...")
             try:
                 with transaction.atomic():
-                    user_form.save()
-                    profile_form.save()
-
-                    # ---- FIX HERE ----
+                    print("Saving user and profile forms...")
                     
+                    # Save the user form first (this updates user fields)
+                    user = user_form.save()
+                    
+                    # Save the profile form (this updates profile fields)
+                    profile = profile_form.save(commit=False)
+                    
+                    # Handle ManyToMany relationships
+                    # Save the profile instance first
+                    profile.save()
+                    
+                    # Now set the ManyToMany relationships
+                    print("Setting organization groups...",groups_ids)
+                    user.user_permissions.set(permission_ids)
+                    
+                    profile.organization_groups.set(groups_ids)
+                    
+                    print(" Groups ",profile.organization_groups.all())
+                    print("Setting direct permissions...")
+                    print("Permission IDs:", permission_ids)
+                    
+                    
+                    print("Setting academic stream...")
+                    # Convert string IDs to integers
+                    academic_stream_ids_int = [int(id) for id in academic_stream_ids if id.isdigit()]
+                    profile.academic_stream.set(academic_stream_ids_int)
+                    
+                    # Save the ManyToMany changes
+                    print(" Groups 2",profile.organization_groups.all())
 
-                    target_profile.organization_groups.set(groups_ids)
+                    # profile_form.save_m2m()
 
-                    print(" organization_groups : ",target_profile.organization_groups)
-                    # -------------------
-
-                    # Direct permissions
-                    target_user.user_permissions.set(permission_ids)
-
-                    # Academic streams
-                    academic_streams = profile_form.cleaned_data.get('academic_stream')
-                    target_profile.academic_stream.set(academic_streams)
-
+                    print(" Groups 3",profile.organization_groups.all())
+                    
                     messages.success(request, f"User '{target_user.username}' successfully updated.")
                     return redirect('view_organization_users_list', org_pk=org_pk)
 
             except Exception as e:
+                print("Error saving user data:", str(e))
                 messages.error(request, f"An error occurred while saving user data: {e}")
-                
+        else:
+            # Debug form errors
+            print("User form errors:", user_form.errors)
+            print("Profile form errors:", profile_form.errors)
     
     # 3. Prepare Context Data (for GET/Error POST)
+    
+    # FIX: Get all licensed nodes, not just supported curriculum
+    all_licensed_nodes = TreeNode.objects.filter(
+        licensegrant__in=org.license_grants.filter(
+            Q(valid_until__isnull=True) | Q(valid_until__gte=today)
+        )
+    ).distinct()
+    
 
-    # a. Organization Groups (For Checkbox list)
-    all_org_groups = OrganizationGroup.objects.filter(organization=org).order_by('name')
+    root_nodes = all_licensed_nodes.filter(parent__isnull=True).distinct()
 
+    json_root_nodes = serializers.serialize('json', [
+            node for node in root_nodes.all()
+        ])
 
+    
+    # Filter permissions based on active licenses
     active_licenses_qs = org.license_grants.filter(
         Q(valid_until__isnull=True) | Q(valid_until__gte=today)
-        )
-
-    # Collect licensed permissions and nodes
+    )
     permissions = Permission.objects.filter(
-        id__in=active_licenses_qs.values_list('permissions', flat=True)
+        licensepermission__license__in=active_licenses_qs
     ).distinct()
-
-    # b. Structured Permissions (For Accordion UI)
-    # permissions = Permission.objects.select_related('content_type').order_by('content_type__app_label', 'name')
+    
+    # Structured Permissions (For Accordion UI)
     app_perm_dict = {}
-
     for perm in permissions:
         app_label = perm.content_type.app_label
-        # Clean up model name for display (e.g., change 'user' to 'User')
-        model_name = perm.content_type.model.replace('_', ' ').title()
+        # model_name = perm.content_type.model.replace('_', ' ').title()
+
+        model_class = perm.content_type.model_class()
+       
+
+        # 2. Check if the model class exists (it should, but safety first).
+        if model_class:
+            # Access the verbose_name_plural from the related model's metadata
+            model_name = model_class._meta.verbose_name_plural.title()
+        else:
+            # Fallback for custom or unlinked permissions
+            model_name = perm.content_type.model.replace('_', ' ').title()
         
-        if app_label not in app_perm_dict:
-            app_perm_dict[app_label] = {}
-        
-        if model_name not in app_perm_dict[app_label]:
-            app_perm_dict[app_label][model_name] = []
-            
-        app_perm_dict[app_label][model_name].append(perm)
+        app_perm_dict.setdefault(app_label, {})
+        app_perm_dict[app_label].setdefault(model_name, []).append(perm)
 
     context = {
         'page_title': f"Edit User: {target_user.username}",
@@ -1005,17 +1098,20 @@ def edit_organization_user(request, org_pk, user_pk):
         'target_user': target_user,
         'user_form': user_form,
         'profile_form': profile_form,
-        'all_org_groups': all_org_groups,
+        'all_org_groups': OrganizationGroup.objects.filter(organization=org).order_by('name'),
         'user_group_ids': user_group_ids,
         'app_perm_dict': app_perm_dict,
         'user_direct_permission_ids': user_direct_permission_ids,
+        'root_nodes': root_nodes,
+        'licensed_nodes': target_profile.academic_stream.all(),
+        'json_root_nodes':json_root_nodes,
+        'target_stream_ids': target_stream_ids,
     }
     return render(request, "Organisations/edit_organization_user.html", context)
 
 
-
-
 @login_required
+@license_active_required
 @permission_required('accounts.view_organizationgroup',login_url='profile_update')
 def manage_organization_groups(request, group_id=None):
 

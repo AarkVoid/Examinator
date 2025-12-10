@@ -41,3 +41,11 @@ def total_perms_in_app(models_dict):
 def capfirst(value):
     """Capitalizes the first letter of the value."""
     return str(value).capitalize()
+
+
+
+@register.filter
+def exclude_fields(form, exclude_list):
+    """Exclude specific fields from a form"""
+    exclude_list = exclude_list.split(',')
+    return [field for field in form if field.name not in exclude_list]

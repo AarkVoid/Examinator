@@ -83,7 +83,7 @@ class NewClientUserForm(forms.ModelForm):
     phone_number = forms.CharField(
         max_length=20, 
         required=False, 
-        label="Phone Number (Optional)", 
+        label="Phone Number", 
         widget=forms.TextInput(attrs=TAILWIND_INPUT_CLASSES)
     )
     
@@ -303,6 +303,21 @@ class OrganizationAssignmentForm(forms.Form):
                 self.add_error('new_billing_email', "This billing email is already registered to an organization.")
 
         return cleaned_data
+    
+    def __init__(self, *args, **kwargs):
+        # Extract initial org_id from kwargs if provided
+        org_id = kwargs.pop('org_id', None)
+        super().__init__(*args, **kwargs)
+        print(org_id)
+        # Set the initial value for existing_organization if org_id is provided
+        if org_id:
+            try:
+                organization = OrganizationProfile.objects.get(id=org_id)
+                print(organization)
+                self.fields['existing_organization'].initial = organization
+            except OrganizationProfile.DoesNotExist:
+                # Organization doesn't exist, leave unselected
+                pass
 
 
 

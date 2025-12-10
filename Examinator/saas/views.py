@@ -22,8 +22,12 @@ from .saas_admin_forms import (
 
 )
 
+from django.views.decorators.csrf import csrf_protect, csrf_exempt # New Import
+from datetime import date
 from saas.models import OrganizationProfile, LicenseGrant, UsageLimit,LicensePermission
 from accounts.views import staff_required,superuser_required
+import logging
+logger = logging.getLogger(__name__)
 # NOTE: The User model is implicitly linked via a Profile model in the application design.
 
 User = get_user_model()
@@ -236,7 +240,7 @@ def manage_licenses(request, org_id):
     today = timezone.now().date()
 
     # 🔹 Permissions filtering logic
-    APP_LABELS = ['accounts', 'quiz']
+    APP_LABELS = ['accounts', 'quiz','saas']
     ACTION_CODENAMES = ['add_', 'change_', 'delete_', 'view_']
 
     app_filter = Q(content_type__app_label__in=APP_LABELS)
@@ -254,7 +258,19 @@ def manage_licenses(request, org_id):
     
     for perm in available_permissions:
         # Key: model name (e.g., 'course', 'question', 'user'). We capitalize it for display.
-        model_name = perm.content_type.model.capitalize()
+        # model_name = perm.content_type.model.capitalize()
+        model_class = perm.content_type.model_class()
+       
+
+        # 2. Check if the model class exists (it should, but safety first).
+        if model_class:
+            # Access the verbose_name_plural from the related model's metadata
+            model_name = model_class._meta.verbose_name_plural.title()
+        else:
+            # Fallback for custom or unlinked permissions
+            model_name = perm.content_type.model.replace('_', ' ').title()
+           
+            
         
         # FIX: Calculate the display name in Python using string replace and capitalize.
         # This prevents the TemplateSyntaxError in HTML. E.g., 'add_quiz' -> 'Add quiz'
@@ -262,6 +278,7 @@ def manage_licenses(request, org_id):
 
         if model_name not in permissions_by_model:
             permissions_by_model[model_name] = []
+
         
         # Store as a dictionary to include the pre-calculated display name
         permissions_by_model[model_name].append({
@@ -304,18 +321,29 @@ def manage_licenses(request, org_id):
 
         # 🔹 Attach curriculum nodes
         curriculum_nodes = TreeNode.objects.filter(id__in=curriculum_node_ids)
-        print("curriculum_nodes", curriculum_nodes,curriculum_node_ids)
-        exclude_ids = []
-        for curriculum_node in curriculum_nodes:
-            print("curriculum_node", curriculum_node)
-            if curriculum_node.parent is not None:
-                if str(curriculum_node.parent.id) in map(str, curriculum_node_ids):
-                    print("Parent node included")
-                    exclude_ids.append(curriculum_node.id)
-                    print(curriculum_node.parent.id,curriculum_node.id)
-                    print(curriculum_node_ids)
-        curriculum_nodes = curriculum_nodes.exclude(id__in=exclude_ids) 
-        grant.curriculum_node.set(curriculum_nodes)
+        final_stream_pks = set()
+        for node in curriculum_nodes:
+            final_stream_pks.add(node.pk)
+
+            # Efficiently retrieve and add all ancestors and descendants to the stream
+            ancestors = node.get_ancestors(include_self=False)
+            final_stream_pks.update([n.pk for n in ancestors])
+
+            descendants = node.get_descendants(include_self=False)
+            final_stream_pks.update([d.pk for d in descendants])
+
+        all_active_nodes_pk = list(final_stream_pks)
+        # exclude_ids = []
+        # for curriculum_node in all_active_nodes_pk:
+        #     print("curriculum_node", curriculum_node)
+        #     if curriculum_node.parent is not None:
+        #         if str(curriculum_node.parent.id) in map(str, curriculum_node_ids):
+        #             print("Parent node included")
+        #             exclude_ids.append(curriculum_node.id)
+        #             print(curriculum_node.parent.id,curriculum_node.id)
+        #             print(curriculum_node_ids)
+        # curriculum_nodes = curriculum_nodes.exclude(id__in=exclude_ids) 
+        grant.curriculum_node.set(all_active_nodes_pk)
 
         # 🔹 Attach permissions (via LicensePermission model)
         permissions = Permission.objects.filter(id__in=permission_ids)
@@ -353,7 +381,7 @@ def manage_licenses(request, org_id):
     active_curriculum_nodes_qs = TreeNode.objects.filter(
         id__in=list(active_node_ids)
     ).order_by('name')
-
+    print("json_root_nodes :",serializers.serialize('json', root_nodes, fields=('id', 'name', 'node_type')),)
     return render(request, 'manage_licenses.html', {
         'organization': organization,
         'grants': grants,
@@ -406,19 +434,44 @@ def edit_license(request, pk):
     )
 
     # 2. Load available permissions grouped by ContentType model
+    # APP_LABELS = ['accounts', 'quiz','saas']
+    
+    # all_available_permissions = (
+    #     Permission.objects.filter(content_type__app_label__in=APP_LABELS)
+    #     .select_related('content_type')
+    #     .order_by('content_type__app_label', 'name') # Ordering by 'name' (human readable) is better than 'codename'
+    # )
+
     APP_LABELS = ['accounts', 'quiz','saas']
     
-    all_available_permissions = (
-        Permission.objects.filter(content_type__app_label__in=APP_LABELS)
-        .select_related('content_type')
-        .order_by('content_type__app_label', 'name') # Ordering by 'name' (human readable) is better than 'codename'
+    app_filter = Q(content_type__app_label__in=APP_LABELS)
+    action_filter = Q()
+    # 2. Load available permissions grouped by ContentType model
+    
+    
+    all_available_permissions = Permission.objects.filter(
+        app_filter & action_filter
+    ).select_related('content_type').order_by(
+        'content_type__app_label', 'codename'
     )
 
     permissions_by_model = {}
     
     for perm in all_available_permissions:
+
+        model_class = perm.content_type.model_class()
+       
+
+        # 2. Check if the model class exists (it should, but safety first).
+        if model_class:
+            # Access the verbose_name_plural from the related model's metadata
+            model_name = model_class._meta.verbose_name_plural.title()
+        else:
+            # Fallback for custom or unlinked permissions
+           
+            model_name = perm.content_type.model.replace('_', ' ').title()
         # Key: model name (e.g., 'course', 'question', 'user')
-        model_name = perm.content_type.model
+        # model_name = perm.content_type.model
         
         if model_name not in permissions_by_model:
             permissions_by_model[model_name] = []
@@ -478,6 +531,7 @@ def edit_license(request, pk):
 
     # Prepare JSON data for JS rendering
     root_nodes_json_data = serializers.serialize('json', root_nodes, fields=('name', 'node_type'))
+    print(" root_nodes_json_data :",root_nodes_json_data)
 
     # permissions_json is no longer needed for JS, but we keep other JS variables
     selected_node_ids = list(license_grant.curriculum_node.values_list('id', flat=True))
@@ -522,7 +576,6 @@ def delete_license(request, pk):
     return render(request, 'license_confirm_delete.html', context)
 
 
-
 @login_required
 @staff_required
 @permission_required('saas.add_organizationprofile', raise_exception=True)
@@ -532,11 +585,15 @@ def create_client_and_organization_view(request):
     associated OrganizationProfile (new or existing) in one step.
     """
     page_title = "One-Step Client Onboarding"
+    orgId = request.GET.get('orgId', None)  
     
     # Initialize forms
     if request.method == 'POST':
         user_form = NewClientUserForm(request.POST)
-        org_assign_form = OrganizationAssignmentForm(request.POST)
+        org_assign_form = OrganizationAssignmentForm(request.POST, org_id=orgId)
+        
+        # Define today here so it's available in all branches (NEW/EXISTING org)
+        today = date.today() 
 
         # Check validity of both forms
         if user_form.is_valid() and org_assign_form.is_valid():
@@ -552,6 +609,8 @@ def create_client_and_organization_view(request):
                     new_user.role = user_form.cleaned_data['role'] # 'admin'
                     new_user.set_password(user_form.cleaned_data['password'])
                     new_user.save()
+
+                    
                     
                     # --- 2. Organization Assignment ---
                     org_profile = None
@@ -562,6 +621,7 @@ def create_client_and_organization_view(request):
                     if existing_org:
                         # Case A: Assign to existing organization
                         org_profile = existing_org
+                        
                     
                     elif new_name and new_email:
                         # Case B: Create new organization
@@ -578,21 +638,72 @@ def create_client_and_organization_view(request):
                             max_users=50 # Default starting limit
                         )
                     
+                    # Get the profile (assumes signal or form saved it)
+                    profile = new_user.profile 
+
+                    # CRITICAL: Link the Profile to the Organization
+                    profile.organization_profile = org_profile
+                    
+                    # --- 4. License, Stream, and Permission Assignment ---
+                    # This logic runs immediately after the organization is assigned.
+                    
+                    # Get licenses active as of today
+                    active_licenses_qs = org_profile.license_grants.filter(
+                                Q(valid_until__isnull=True) | Q(valid_until__gte=today)
+                            )
+                    
+                    # --- 4a. GLOBAL RECALCULATION OF ALL ACTIVE LICENSED NODES ---
+                    all_licensed_nodes_qs = TreeNode.objects.filter(
+                        # Filter nodes only based on the active licenses
+                        licensegrant__in=active_licenses_qs
+                    ).distinct()
+
+                    # final_stream_pks = set()
+                    # for node in all_licensed_nodes_qs:
+                    #     final_stream_pks.add(node.pk)
+
+                    #     # Efficiently retrieve and add all ancestors and descendants to the stream
+                    #     ancestors = node.get_ancestors(include_self=False)
+                    #     final_stream_pks.update([n.pk for n in ancestors])
+
+                    #     descendants = node.get_descendants(include_self=False)
+                    #     final_stream_pks.update([d.pk for d in descendants])
+
+                    all_active_nodes_pk = list(all_licensed_nodes_qs)
+
+                    
+                    profile.academic_stream.set(all_active_nodes_pk)
+                    
+                    # --- 4b. PERMISSION ASSIGNMENT ---
+                    all_perms = Permission.objects.filter(
+                            licensepermission__license__in=active_licenses_qs
+                        ).distinct()
+                    
+                    # Only add permissions if the user has a role that requires them (e.g., admin)
+                    
+                    for perm in all_perms:
+                        # Note: The 'add' method automatically handles existence checks
+                        new_user.user_permissions.add(perm)
+
+                    new_user.save() # Save needed for permissions M2M set
+                    profile.save()
+                    
                     messages.success(request, f"Client Admin '{new_user.email}' and Organization '{org_profile.name}' created successfully.")
                     
                     # Redirect to a success page or the dashboard
-                    return redirect(reverse('saas:license_dashboard'))
+                    return redirect(reverse('saas:organization_license_overview'))
 
             except Exception as e:
                 # Log error and show user a message
-                print(f"Database transaction failed: {e}")
+                logger.error(f"Database transaction failed: {e}")
                 messages.error(request, f"An unexpected error occurred during client creation. Details: {e}")
         
         # If forms were invalid, they will fall through and be re-rendered
     else:
         # GET request: initialize empty forms
         user_form = NewClientUserForm()
-        org_assign_form = OrganizationAssignmentForm()
+        print(orgId)
+        org_assign_form = OrganizationAssignmentForm(org_id=orgId)
 
     context = {
         'page_title': page_title,
@@ -612,7 +723,7 @@ def create_organization_and_admin_view(request):
     org_form = OrganizationProfileForm(prefix='org')
     user_assign_form = UserAssignmentForm(prefix='user')
     context = {'org_form': org_form, 'user_assign_form': user_assign_form, 'page_title': 'Create Client Organization & Assign Admin'}
-    return render(request, 'create_organization_and_admin.html', context)
+    return render(request, 'create_user_and_organization.html', context)
 
 
 @login_required

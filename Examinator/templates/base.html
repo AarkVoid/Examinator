@@ -142,7 +142,7 @@
           {% endif %}
         {% endif %}
 
-        {% if request.user|check_permissions:"quiz.view_question|or" %}
+        {% if request.user|check_permissions:"quiz.view_question,quiz.view_orgquestion|or" %}
     
           {% url 'quiz:question_list' as question_list_url %}
           <a href="{% if request.user.is_staff %}{{ question_list_url }}{% else %}{{ question_list_url }}?tab=organization{% endif %}" 
@@ -203,7 +203,7 @@
       {% endif %}
       
       {# Section: Management #}
-      {% if request.user|check_permissions:"accounts.add_organisation_user,accounts.view_orgainsation_user,saas.view_license_summary,accounts.add_user,saas.view_organizationprofile,saas.add_organizationprofile|or" %}
+      {% if  request.user.role == 'admin' or request.user|check_permissions:"accounts.add_organisation_user,accounts.view_orgainsation_user,saas.view_license_summary,accounts.add_user,saas.view_organizationprofile,saas.add_organizationprofile|or" %}
         <div class="pt-6">
           <p class="px-4 mb-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-600 border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">Management</p>
 
@@ -236,8 +236,8 @@
             </a>
             </div>
           {% endif %}
-
-          {% if request.user|check_permissions:"saas.view_license_summary|or" %}
+          
+          {% if  request.user.role == 'admin' or request.user|check_permissions:"saas.view_license_summary|or" %}
           {% url 'saas:organization_license_overview' as check_license_url %}
           <a href="{{ check_license_url }}" class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 
             {% if current_path == check_license_url %}bg-blue-50 dark:bg-blue-800/30 font-semibold text-blue-700 dark:text-blue-300 shadow-sm active-link{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1{% endif %}">
@@ -672,7 +672,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       const messages = document.querySelectorAll('.auto-dismiss-message');
       const DISMISS_DELAY_MS = 5000; // 5 seconds
-      const FADE_DURATION_MS = 500; // 0.5 seconds
+      const FADE_DURATION_MS = 5000; // 0.5 seconds
 
       messages.forEach(message => {
         // 1. Start the dismissal timer

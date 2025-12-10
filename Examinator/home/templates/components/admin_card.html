@@ -1,0 +1,25 @@
+<!-- components/admin_card.html -->
+<a href="{% if url %}{% url url org_pk=org_pk %}{% else %}#{% endif %}"
+   class="block group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-200 hover:border-{{ color }}-300 dark:hover:border-{{ color }}-600 {% if superuser %}border-l-4 border-l-{{ color }}-500{% endif %}">
+  
+  <div class="flex items-start space-x-4">
+    <div class="flex-shrink-0">
+      <div class="w-12 h-12 bg-{{ color }}-100 dark:bg-{{ color }}-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+        <i class="fa-solid fa-{{ icon }} text-{{ color }}-600 dark:text-{{ color }}-400 text-lg"></i>
+      </div>
+    </div>
+    
+    <div class="flex-1 min-w-0">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-{{ color }}-600 dark:group-hover:text-{{ color }}-400 transition-colors duration-200">
+        {{ title }}
+      </h3>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+        {{ description }}
+      </p>
+    </div>
+    
+    <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <i class="fa-solid fa-arrow-right text-{{ color }}-600 dark:text-{{ color }}-400"></i>
+    </div>
+  </div>
+</a>

@@ -11,38 +11,26 @@
     </div>
 
     <div class="p-6 sm:p-8">
-      <form method="post" novalidate class="space-y-6">
+      <form method="post" novalidate class="space-y-6" id="node-form">
         {% csrf_token %}
 
-
-
-         <!-- ======================================================= -->
-        <!-- FIELD: Parent Node -->
-        <!-- ======================================================= -->
         <div>
-          <label for="id_parent" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Parent Node</label>
+          <label for="id_parent" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{{ node.parent.node_type|capfirst }}</label>
           
           {% if is_editing %}
-            <!-- Editing Existing Node -->
             <p class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
                 {% if node.parent %}{{ node.parent.name }} ({{ node.parent.node_type }}){% else %}Root Node (No Parent){% endif %}
             </p>
-            <!-- Hidden field is necessary to pass the parent ID back if reparenting is allowed, but based on your
-                 logic, we'll keep it hidden for consistency. -->
             <input type="hidden" name="parent" value="{{ initial_data.parent|default:'' }}">
           
           {% elif parent_node %}
-            <!-- Creating a Child Node (Parent is fixed) -->
             <p class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
                 {{ parent_node.name }} ({{ parent_node.node_type }})
             </p>
             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Parent field cannot be changed when creating a new child node.</p>
-            <!-- Hidden input for the fixed parent ID -->
             <input type="hidden" name="parent" value="{{ parent_node.pk }}">
             
           {% else %}
-            <!-- Creating a Root Node (Parent selection is required if not root) -->
-            <!-- If you allow reparenting or selecting any parent, this would be a full select field -->
             <p class="text-gray-500 italic p-2.5">This will be a root node.</p>
             <input type="hidden" name="parent" value="">
           {% endif %}
@@ -52,11 +40,6 @@
           {% endif %}
         </div>
 
-
-        
-        <!-- ======================================================= -->
-        <!-- FIELD: Name (Floating Label Style) -->
-        <!-- ======================================================= -->
         <div class="group relative z-0 w-full mb-6">
           <input type="text" 
                  name="name" 
@@ -74,30 +57,11 @@
           {% endif %}
         </div>
 
-        <!-- ======================================================= -->
-        <!-- FIELD: Node Type -->
-        <!-- ======================================================= -->
-         
         {% if not parent_node.node_type == 'subject' and parent_node %}
-        
-          <div>
-           {% comment %} <label for="id_node_type" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Node Type</label>
-            <!-- Editing (is_editing=True) or Creating a Child (parent_node exists) -->
-            <!-- Display read-only value -->
-            <p class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
-                {{ initial_data.node_type|default_if_none:'N/A' }} 
-            </p>
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Node type is determined by its parent and cannot be changed.</p> {% endcomment %}
-            
-            <!-- Hidden input to ensure the value is still sent in the POST request --> 
-            <input type="hidden" name="node_type" value="{{ initial_data.node_type|default:'' }}">
-            
-          </div>
+          <input type="hidden" name="node_type" value="{{ initial_data.node_type|default:'' }}">
         {% else %}
-
-            <div>
-              <label for="id_node_type" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Node Type</label>
-            <!-- Creating a Root Node -->
+            <div>  
+              <label for="id_node_type" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Type</label>
             <select name="node_type" id="id_node_type" 
                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
               <option value="">--- Select Node Type ---</option>
@@ -116,14 +80,6 @@
           </div>
         {% endif %}
           
-          
-        
-        
-       
-        
-        <!-- ======================================================= -->
-        <!-- FIELD: Order (Floating Label Style) -->
-        <!-- ======================================================= -->
         <div class="group relative z-0 w-full mb-6">
           <input type="number" step="1" 
                  name="order" 
@@ -139,14 +95,7 @@
             <p class="mt-1 text-xs text-red-500">{{ errors.order }}</p>
           {% endif %}
         </div>
-
-
-
-
-        <!-- ======================================================= -->
-        <!-- FIELD: Marks -->
-        <!-- ======================================================= -->
-        {% if initial_data.node_type == 'chapter' %}
+        {% if initial_data.node_type == 'chapter' or initial_data.node_type == 'unit'  %}
           <div class="group relative z-0 w-full mb-6">
             <input type="text" 
                   name="marks" 
@@ -165,28 +114,43 @@
           </div>
         {% endif %}
 
-        <!-- ======================================================= -->
-        <!-- FIELD: Metadata (JSON Textarea) -->
-        <!-- ======================================================= -->
-        <div>
-          <label for="id_metadata" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Metadata (JSON)</label>
-          <textarea name="metadata" 
-                    id="id_metadata" 
-                    class="block w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 resize-none" 
-                    rows="4" 
-                    placeholder='{"key": "value"}'>{{ initial_data.metadata|default:'' }}</textarea>
-                    
-          <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Example: <code class="bg-gray-100 dark:bg-gray-700 p-1 rounded">{"difficulty": "easy", "duration": 30}</code>
-          </p>
+        
+        <div class="space-y-4">
+          <label class="block text-sm font-medium text-gray-900 dark:text-white">
+            Extra Parameters 
+          </label>
+          
+          <div id="metadata-container" class="space-y-3">
+            <div class="grid grid-cols-11 gap-4 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 pb-1 border-b border-gray-200 dark:border-gray-600">
+                  <div class="col-span-5">Key</div>
+                  <div class="col-span-5">Value</div>
+                  <div class="col-span-1"></div> </div>
+              {% for key,values in parsed_metadata.items %}
+                {% include 'partials/metadata_row.html' with key=key value=values readonly=False %}
+              {% empty %}
+                {% comment %} 
+                If your JavaScript dynamically adds the first row, you may not need the 'empty' block.
+                For server-side rendering, having one row if the dictionary is empty is safer.
+                {% endcomment %}
+                {% include 'partials/metadata_row.html' with key='' value='' readonly=False %}
+              {% endfor %}
+              
+            </div>
+          
+          <button type="button" id="add-metadata-btn" class="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-300 transition-colors">
+              <i class="fa-solid fa-plus-circle mr-2"></i> Add Custom Field
+          </button>
+          
           {% if errors.metadata %}
             <p class="mt-1 text-xs text-red-500">{{ errors.metadata }}</p>
           {% endif %}
+          
+          <input type="hidden" name="metadata" id="id_metadata_json" value="{{ initial_data.metadata|default:'' }}">
+          
         </div> 
         
         ---
         
-        <!-- General Errors -->
         {% if errors.general %}
         <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg" role="alert">
             {{ errors.general }}
@@ -205,4 +169,156 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('metadata-container');
+        const addButton = document.getElementById('add-metadata-btn');
+        const form = document.getElementById('node-form');
+        const jsonInput = document.getElementById('id_metadata_json');
+        
+        // Template for a new metadata row
+        const newRowHtml = `
+            <div class="metadata-row grid grid-cols-11 gap-4 items-center py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+                <input type="text" 
+                       name="metadata_key[]" 
+                       placeholder="Key"
+                       class="col-span-5 px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm metadata-key focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" 
+                       name="metadata_value[]" 
+                       placeholder="Value"
+                       class="col-span-5 px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm metadata-value focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <button type="button" class="col-span-1 text-red-500 hover:text-red-700 delete-row-btn p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Remove Field">
+                    <i class="fa-solid fa-trash text-sm"></i>
+                </button>
+            </div>
+        `;
+
+        // Add Row Function
+        function addRow(key = '', value = '', isServerRendered = false) {
+            let newRow;
+            
+            if (isServerRendered) {
+                // Server-rendered rows are already in the DOM
+                const rows = container.querySelectorAll('.metadata-row');
+                newRow = rows[rows.length - 1];
+            } else {
+                // Create new dynamic row
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newRowHtml.trim();
+                newRow = tempDiv.firstChild;
+                
+                // Insert after header
+                const headerRow = container.querySelector('.grid.grid-cols-11');
+                if (headerRow && headerRow.nextSibling) {
+                    container.insertBefore(newRow, headerRow.nextSibling);
+                } else {
+                    container.appendChild(newRow);
+                }
+            }
+
+            const keyInput = newRow.querySelector('.metadata-key');
+            const valueInput = newRow.querySelector('.metadata-value');
+            const deleteButton = newRow.querySelector('.delete-row-btn');
+
+            if (!isServerRendered) {
+                keyInput.value = key;
+                valueInput.value = value;
+            }
+
+            // Attach delete event listener
+            if (deleteButton) {
+                deleteButton.addEventListener('click', () => {
+                    if (confirm('Are you sure you want to remove this field?')) {
+                        newRow.remove();
+                        updateMetadataJSON();
+                    }
+                });
+            }
+
+            // Add input listeners
+            keyInput.addEventListener('input', updateMetadataJSON);
+            valueInput.addEventListener('input', updateMetadataJSON);
+        }
+
+        // Update the hidden JSON input
+        function updateMetadataJSON() {
+            const metadata = {};
+            const keyInputs = container.querySelectorAll('input[name="meta_key"]');
+            const valueInputs = container.querySelectorAll('input[name="meta_value"]');
+            
+            // Match keys with values
+            keyInputs.forEach((keyInput, index) => {
+                const valueInput = valueInputs[index];
+                if (keyInput && valueInput) {
+                    const key = keyInput.value.trim();
+                    const value = valueInput.value.trim();
+                    
+                    // Only include rows where the key is not empty
+                    if (key) {
+                        metadata[key] = value;
+                    }
+                }
+            });
+            
+            // Set the value of the hidden input field
+            jsonInput.value = JSON.stringify(metadata);
+            // console.log('Metadata JSON updated:', jsonInput.value);
+        }
+
+        // Initialize existing metadata rows
+        function initializeExistingRows() {
+            // Attach events to server-rendered rows
+            const serverRows = container.querySelectorAll('.metadata-row');
+            serverRows.forEach((row, index) => {
+                addRow('', '', true); // true means it's server-rendered
+            });
+            
+            // If no rows exist, add one
+            if (serverRows.length === 0) {
+                addRow();
+            } else {
+                // Update JSON from existing rows
+                updateMetadataJSON();
+            }
+        }
+
+        // Attach Add Button Listener
+        addButton.addEventListener('click', () => {
+           console.log
+            addRow();
+            
+        });
+
+        // Form submission handler
+        form.addEventListener('submit', function(e) {
+            console.log('Form submitted');
+            
+            // Update JSON one final time
+            updateMetadataJSON();
+            
+            // Validate JSON
+            try {
+                const metadata = JSON.parse(jsonInput.value || '{}');
+                console.log('Final metadata to submit:', metadata);
+            } catch (error) {
+                console.error('Invalid JSON in metadata:', error);
+                alert('Error: Invalid metadata format. Please check your key-value pairs.');
+                e.preventDefault();
+                return false;
+            }
+            
+            // Form will submit normally now
+            console.log('Form submitting...');
+        });
+
+        // Initialize on page load
+        initializeExistingRows();
+        
+        // Debug: Log initial state
+        console.log('Initial metadata JSON:', jsonInput.value);
+    });
+</script>
 {% endblock %}

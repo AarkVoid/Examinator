@@ -1,10 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse,HttpResponseForbidden
 from django.core.paginator import Paginator
-from .models import Question, QuestionPaper, PaperQuestion, MCQOption, MatchPair, FillBlankAnswer,ShortAnswer, TrueFalseAnswer,QuestionUploadLog,OrgQuestion,MCQOptionOrg, MatchPairOrg, FillBlankAnswerOrg,ShortAnswerOrg, TrueFalseAnswerOrg
+from .models import Question, QuestionPaper, PaperQuestion, MCQOption, MatchPair, FillBlankAnswer,ShortAnswer, TrueFalseAnswer,QuestionUploadLog,OrgQuestion,MCQOptionOrg, MatchPairOrg, FillBlankAnswerOrg,ShortAnswerOrg, TrueFalseAnswerOrg,PaperOrgQuestion
 from .forms import (
     QuestionForm, MCQOptionFormSet, FillBlankAnswerFormSet, ShortAnswerForm,  
     MatchPairFormSet, TrueFalseAnswerForm, QuestionPaperForm,MCQOptionOrgFormSet,
@@ -17,7 +16,6 @@ import json
 from django.db.models import Count,Q
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum 
-from django.contrib.auth.decorators import permission_required
 import csv, io, traceback
 from .utils import validate_paper_limits_and_license
 from datetime import date
@@ -34,7 +32,11 @@ import random
 import json
 import openpyxl 
 import pandas as pd
+from accounts.views import license_active_required, staff_required
+from django.contrib.auth.decorators import login_required, permission_required
 
+from functools import wraps
+from django.core.exceptions import PermissionDenied
 
 QUESTION_TYPES = [
     ('mcq', 'Multiple Choice'),
@@ -49,6 +51,32 @@ DIFFICULTY_LEVELS = [
     ('medium', 'Medium'),
     ('hard', 'Hard'),
 ]
+
+
+def any_permission_required(perm_list, login_url=None):
+    """
+    Checks if user has ANY permission in perm_list (OR condition)
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            user = request.user
+
+            # Not logged in
+            if not user.is_authenticated:
+                return redirect(login_url or 'login')
+
+            # OR-based permission check
+            for perm in perm_list:
+                if user.has_perm(perm):
+                    return view_func(request, *args, **kwargs)
+
+            # No permission matched
+            raise PermissionDenied  # shows default 403 page
+        return _wrapped_view
+    print(" decorator :",decorator)
+    return decorator
+
 
 def filter_questions_by_license(organization):
     """
@@ -81,7 +109,8 @@ def filter_questions_by_license(organization):
 # --- Main View Function (Updated) ---
 
 @login_required
-@permission_required('quiz.view_question',login_url='profile_update')
+@license_active_required
+@permission_required(['quiz.view_question', 'quiz.view_orgquestion'], login_url='profile_update')
 def question_list(request):
     
     # New Parameters for tabs and organization filter. Default tab is 'public'.
@@ -95,21 +124,22 @@ def question_list(request):
     # --- Initial Context and User Role ---
     organization = getattr(request.user.profile, "organization_profile", None)
     is_staff_or_superuser = request.user.is_superuser or request.user.is_staff
-    
+    has_public_question_permission = request.user.has_perm('quiz.view_public_question')
     # --- Base QuerySet Determination (CRITICAL ACCESS LOGIC) ---
 
-    has_filter_applied = bool(filter_type != "all" or search_query or selected_node_id or (is_staff_or_superuser and org_filter_id))
+    has_filter_applied = bool(filter_type != "all" or search_query or selected_node_id or ((is_staff_or_superuser or has_public_question_permission) and org_filter_id))
 
-    if not is_staff_or_superuser:
+    if not is_staff_or_superuser and not has_public_question_permission:
         tab_type = "organization"
+        print(" Why ")
 
     if tab_type == "organization":
         QuestionModel = OrgQuestion
     else:
         QuestionModel = Question # Master/Published content for 'public' tab
     
-    if is_staff_or_superuser:
-
+    if is_staff_or_superuser or has_public_question_permission:
+        print("hi")
         
         if tab_type == "organization":
             # Case 1: Staff/Superuser viewing ALL ORGANIZATION questions (Auditing View)
@@ -127,6 +157,7 @@ def question_list(request):
                 # No filters applied, show all questions
                 queryset = QuestionModel.objects.none()           
     elif organization:
+
         queryset = QuestionModel.objects.filter(organization=organization)
         # if tab_type == "organization":
         #     # Case 3: Organization User viewing MY ORGANIZATION/LICENSED questions
@@ -443,6 +474,7 @@ def get_child_nodes(request, node_id):
 
 # --- Main CRUD View ---
 @login_required
+@license_active_required
 @permission_required('quiz.add_question',login_url='profile_update')
 def question_create(request):
     """
@@ -798,6 +830,7 @@ def question_true_false(request, question_id):
 
 
 @login_required
+@staff_required
 @permission_required('quiz.change_question',login_url='profile_update')
 def question_detail_and_edit(request, question_uuid):
     # Security: Ensure user only accesses their own questions
@@ -900,6 +933,7 @@ def question_detail_and_edit(request, question_uuid):
     return render(request, 'quiz/question_detail_edit.html', context)
 
 @login_required
+@staff_required
 @permission_required('quiz.delete_question',login_url='profile_update')
 def question_delete(request, question_uuid):
     question = get_object_or_404(Question, question_uuid=question_uuid)
@@ -918,6 +952,7 @@ def question_delete(request, question_uuid):
 
 
 @login_required
+@license_active_required
 @permission_required('quiz.change_question',login_url='profile_update')
 def Orgquestion_detail_and_edit(request, question_uuid):
     # Security: Ensure user only accesses their own questions
@@ -1019,6 +1054,7 @@ def Orgquestion_detail_and_edit(request, question_uuid):
     return render(request, 'quiz/question_detail_edit.html', context)
 
 @login_required
+@license_active_required
 @permission_required('quiz.delete_question',login_url='profile_update')
 def Orgquestion_delete(request, question_uuid):
     question = get_object_or_404(Question, question_uuid=question_uuid)
@@ -1051,6 +1087,7 @@ def get_org_answer_form(q_type):
 
 
 @login_required
+@staff_required
 @permission_required('quiz.publish_orgquestion', login_url='profile_update')
 def publish_review_and_transfer(request, question_uuid):
     """
@@ -1209,7 +1246,8 @@ def publish_review_and_transfer(request, question_uuid):
 
 
 @login_required
-@permission_required('quiz.view_questionpaper',login_url='profile_update')
+@license_active_required
+@permission_required('quiz.view_questionpaper',login_url='login')
 def paper_list(request):
     """
     Displays a paginated list of published or draft papers, filtered by organization, 
@@ -1324,7 +1362,17 @@ def paper_list(request):
     
     return render(request, 'quiz/paper_list.html', context)
 
+
+def check_user_paper_organization(user,Orgnistaion):
+    """Helper to check if user belongs to the paper's organization."""
+    if user.is_superuser or user.is_staff:
+        return True
+    organization = getattr(user.profile, 'organization_profile', None)
+    return organization == Orgnistaion
+
+
 @login_required
+@license_active_required
 @permission_required('quiz.publish_questionpaper',login_url='profile_update')
 def publish_paper(request, paper_id):
     """
@@ -1333,6 +1381,10 @@ def publish_paper(request, paper_id):
     """
     paper = get_object_or_404(QuestionPaper, id=paper_id)
     organization = request.user.profile.organization_profile
+
+    if not check_user_paper_organization(request.user, paper.organization):
+        messages.error(request, "You do not have permission to view this paper.")
+        return redirect('quiz:paper_list')
 
     # Security check: Only allow the creator (or superuser) to publish
     if paper.created_by != request.user and not request.user.is_superuser:
@@ -1365,7 +1417,7 @@ def publish_paper(request, paper_id):
             messages.success(request, f"'{paper.title}' has been successfully published, consuming one license slot!")
             
     except ValidationError as e:
-        messages.error(request, f"Could not publish paper: {e}")
+        messages.error(request, f"Could not publish - paper: {e,type(e)}")
     except Exception as e:
         messages.error(request, f"An unexpected error occurred: {e}")
 
@@ -1374,60 +1426,74 @@ def publish_paper(request, paper_id):
 
 
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
-from django.db import transaction
-from django.contrib import messages
-from curritree.models import TreeNode
-from .models import QuestionPaper, PaperQuestion, Question
-import json
-import random
 
-# --- Assuming this helper function is defined elsewhere in your project ---
-def validate_paper_limits_and_license(organization, curriculum_subject, is_published, existing_paper_id):
-    """Placeholder for license/limit check function."""
-    pass
+
 # -------------------------------------------------------------------------
 
 # --- NEW HELPER FUNCTION for Question Selection Logic ---
 
-def select_random_questions(subject_node, chapter_nodes, difficulty_criteria, marks_criteria):
+def select_random_questions(subject_node, chapter_nodes, difficulty_criteria, marks_criteria, user_organization=None):
     """
-    Selects questions based on difficulty distribution and required marks per question type.
+    Selects questions based on difficulty distribution and required marks per question type,
+    drawing randomly from both Question (public) and OrgQuestion (organization) tables.
 
-    :param subject_node: The main curriculum subject.
+    :param subject_node: The main curriculum subject (TreeNode object).
     :param chapter_nodes: List of selected chapters (TreeNode objects).
     :param difficulty_criteria: String ('balanced', 'easy', 'medium', 'hard').
     :param marks_criteria: Dictionary {question_type: required_marks}.
-    :return: List of selected Question objects.
+    :param user_organization: The OrganizationProfile object of the current user, if applicable.
+    :return: A tuple (selected_questions, marks_distribution_summary).
+             - selected_questions: List of dictionaries (question, order, marks, model_type).
+             - marks_distribution_summary: Dictionary providing the full summary per question type:
+               {
+                   'q_type_a': {
+                       'total_marks_selected': int,
+                       'count_selected': int,
+                       'average_marks_per_question': float
+                   },
+                   ...
+               }
     """
     
     # 1. Determine Difficulty Distribution
-    # This determines the base difficulty filter for the query
     if difficulty_criteria == 'easy':
         allowed_difficulties = ['easy']
     elif difficulty_criteria == 'medium':
         allowed_difficulties = ['medium']
     elif difficulty_criteria == 'hard':
         allowed_difficulties = ['hard']
-    elif difficulty_criteria == 'balanced':
-        # Balanced means questions of all difficulties are allowed for selection
-        allowed_difficulties = ['easy', 'medium', 'hard']
     else:
-        # Default to allowing all difficulties if something unexpected is passed
         allowed_difficulties = ['easy', 'medium', 'hard']
 
+    # Initialize the summary tracking structure for calculating averages later
+    question_type_summary = {
+        q_type: {'total_marks_selected': 0, 'count_selected': 0}
+        for q_type in marks_criteria.keys()
+    }
 
-    # 2. Base Query: Filter by Subject, Chapters, and Allowed Difficulties
+    # 2. Base QuerySets (Public and Organization Questions)
+    # NOTE: Assuming Django QuerySet filtering is correct as per context
+    org_queryset = OrgQuestion.objects.filter(
+        curriculum_subject=subject_node,
+        difficulty__in=allowed_difficulties,
+        organization=user_organization,
+    )
+    
     base_queryset = Question.objects.filter(
         curriculum_subject=subject_node,
         difficulty__in=allowed_difficulties,
-        is_published=True # Only select published questions
+        is_published=True
     )
-    
+
+    # 2.1. Apply Chapter Filter and De-duplication logic (omitting detailed query logic here)
     if chapter_nodes:
-        # Filter questions belonging to the selected chapters
         base_queryset = base_queryset.filter(curriculum_chapter__in=chapter_nodes)
+        org_queryset = org_queryset.filter(curriculum_chapter__in=chapter_nodes)
+    
+    if user_organization and org_queryset.exists():
+        org_q_ids = org_queryset.values_list('id', flat=True)
+        base_queryset = base_queryset.exclude(orignal_qid__in=org_q_ids)
+
 
     selected_questions = []
     current_order = 1
@@ -1435,45 +1501,80 @@ def select_random_questions(subject_node, chapter_nodes, difficulty_criteria, ma
     # 3. Iterate through Marks Criteria to select questions
     for q_type, required_marks in marks_criteria.items():
         if required_marks <= 0:
+            # Initialize summary for types with 0 required marks
+            question_type_summary[q_type] = {'total_marks_selected': 0, 'count_selected': 0}
             continue
 
-        # Get available questions of the current type
-        available_questions = list(base_queryset.filter(
-            question_type=q_type,
-            marks__lte=required_marks # Only consider questions whose marks don't exceed the requirement
-        ).order_by('?')[:100]) # Limit selection pool for performance and randomize order
+        # Fetch available questions (Mocking list fetching for demonstration)
+        org_pool = list(org_queryset.filter(question_type=q_type, marks__lte=required_marks).order_by('?')[:100])
+        public_pool = list(base_queryset.filter(question_type=q_type, marks__lte=required_marks).order_by('?')[:100])
         
-        # If no questions are available, continue
-        if not available_questions:
+        # Combine and tag pools
+        available_questions_tagged = []
+        for q in org_pool:
+            q._source_model = 'OrgQuestion'
+            available_questions_tagged.append(q)
+        for q in public_pool:
+            q._source_model = 'Question'
+            available_questions_tagged.append(q)
+
+        random.shuffle(available_questions_tagged)
+        
+        if not available_questions_tagged:
+            # Ensure summary is initialized even if selection fails
+            question_type_summary[q_type] = {'total_marks_selected': 0, 'count_selected': 0}
             continue
 
         selected_marks_for_type = 0
         questions_for_type = []
         
-        # Randomly select questions until the required marks are met or we run out of questions
-        while selected_marks_for_type < required_marks and available_questions:
-            # Pop a random question from the list
-            q = available_questions.pop(random.randrange(len(available_questions)))
+        # Select questions
+        while selected_marks_for_type < required_marks and available_questions_tagged:
+            q = available_questions_tagged.pop() 
             
-            # Check if adding this question exceeds the required marks too much
-            # (simple greedy algorithm)
-            if selected_marks_for_type + q.marks <= required_marks + max(1, q.marks) : # Allow slight overshoot 
+            # Greedy approach selection check
+            if selected_marks_for_type + q.marks <= required_marks + max(1, q.marks):
                 questions_for_type.append({
                     'question': q,
                     'order': current_order,
-                    'marks': q.marks 
+                    'marks': q.marks,
+                    'model_type': q._source_model
                 })
                 selected_marks_for_type += q.marks
                 current_order += 1
                 
+                # Update tracking for summary
+                question_type_summary[q_type]['total_marks_selected'] += q.marks
+                question_type_summary[q_type]['count_selected'] += 1
+                
         selected_questions.extend(questions_for_type)
         
-    return selected_questions
+    
+    # 4. Calculate Final Average Marks for the Summary
+    final_summary = {}
+    for q_type, data in question_type_summary.items():
+        total_marks = data['total_marks_selected']
+        count = data['count_selected']
+        
+        if count > 0:
+            # Calculate the average marks per question
+            average_marks = total_marks / count
+        else:
+            average_marks = 0
+
+        final_summary[q_type] = {
+            'total_marks_selected': total_marks,
+            'count_selected': count,
+            'average_marks_per_question': round(average_marks, 2) 
+        }
+
+    return selected_questions, final_summary
 
 # -------------------------------------------------------------------------
 
 
 @login_required
+@license_active_required
 @permission_required('quiz.add_questionpaper', login_url='profile_update')
 def add_question_paper(request):
     organization = None
@@ -1538,12 +1639,16 @@ def add_question_paper(request):
                     ))
 
                 # --- 4. Execute Question Selection ---
-                questions_to_add = select_random_questions(
+                organization_profile = getattr(request.user.profile, "organization_profile", None)
+                questions_to_add,QuestionTypeMarks = select_random_questions(
                     curriculum_subject, 
                     chapter_nodes, 
                     difficulty_criteria, 
-                    marks_criteria
+                    marks_criteria,
+                    user_organization = organization_profile,
                 )
+                
+                
                 
                 if not questions_to_add:
                     messages.warning(request, "No questions could be selected based on the specified criteria.")
@@ -1559,7 +1664,8 @@ def add_question_paper(request):
                     total_marks=total_paper_marks, # Use the total calculated by the UI/JSON
                     duration_minutes=duration_minutes,
                     instructions=instructions,
-                    created_by=request.user
+                    created_by=request.user,
+                    marks_distribution = QuestionTypeMarks,
                 )
                 question_paper.save()
                 
@@ -1596,6 +1702,12 @@ def add_question_paper(request):
     root_nodes = TreeNode.objects.filter(
         node_type__in=['board', 'competitive']
     ).order_by('node_type', 'name')
+
+    accessible_node_pks = request.user.profile.academic_stream.values_list('pk', flat=True)
+    
+    # Filter the children queryset to only include those whose PK 
+    # is in the list of accessible nodes.
+    root_nodes = root_nodes.filter(pk__in=accessible_node_pks)
     
     pattern_choices = QuestionPaper.PAPER_PATTERNS
     
@@ -1676,14 +1788,44 @@ def get_selected_nodes_info(request):
     
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
+
+
 @login_required
+@license_active_required
 @permission_required('quiz.view_questionpaper', login_url='profile_update')
 def paper_detail(request, paper_id):
+    """
+    Displays the details of a QuestionPaper, including all associated questions
+    from both PaperQuestion and PaperOrgQuestion models.
+    """
+    from django.db.models import Sum
+    from django.db import transaction
+    
+    # Placeholder for utility function (assuming it's available)
+    # from .utils import check_user_paper_organization 
+
     paper = get_object_or_404(QuestionPaper, id=paper_id)
 
+    if not check_user_paper_organization(request.user, paper.organization):
+        messages.error(request, "You do not have permission to view this paper.")
+        return redirect('quiz:paper_list')
+
+    # Helper function to calculate total marks across both relationships
+    def calculate_paper_total_marks(q_paper):
+        # Sum marks from standard PaperQuestion entries
+        q_marks = q_paper.paper_questions.aggregate(
+            total=Sum('question__marks')
+        )['total'] or 0
+
+        # Sum marks from organization PaperOrgQuestion entries
+        org_q_marks = q_paper.paper_orgquestions.aggregate(
+            total=Sum('question__marks')
+        )['total'] or 0
+        
+        return q_marks + org_q_marks
+    
     # 1. Handle POST request to synchronize paper's total_marks field
     if request.method == 'POST':
-        # Check for a specific action to update the marks
         if 'action' in request.POST and request.POST['action'] == 'update_total_marks':
             
             # Basic permission check
@@ -1691,10 +1833,8 @@ def paper_detail(request, paper_id):
                 messages.error(request, 'You do not have permission to edit this paper.')
                 return redirect('quiz:paper_detail', paper.id)
 
-            # Calculate the current total marks directly from the questions
-            current_total_marks_sum = paper.paper_questions.aggregate(
-                total_marks=Sum('question__marks')
-            )['total_marks'] or 0
+            # Calculate the current total marks using the helper function
+            current_total_marks_sum = calculate_paper_total_marks(paper)
 
             try:
                 with transaction.atomic():
@@ -1707,55 +1847,87 @@ def paper_detail(request, paper_id):
             
             return redirect('quiz:paper_detail', paper.id)
 
-
-    total_current_marks = paper.paper_questions.aggregate(
-        total_marks=Sum('question__marks')
-    )['total_marks'] or 0
+    # 2. Total marks calculation for display
+    total_current_marks = calculate_paper_total_marks(paper)
 
     # Board Detail: Assuming the curriculum_subject model has a 'board' relationship/field
-    # Adjust this line if your model path is different (e.g., just paper.board)
     board_detail = paper.curriculum_subject.get_ancestors()
-
+    Class_name = None
     for anstor in board_detail:
         if anstor.node_type == 'class':
             Class_name = anstor
             break
     
-    # 3. Questions Query and Sorting (as provided in your original request)
+    # 3. Questions Query, Preparation, and Combination
+    
+    # Query standard questions (PaperQuestion)
     questions_queryset = paper.paper_questions.select_related(
         'question',
         'question__curriculum_subject',
         'question__curriculum_chapter'
-    ) 
+    ).all()
+    
+    # Query organization questions (PaperOrgQuestion)
+    org_questions_queryset = paper.paper_orgquestions.select_related(
+        'question', # FK points to OrgQuestion
+        'question__curriculum_subject',
+        'question__curriculum_chapter'
+    ).all()
+    
+    # --- START: Modification to attach model_type for template use ---
+    
+    prepared_questions = []
+    for pq in questions_queryset:
+        # 'q' for standard Question
+        pq.model_type = 'q' 
+        prepared_questions.append(pq)
+        
+    prepared_org_questions = []
+    for pq in org_questions_queryset:
+        # 'org' for OrgQuestion
+        pq.model_type = 'org' 
+        prepared_org_questions.append(pq)
 
+    # Combine both prepared lists
+    combined_questions = prepared_questions + prepared_org_questions
+    
+    # --- END: Modification ---
+    
+    # 4. Sorting Logic (applied to the combined Python list)
     if paper.pattern == 'difficulty_wise':
         difficulty_order = {'easy': 1, 'medium': 2, 'hard': 3}
         paper_questions = sorted(
-            questions_queryset, 
+            combined_questions, 
             key=lambda pq: difficulty_order.get(pq.question.difficulty, 99)
         )
     
     elif paper.pattern == 'section_wise':
-        paper_questions = questions_queryset.order_by(
-            'question__curriculum_subject__name', 
-            'question__curriculum_chapter__name'
+        # Sort by subject name, then chapter name
+        paper_questions = sorted(
+            combined_questions, 
+            key=lambda pq: (
+                pq.question.curriculum_subject.name, 
+                pq.question.curriculum_chapter.name
+            )
         )
-        
+            
     elif paper.pattern == 'custom':
-        paper_questions = questions_queryset.order_by('order')
+        # Sort by the 'order' field on the intermediate PaperQuestion/PaperOrgQuestion objects
+        paper_questions = sorted(combined_questions, key=lambda pq: pq.order)
 
     elif paper.pattern == 'standard':
-        paper_questions = questions_queryset.order_by('question__question_type')
+        # Sort by the question type of the related question object
+        paper_questions = sorted(combined_questions, key=lambda pq: pq.question.question_type)
+        
+    else: # Fallback
+        paper_questions = sorted(combined_questions, key=lambda pq: pq.order)
     
-    else: # Fallback for any other undefined patterns
-        paper_questions = questions_queryset.order_by('order', 'question__created')
-    
-    # 4. Prepare context
+    # 5. Prepare context
     context = {
         'paper': paper,
-        'paper_questions': paper_questions,
-        'total_current_marks': total_current_marks, # NEW
-        'board_detail': board_detail,             # NEW
+        'paper_questions': paper_questions, # This now contains mixed objects with .model_type attribute
+        'total_current_marks': total_current_marks,
+        'board_detail': board_detail,
         'Class_name': Class_name,
     }
     
@@ -1763,78 +1935,116 @@ def paper_detail(request, paper_id):
 
 
 @login_required
+@license_active_required
 @permission_required('quiz.add_paperquestion', login_url='profile_update')
 def paper_add_questions(request, paper_id):
-    Qu_type = request.GET.get('type') 
+    # Ensure this model import is correct based on your setup
+    # from .models import QuestionPaper, PaperQuestion, PaperOrgQuestion, Question, OrgQuestion 
+    # and all necessary utility/decorator imports
 
     paper = get_object_or_404(QuestionPaper, id=paper_id)
+
+    if not check_user_paper_organization(request.user, paper.organization):
+        messages.error(request, "You do not have permission to view this paper.")
+        return redirect('quiz:paper_list')
     
-    # Check if user can edit this paper (owner or admin)
-    # ---------------------------------------------------------
-    if paper.created_by != request.user and not request.user.is_staff:
-        messages.error(request, 'You do not have permission to edit this paper.')
-        return redirect('quiz:paper_detail', paper.id)
+    org = getattr(request.user.profile, "organization_profile", None)
     
-    # Get available questions that belong to this paper's subject
+    qu_type = request.GET.get('type')
+    qu_id_param = request.GET.get('id')
+    ifSwap = request.GET.get('do')
+    modelType = request.GET.get('modeltype')
+    print(" parameter ",qu_type,qu_id_param,ifSwap,modelType)
+
+    # 1. Identify Existing Question IDs in the Paper
     existing_question_ids = paper.paper_questions.values_list('question_id', flat=True)
+    existing_org_question_ids = paper.paper_orgquestions.values_list('question_id', flat=True)
     
-    # 🛑 Initial Query: Start with questions NOT already in the paper 🛑
-    if request.user.is_staff or request.user.is_superuser:
-        questions = Question.objects.exclude(id__in=existing_question_ids)
-    else:
-        org = getattr(request.user.profile, "organization_profile", None)
-        questions = Question.objects.exclude(id__in=existing_question_ids).filter(
-            Q(is_published=True) |
-            Q(organization=org)
-        )
+    # 2. Initial QuerySets (Public and Organization Questions)
+    # --- Public Questions (Question Model) ---
+    public_questions = Question.objects.exclude(id__in=existing_question_ids)
+    org_questions = OrgQuestion.objects.exclude(id__in=existing_org_question_ids)
 
+    # Apply ownership/publication filter
+    if not request.user.is_staff and not request.user.is_superuser:
+        q_filter = Q(is_published=True)
+        if org:
+            # Users can see published questions OR questions owned by their organization
+            q_filter |= Q(organization=org) 
+        public_questions = public_questions.filter(q_filter)
 
+    if org:
+        org_questions = org_questions.filter(organization=org)
+    elif not request.user.is_staff and not request.user.is_superuser:
+        # Non-staff/superuser without an organization cannot see OrgQuestions
+        org_questions = OrgQuestion.objects.none() 
+
+    # 3. EXCLUDE PUBLIC QUESTIONS THAT HAVE A VISIBLE ORG QUESTION EQUIVALENT
+    # Get the list of IDs from the filtered org_questions queryset
+    org_question_ids_to_exclude = org_questions.values_list('id', flat=True)
+    public_questions = public_questions.exclude(orignal_qid__in=org_question_ids_to_exclude)
+
+    # 3. Apply Common Curriculum Chapter Filter
     if paper.curriculum_chapters.exists():
-        questions = questions.filter(
-            curriculum_chapter__in=paper.curriculum_chapters.all()
-        ).distinct()
+        chapter_filter = Q(curriculum_chapter__in=paper.curriculum_chapters.all())
+        public_questions = public_questions.filter(chapter_filter).distinct()
+        org_questions = org_questions.filter(chapter_filter).distinct()
 
-    if Qu_type:
-        questions = questions.filter(question_type=Qu_type)
-
-
-    
-    
-    # Apply filters
+    if qu_type:
+        public_questions = public_questions.filter(question_type=qu_type)
+        org_questions = org_questions.filter(question_type=qu_type)
+ 
+    # 5. Apply Search Form Filters
     search_form = QuestionSearchForm(request.GET)
     if search_form.is_valid():
         cleaned_data = search_form.cleaned_data
 
-        # 🛑 NEW FILTER: Apply Board Filter
-        if cleaned_data['board']:
-            questions = questions.filter(curriculum_board=cleaned_data['board'])
-            
-        # Filter by Subject (which is likely a child of the selected Board)
-        if cleaned_data['curriculum_subject']:
-            questions = questions.filter(curriculum_subject=cleaned_data['curriculum_subject'])
+        # Function to apply standard filters to a queryset
+        def apply_question_filters(qs, data):
+            # ... (your filter logic using Q objects or simple filters)
+            if data.get('board'): qs = qs.filter(curriculum_board=data['board'])
+            if data.get('curriculum_subject'): qs = qs.filter(curriculum_subject=data['curriculum_subject'])
+            if data.get('curriculum_chapter'): qs = qs.filter(curriculum_chapter=data['curriculum_chapter'])
+            if data.get('question_type'): qs = qs.filter(question_type=data['question_type'])
+            if data.get('difficulty'): qs = qs.filter(difficulty=data['difficulty'])
+            if data.get('search'): qs = qs.filter(question_text__icontains=data['search'])
+            return qs
 
-        # Filter by Chapter (which is likely a child of the selected Subject)
-        if cleaned_data['curriculum_chapter']:
-            questions = questions.filter(curriculum_chapter=cleaned_data['curriculum_chapter'])
-            
-        if cleaned_data['question_type']:
-            questions = questions.filter(question_type=cleaned_data['question_type'])
-            
-        if cleaned_data['difficulty']:
-            questions = questions.filter(difficulty=cleaned_data['difficulty'])
-            
-        if cleaned_data['search']:
-            questions = questions.filter(question_text__icontains=cleaned_data['search'])
+        public_questions = apply_question_filters(public_questions, cleaned_data)
+        org_questions = apply_question_filters(org_questions, cleaned_data)
 
+    # 6. Handle POST Request (Adding Questions)
     if request.method == 'POST':
-        selected_ids = request.POST.getlist('selected_questions')
+        # Expecting a list of prefixed IDs (e.g., ['q_123', 'org_456'])
+        selected_prefixed_ids = request.POST.getlist('selected_questions')
         section = request.POST.get('section', '')
+
+        print("selected_prefixed_ids :",selected_prefixed_ids)
         
-        if selected_ids:
-            last_order = paper.paper_questions.count()
-            selected_questions = Question.objects.filter(id__in=selected_ids)
+        if selected_prefixed_ids:
+            # Calculate the starting order for new questions
+            last_order = paper.paper_questions.count() + paper.paper_orgquestions.count()
             
-            for i, question in enumerate(selected_questions):
+            question_ids = [] # IDs for Question model
+            org_question_ids = [] # IDs for OrgQuestion model
+            
+            # Group IDs by model type
+            for prefixed_id in selected_prefixed_ids:
+                try:
+                    q_id,model_type = prefixed_id.split('_', 1)
+                    if model_type == 'q':
+                        question_ids.append(q_id)
+                    elif model_type == 'org':
+                        org_question_ids.append(q_id)
+                except ValueError:
+                    # Handle malformed IDs if necessary
+                    continue 
+            print('org_question_ids',org_question_ids)
+            total_added = 0
+            
+            # A. Process Public Questions (Question -> PaperQuestion)
+            selected_public_questions = public_questions.filter(id__in=question_ids)
+            for i, question in enumerate(selected_public_questions):
                 PaperQuestion.objects.create(
                     paper=paper,
                     question=question,
@@ -1842,25 +2052,86 @@ def paper_add_questions(request, paper_id):
                     marks=question.marks,
                     section=section
                 )
+            total_added += len(selected_public_questions)
+            last_order += len(selected_public_questions)
+
+            # B. Process Organization Questions (OrgQuestion -> PaperOrgQuestion)
+            selected_org_questions = org_questions.filter(id__in=org_question_ids)
+            for i, org_question in enumerate(selected_org_questions):
+                PaperOrgQuestion.objects.create(
+                    paper=paper,
+                    question=org_question, # FK is named 'question' in PaperOrgQuestion
+                    order=last_order + i + 1,
+                    marks=org_question.marks,
+                    section=section
+                )
+            total_added += len(selected_org_questions)
+        
+            if total_added > 0 and ifSwap == 'swap' and qu_id_param and modelType:
+                try:
+                    qu_id = int(qu_id_param)
+                    
+                    if modelType == 'q':
+                        question_to_delete = get_object_or_404(
+                            PaperQuestion,
+                            paper=paper,
+                            question__id=qu_id
+                        )
+                    elif modelType == 'org':
+                        question_to_delete = get_object_or_404(
+                            PaperOrgQuestion,
+                            paper=paper,
+                            question__id=qu_id
+                        )
+                    else:
+                        # Log/message but do not halt the process as addition was successful
+                        messages.warning(request, f"New question added, but invalid model type ({modelType}) for deleting the old one.")
+                        qu_id = None # Stop further deletion attempt
+                        
+                    if qu_id is not None:
+                        question_to_delete.delete()
+                        messages.success(request, 'Original question successfully replaced by the new one(s).')
+
+                except ValueError:
+                    messages.warning(request, "New question added, but the ID for the old question was invalid.")
+                except Exception as e:
+                    messages.warning(request, f"New question(s) added, but failed to delete the old question: {e}")
+
             
-            # The calculation method is correct
-            # paper.total_marks = paper.calculate_total_marks()
-            paper.save()
-            
-            messages.success(request, f'{len(selected_ids)} questions added to the paper!')
-            return redirect('quiz:paper_detail', paper.id)
+            if total_added > 0:
+                # # Recalculate and save total marks
+                # paper.total_marks = paper.calculate_total_marks()
+                # paper.save()
+                messages.success(request, f'{total_added} questions added to the paper!')
+                return redirect('quiz:paper_detail', paper.id)
+            else:
+                messages.error(request, 'No valid questions were selected.')
         else:
             messages.error(request, 'Please select at least one question.')
+    
+    # 7. Combine Results for Display and Pagination
+    all_questions = []
 
-    paginator = Paginator(questions, 25)  # Show 25 questions per page
+    # Add public questions with is_org_question=False
+    for q in public_questions.order_by('-created'):
+        q.is_org_question = False
+        all_questions.append(q)
+
+    # Add org questions with is_org_question=True
+    for q in org_questions.order_by('-created'):
+        q.is_org_question = True
+        all_questions.append(q)
+    # all_questions = list(public_questions.order_by('-created')) + list(org_questions.order_by('-created'))
+
+    # 8. Paginate the Combined List
+    paginator = Paginator(all_questions, 25)  # Show 25 questions per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     return render(request, 'quiz/paper_add_questions.html', {
         'paper': paper,
-        'questions': page_obj,  # Use paginated questions
+        'questions': page_obj,  # Use paginated questions (now a list of mixed model objects)
         'search_form': search_form,
-        'page_obj': page_obj,
     })
 
 # --- Remaining Views (paper_remove_question, paper_edit, paper_delete) ---
@@ -1868,42 +2139,100 @@ def paper_add_questions(request, paper_id):
 # reference the subject/chapter fields, so they are correct as is.
 
 @login_required
+@license_active_required
 @permission_required('quiz.delete_paperquestion', login_url='profile_update')
-def paper_remove_question(request, paper_id, question_id):
+def paper_remove_question(request, paper_id, question_id, model_type):
+    """
+    Removes a question (from either PaperQuestion or PaperOrgQuestion)
+    from a QuestionPaper, then reorders the remaining questions.
+    
+    :param model_type: 'q' for PaperQuestion or 'org' for PaperOrgQuestion.
+    :param question_id: The ID of the related Question or OrgQuestion object.
+    """
+    from django.db import transaction
+
     paper = get_object_or_404(QuestionPaper, id=paper_id)
-    paper_question = get_object_or_404(PaperQuestion, paper=paper, question_id=question_id)
+    paper_question_instance = None # Will hold the instance to be deleted
+
+    if not check_user_paper_organization(request.user, paper.organization):
+        messages.error(request, "You do not have permission to view this paper.")
+        return redirect('quiz:paper_list')
     
     # Check if user can edit this paper (owner or admin)
     if paper.created_by != request.user and not request.user.is_staff:
         messages.error(request, 'You do not have permission to edit this paper.')
         return redirect('quiz:paper_detail', paper.id)
     
+    # 1. Identify and retrieve the correct intermediate model instance
+    try:
+        if model_type == 'q':
+            # This is a standard Question, linked via PaperQuestion
+            paper_question_instance = get_object_or_404(
+                PaperQuestion, paper=paper, question_id=question_id
+            )
+        elif model_type == 'org':
+            # This is an OrgQuestion, linked via PaperOrgQuestion
+            paper_question_instance = get_object_or_404(
+                PaperOrgQuestion, paper=paper, question_id=question_id
+            )
+        else:
+            messages.error(request, "Invalid question model type specified.")
+            return redirect('quiz:paper_detail', paper.id)
+            
+    except Exception:
+        messages.error(request, "Question not found in the specified paper.")
+        return redirect('quiz:paper_detail', paper.id)
+
+
     if request.method == 'POST':
-        paper_question.delete()
+        try:
+            with transaction.atomic():
+                # 2. Delete the specific intermediate instance
+                paper_question_instance.delete()
+                
+                # 3. Reorder remaining questions (from both tables)
+                
+                # Fetch all remaining question links, sorted by their current order
+                all_remaining_questions = list(paper.paper_questions.all()) + \
+                                          list(paper.paper_orgquestions.all())
+                
+                # Sort the combined list based on the 'order' field
+                all_remaining_questions.sort(key=lambda pq: pq.order)
+
+                # Iterate and update the 'order' field sequentially
+                for i, pq in enumerate(all_remaining_questions, 1):
+                    if pq.order != i: # Only save if the order needs to change
+                        pq.order = i
+                        pq.save(update_fields=['order'])
+
+                # 4. Update total marks (requires the paper model to have a method like calculate_total_marks)
+                # Assuming QuestionPaper has a method 'calculate_total_marks()'
+                # paper.total_marks = paper.calculate_total_marks() 
+                # paper.save(update_fields=['total_marks'])
+                
+                messages.success(request, 'Question removed and paper reordered successfully!')
         
-        # Reorder remaining questions
-        remaining_questions = paper.paper_questions.order_by('order')
-        for i, pq in enumerate(remaining_questions, 1):
-            pq.order = i
-            pq.save()
-        
-        # Update total marks
-        paper.save()
-        
-        messages.success(request, 'Question removed from paper!')
+        except Exception as e:
+            messages.error(request, f"An error occurred during removal: {e}")
+            
         return redirect('quiz:paper_detail', paper.id)
     
     return render(request, 'quiz/paper_remove_question.html', {
         'paper': paper,
-        'paper_question': paper_question
+        'paper_question': paper_question_instance # Pass the instance for context display
     })
 
 @login_required
+@license_active_required
 @permission_required('quiz.change_questionpaper', login_url='profile_update')
 def edit_question_paper(request, paper_id):
     # In a real environment, remove the dummy code above and ensure real imports are used.
     
     question_paper = get_object_or_404(QuestionPaper, pk=paper_id)
+    
+    if not check_user_paper_organization(request.user, question_paper.organization):
+        messages.error(request, "You do not have permission to view this paper.")
+        return redirect('quiz:paper_list')
     
     # Get organization from request
     organization = getattr(request.user.profile, 'organization_profile', None)
@@ -1917,53 +2246,78 @@ def edit_question_paper(request, paper_id):
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # --- Update Basic Form Data ---
+                
+                # --- Retrieve Common Form Data ---
                 question_paper.title = request.POST.get('title')
                 new_subject_id = request.POST.get('curriculum_subject')
                 question_paper.pattern = request.POST.get('pattern', 'standard')
-                
-                # Safely update numeric fields, falling back to 0/60 if input is empty or invalid
-                question_paper.total_marks = int(request.POST.get('total_marks') or 0)
                 question_paper.duration_minutes = int(request.POST.get('duration_minutes') or 60)
-                
                 question_paper.instructions = request.POST.get('instructions', '')
                 
-                # --- FIX APPLIED HERE ---
+                # --- 1. Process Question Type Criteria JSON and Difficulty ---
+                selection_criteria_json = request.POST.get('selection_criteria_json')
+                difficulty_criteria = request.POST.get('difficulty_criteria', 'balanced')
+
+                if not selection_criteria_json:
+                    messages.error(request, "Question criteria (marks per type) must be provided.")
+                    return redirect('quiz:edit_question_paper', paper_id=paper_id)
+                
+                try:
+                    criteria = json.loads(selection_criteria_json)
+                    marks_criteria = criteria.get('marks_per_type', {})
+                    total_paper_marks = int(criteria.get('total_paper_marks', 0))
+                except (json.JSONDecodeError, ValueError) as e:
+                    messages.error(request, f"Invalid format for question selection criteria JSON: {e}")
+                    return redirect('quiz:edit_question_paper', paper_id=paper_id)
+
+                # Update total marks (derived from the validated criteria sum)
+                question_paper.total_marks = total_paper_marks
+                
+                # NOTE: If 'difficulty_criteria' is a field on QuestionPaper model, 
+                # it should be saved here. Assuming it is available for saving:
+                # question_paper.difficulty_criteria = difficulty_criteria
+                
+                # Construct the minimal structure for marks_distribution that allows 
+                # the GET request to correctly pre-fill the form inputs.
+                updated_distribution = {}
+                for q_type, marks in marks_criteria.items():
+                    updated_distribution[q_type] = {
+                        # 'total_marks_selected' stores the user's requested marks for pre-filling
+                        'total_marks_selected': marks, 
+                        'count_selected': 0, # Placeholders, as we haven't selected questions yet
+                        'average_marks_per_question': 0.0,
+                    }
+                question_paper.marks_distribution = updated_distribution
+                # --- End Criteria Processing ---
+
                 # The JS creates hidden inputs named 'curriculum_chapters', not 'selectedItemsList'
+                # Assuming 'selectedItemsList' is the correct name for the list of chapter IDs from the UI
                 selected_chapters = request.POST.getlist('selectedItemsList')
 
-                print("selected_chapters :", selected_chapters)
-                
                 # --- Validation ---
                 if not question_paper.title or not new_subject_id:
                     messages.error(request, "Title and Subject are required fields.")
-                    # Ensure redirect path is correct for your environment
                     return redirect('quiz:edit_question_paper', paper_id=paper_id)
                 
                 # --- Update Subject Node if Changed ---
-                # Check if the selected subject ID is different from the existing one
                 if not question_paper.curriculum_subject or str(question_paper.curriculum_subject.id) != new_subject_id:
-                    # In a real environment, replace TreeNode.objects with your actual ORM call
                     curriculum_subject = get_object_or_404(TreeNode, id=new_subject_id, node_type='subject')
                     question_paper.curriculum_subject = curriculum_subject
                 
-                question_paper.save() # Save main changes
+                question_paper.save() # Save main changes and JSON fields
                 
                 # --- Update Chapters/Units ---
                 if selected_chapters:
-                    # In a real environment, replace TreeNode.objects with your actual ORM call
                     chapter_nodes = TreeNode.objects.filter(id__in=selected_chapters)
                     question_paper.curriculum_chapters.set(chapter_nodes)
                 else:
                     question_paper.curriculum_chapters.clear() # Clear if none selected
                 
                 messages.success(request, f"Question paper '{question_paper.title}' updated successfully!")
-                # Ensure redirect path is correct for your environment
                 return redirect('quiz:paper_list') 
                 
         except Exception as e:
             messages.error(request, f"Error updating question paper: {str(e)}")
-            # Ensure redirect path is correct for your environment
             return redirect('quiz:edit_question_paper', paper_id=paper_id)
     
     # --- GET request - Prepare data for form pre-filling ---
@@ -1978,9 +2332,27 @@ def edit_question_paper(request, paper_id):
     initial_chapters_list = list(
         question_paper.curriculum_chapters.all().values('id', 'name', 'node_type')
     )
+    print(initial_chapters_list)
     
     # 2. Get the full curriculum path (e.g., Board > Class > Subject)
     initial_subject_id = question_paper.curriculum_subject.id if question_paper.curriculum_subject else None
+
+    question_types = Question.QUESTION_TYPES
+    initial_marks_per_type = {}
+    
+    # Check the saved marks_distribution JSON to pre-fill the criteria inputs
+    if question_paper.marks_distribution:
+        for q_type, data in question_paper.marks_distribution.items():
+            # Extract the total marks selected for this type from the summary dictionary
+            # This assumes the user wants to keep the same marks criteria for regeneration
+            initial_marks_per_type[q_type] = data.get('total_marks_selected', 0)
+    
+    difficulty_choices = [
+        ('balanced', 'Balanced (All Difficulties)'),
+        ('easy', 'Easy Only'),
+        ('medium', 'Medium Only'),
+        ('hard', 'Hard Only'),
+    ]
     
     context = {
         'question_paper': question_paper, # The object being edited
@@ -1991,14 +2363,25 @@ def edit_question_paper(request, paper_id):
         # Data for JS initialization
         'initial_subject_id': initial_subject_id,
         'initial_chapters_json': json.dumps(initial_chapters_list), # Chapters as a JSON string
+
+        # NEW CONTEXT VARIABLES
+        'question_types': question_types, # e.g., [('MCQ', 'Multiple Choice Question'), ...]
+        'initial_marks_per_type': initial_marks_per_type, # e.g., {'MCQ': 15, 'SA': 20}
+        'initial_marks_json': json.dumps(initial_marks_per_type), # For JS
+        'difficulty_choices': difficulty_choices,
     }
     
     return render(request, 'quiz/edit_question_paper.html', context)
 
 @login_required
+@license_active_required
 @permission_required('quiz.delete_questionpaper', login_url='profile_update')
 def paper_delete(request, paper_id):
     paper = get_object_or_404(QuestionPaper, id=paper_id)
+
+    if not check_user_paper_organization(request.user, paper.organization):
+        messages.error(request, "You do not have permission to view this paper.")
+        return redirect('quiz:paper_list')
 
     if not request.user.is_superuser and paper.is_published == True:
         messages.error(request, 'Question paper cannot be deleted deleted')
@@ -2012,9 +2395,10 @@ def paper_delete(request, paper_id):
     return render(request, 'quiz/paper_confirm_delete.html', {'paper': paper})
 
 @login_required
+# @license_active_required
 @permission_required('quiz.print_questionpaper', login_url='profile_update')
-def paper_print(request, paper_id):
-    paper = get_object_or_404(QuestionPaper, id=paper_id)
+def paper_print(request, paper_uuid):
+    paper = get_object_or_404(QuestionPaper, paper_uuid=paper_uuid)
     
     questions_queryset = paper.paper_questions.select_related('question') 
     
@@ -2201,6 +2585,7 @@ def get_or_create_curriculum_nodes(user, board_name, class_name, subject_name, c
 
 
 @login_required
+@license_active_required
 @permission_required('quiz.upload_question_csv', login_url='profile_update')
 def bulk_upload_questions(request):
     """

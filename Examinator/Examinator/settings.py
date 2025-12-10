@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-2&+-lc0+(p0+k2n&jqb(yi6+b_a9tc&j=yurlj_9fzg4!t$!@l
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*','ef0e350d49b9.ngrok-free.app']
 
 
 # Application definition
@@ -165,7 +165,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Example for settings.py if you use CELERY_BEAT_SCHEDULE
 CELERY_BEAT_SCHEDULE = {
     'run-license-sync-nightly': {
-        'task': 'saas.tasks.sync_expired_licenses', # Matches the path above
+        'task': 'saas.tasks.sync_expired_licenses_task', # Matches the path above
         'schedule': crontab(hour=19, minute=34), # Runs every day at 1:00 AM
         'args': (),
     },
@@ -190,3 +190,17 @@ AUTHENTICATION_BACKENDS = [
 QUESTIONS_PER_PAGE = 25
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
+
+
+
+CSRF_TRUSTED_ORIGINS = ['https://ef0e350d49b9.ngrok-free.app']
+
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://ef0e350d49b9.ngrok-free.app",
+]

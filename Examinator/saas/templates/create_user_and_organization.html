@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load dict_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -44,17 +45,35 @@
                         {{ field }}
                     {% endfor %}
                     
+                    <!-- phone No Fields -->
+                    <div>
+                        <label for="{{ user_form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.phone_number.label }}</label>
+                        {{ user_form.phone_number }}
+                        {% if user_form.phone_number.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.phone_number.errors|striptags }}</p>{% endif %}
+                    </div>
+
+                    <!-- username field -->
+                    <div>
+                        <label for="{{ user_form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.username.label }}</label>
+                        {{ user_form.username }}
+                        {% if user_form.username.help_text %}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ user_form.username.help_text }}</p>
+                        {% endif %}
+                        {% if user_form.username.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.username.errors|striptags }}</p>{% endif %}
+                    </div>
                     <!-- Name Fields -->
                     <div>
-                        <label for="{{ user_form.Name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.Name.label }}</label>
-                        {{ user_form.Name }}
-                        {% if user_form.Name.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.Name.errors|striptags }}</p>{% endif %}
+                        <label for="{{ user_form.Name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.first_name.label }}</label>
+                        {{ user_form.first_name }}
+                        {% if user_form.first_name.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.first_name.errors|striptags }}</p>{% endif %}
                     </div>
                     <div>
-                        <label for="{{ user_form.Surname.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.Surname.label }}</label>
-                        {{ user_form.Surname }}
-                        {% if user_form.Surname.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.Surname.errors|striptags }}</p>{% endif %}
+                        <label for="{{ user_form.Surname.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.last_name.label }}</label>
+                        {{ user_form.last_name }}
+                        {% if user_form.last_name.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.last_name.errors|striptags }}</p>{% endif %}
                     </div>
+                     
+
                     
                     <!-- Email Field (Primary Login ID) -->
                     <div class="md:col-span-2">
@@ -63,6 +82,7 @@
                         {% if user_form.email.errors %}<p class="text-red-500 text-xs mt-1">{{ user_form.email.errors|striptags }}</p>{% endif %}
                     </div>
 
+                   
                     <!-- Password Fields -->
                     <div>
                         <label for="{{ user_form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ user_form.password.label }}</label>

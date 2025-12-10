@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load form_tags %}
+{% load dict_filters %}
 
 {% block title %} Edit Question Paper - {{ question_paper.title }} {% endblock %}
 
@@ -133,6 +135,7 @@
           </div>
         </div>
 
+
         <!-- Chapters Section -->
         <div class="space-y-6">
           <div>
@@ -155,26 +158,122 @@
           <div>
             <h4 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">Selected Chapters & Units:</h4>
             <div id="selectedItemsList"
-                 class="min-h-[5rem] bg-white dark:bg-gray-800 border border-dashed border-blue-300 dark:border-blue-700 rounded-xl p-4">
+                 class="min-h-[5rem] bg-white dark:bg-gray-800 border border-dashed border-blue-300 dark:border-blue-700 rounded-xl p-4 flex flex-wrap gap-2 content-start">
               Loading...
             </div>
-            <div id="selected_chapters_hidden_inputs"></div>
+            <!-- This is where the IDs are finally submitted -->
+            <div id="selected_chapters_hidden_inputs"></div> 
           </div>
         </div>
+        
+        <!-- MARK CRITERIA SECTION -->
+        <div class="space-y-6 p-6 bg-gray-100 dark:bg-gray-700 rounded-xl shadow-inner">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 border-b pb-2 mb-4">Question Paper Criteria</h3>
 
-        <!-- Marks + Duration -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Total Marks</label>
-            <input type="number" name="total_marks" id="total_marks" value="{{ question_paper.total_marks }}" min="0"
-                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Duration (minutes)</label>
-            <input type="number" name="duration_minutes" id="duration_minutes"
-                   value="{{ question_paper.duration_minutes }}" min="1"
-                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500">
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <!-- Total Marks -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Target Total Marks *</label>
+                <input type="number" name="total_marks" id="total_marks" 
+                       value="{{ question_paper.total_marks|default:'100' }}" min="1"
+                       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500">
+              </div>
+
+              <!-- Difficulty -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Difficulty Criteria</label>
+                <select name="difficulty_criteria" id="difficulty_criteria"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500">
+                    {% comment %} Loop over difficulty_choices from the context, defaulting selection to 'balanced' {% endcomment %}
+                    {% for value, label in difficulty_choices %}
+                        <option value="{{ value }}" 
+                            {% if question_paper.difficulty_criteria|default:'balanced' == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+              </div>
+
+
+
+              <!-- Duration -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Duration (minutes)</label>
+                <input type="number" name="duration_minutes" id="duration_minutes"
+                       value="{{ question_paper.duration_minutes|default:'180' }}" min="1"
+                       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500">
+              </div>
+            </div>
+
+            <!-- Marks per Question Type (Dynamically Generated) -->
+           
+            <div class="pt-4 border-t dark:border-gray-600">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
+                    <h4 class="text-base font-semibold text-gray-700 dark:text-gray-200">Marks Allocation per Question Type</h4>
+                    
+                    <div class="flex gap-2">
+                        <button type="button" 
+                                id="make-it-editiable"
+                                class="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
+                            Make Editiable
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {% for q_type_code, q_type_name in question_types %}
+                        <div class="flex flex-col">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ q_type_name }}</label>
+                                <span class="text-xs text-gray-500">Marks</span>
+                            </div>
+                            
+                            <div class="relative">
+                                <input type="number" 
+                                    value="{{ initial_marks_per_type|get_item:q_type_code|default:'0' }}" 
+                                    data-q-type="{{ q_type_code }}"
+                                    readonly
+                                    class="required-marks-input w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 pr-10 dark:bg-gray-700 dark:text-white transition-colors duration-200 cursor-not-allowed" 
+                                    min="0">
+                                
+                                <button type="button" 
+                                        class="clear-single-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+                                        data-clear-type="{{ q_type_code }}"
+                                        title="Clear this field">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- WARNING ABOUT QUESTIONS -->
+            <div class="p-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-lg border border-yellow-300 dark:border-yellow-700 shadow-md flex items-start gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.332 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                    <h4 class="font-bold text-yellow-900 dark:text-yellow-100">Important: Question Content</h4>
+                    <p class="text-sm mt-1">
+                        Changing the curriculum (Subject/Chapters) or the criteria (Marks/Types) 
+                        **will not automatically update the questions already attached to this paper.**
+                        You must use the 'Generate Questions' or 'Edit Questions' page to apply these new settings.
+                    </p>
+                </div>
+            </div>
+            <!-- END WARNING -->
+            
+            <!-- Mark Summary and Error -->
+            <div class="mt-4 p-3 border-t dark:border-gray-600 flex justify-between items-center text-sm font-medium">
+                <div id="criteria_error_message" class="text-red-600 dark:text-red-400 hidden"></div>
+                <div class="text-gray-800 dark:text-gray-200">
+                    Target Total: <span id="summary_total_marks" class="font-bold">0</span> |
+                    Total from Types: <span id="total_marks_from_types" class="font-bold">0</span>
+                </div>
+            </div>
         </div>
 
         <!-- Instructions -->
@@ -183,11 +282,14 @@
           <textarea name="instructions" id="instructions" rows="4"
                     class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500">{{ question_paper.instructions }}</textarea>
         </div>
+        
+        <!-- Hidden input for criteria JSON -->
+        <input type="hidden" name="selection_criteria_json" id="selection_criteria_json">
 
         <!-- Submit Button -->
         <div class="flex justify-end">
-          <button type="submit"
-                  class="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold tracking-wide px-8 py-3 rounded-xl shadow-lg hover:scale-[1.02] transition">
+          <button type="submit" id="submit_button" disabled
+                  class="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold tracking-wide px-8 py-3 rounded-xl shadow-lg hover:scale-[1.02] transition opacity-50 cursor-not-allowed">
             💾 Update Question Paper
           </button>
         </div>
@@ -205,6 +307,7 @@
     // The list of chapter objects currently selected in the paper, parsed from JSON
     const initialChaptersRaw = JSON.parse('{{ initial_chapters_json|safe|escapejs }}' || '[]');
 
+    // --- ELEMENT REFERENCES ---
     const hierarchyContainer = document.getElementById("hierarchy-container");
     const selectedSubjectContainer = document.getElementById("selected-subject-container");
     const selectedSubjectDisplay = document.getElementById("selected-subject");
@@ -213,6 +316,19 @@
     const chapterPlaceholder = document.getElementById("chapterPlaceholder");
     const selectedItemsList = document.getElementById("selectedItemsList");
     const selectedChaptersHiddenInputs = document.getElementById("selected_chapters_hidden_inputs");
+    const questionPaperForm = document.getElementById("questionPaperForm");
+
+    // Mark Calculation Elements
+    const totalMarksInput = document.getElementById('total_marks');
+    const summaryTotalMarksSpan = document.getElementById('summary_total_marks');
+    const totalMarksFromTypesSpan = document.getElementById('total_marks_from_types');
+    // Using querySelectorAll to find the inputs in the new Mark Criteria section
+    const requiredMarksInputs = document.querySelectorAll('.required-marks-input'); 
+    const criteriaErrorMessage = document.getElementById('criteria_error_message');
+    const selectionCriteriaJsonInput = document.getElementById('selection_criteria_json');
+    const submitButton = document.getElementById('submit_button');
+
+    // Theme Toggle Elements
     const themeToggle = document.getElementById('theme-toggle');
     const moonIcon = document.getElementById('moon-icon');
     const sunIcon = document.getElementById('sun-icon');
@@ -232,7 +348,7 @@
         });
     }
 
-    // --- DARK MODE LOGIC ---
+    // --- DARK MODE LOGIC (Retained) ---
     function setTheme(mode) {
         if (mode === 'dark') {
             htmlEl.classList.add('dark');
@@ -265,8 +381,57 @@
             setTheme('dark');
         }
     });
-
     // --- END DARK MODE LOGIC ---
+
+    // --- MARK CALCULATION & VALIDATION LOGIC ---
+    function updateMarkTotals() {
+        let sumOfTypes = 0;
+        
+        // 1. Calculate Sum of Required Marks
+        requiredMarksInputs.forEach(input => {
+            const marks = parseInt(input.value) || 0;
+            sumOfTypes += marks;
+        });
+
+        // 2. Get Target Total Marks
+        const targetTotalMarks = parseInt(totalMarksInput.value) || 0;
+        
+        // 3. Update Summary Spans
+        summaryTotalMarksSpan.textContent = targetTotalMarks;
+        totalMarksFromTypesSpan.textContent = sumOfTypes;
+
+        // 4. Validation Check
+        const isValid = targetTotalMarks > 0 && sumOfTypes > 0 && sumOfTypes === targetTotalMarks;
+        
+        // Apply styling and disable submit button based on validity
+        if (isValid) {
+            criteriaErrorMessage.classList.add('hidden');
+            totalMarksFromTypesSpan.classList.remove('text-red-600', 'dark:text-red-400');
+            totalMarksFromTypesSpan.classList.add('text-green-600', 'dark:text-green-400');
+            submitButton.disabled = false;
+            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+
+        } else {
+            criteriaErrorMessage.classList.remove('hidden');
+            if (targetTotalMarks <= 0) {
+                criteriaErrorMessage.textContent = "Target Total Marks must be greater than 0.";
+            } else if (sumOfTypes <= 0) {
+                criteriaErrorMessage.textContent = "Total Marks from Question Types must be greater than 0.";
+            } else {
+                criteriaErrorMessage.textContent = `The sum of marks per type (${sumOfTypes}) must equal the Target Total Marks (${targetTotalMarks}).`;
+            }
+            totalMarksFromTypesSpan.classList.add('text-red-600', 'dark:text-red-400');
+            totalMarksFromTypesSpan.classList.remove('text-green-600', 'dark:text-green-400');
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', updateMarkTotals);
+    totalMarksInput.addEventListener('input', updateMarkTotals);
+    requiredMarksInputs.forEach(input => input.addEventListener('input', updateMarkTotals));
+
+    // --- END MARK CALCULATION & VALIDATION LOGIC ---
 
     function getColor(type) {
         const colors = {unit: 'purple', chapter: 'green', section: 'gray'};
@@ -294,40 +459,203 @@
                 </span>`;
         });
         selectedItemsList.innerHTML = html;
+        // Don't update selectedChaptersHiddenInputs here, let the submit handler do it
     }
 
+    // ------------------------- CASCADING LOGIC (FIXED) -------------------------
+
+    /**
+     * Recursively checks or unchecks all descendant checkboxes and updates the global state.
+     * Implements: Selecting a parent selects all children.
+     */
+    function setChildrenChecked(parentDiv, isChecked) {
+        const childrenContainer = parentDiv.querySelector('.border-l');
+        
+        if (!childrenContainer) return;
+        
+        const childCheckboxes = childrenContainer.querySelectorAll('label .chapter-checkbox');
+        
+        childCheckboxes.forEach(childCheckbox => {
+            if (childCheckbox.checked !== isChecked) {
+                childCheckbox.checked = isChecked;
+                
+                // Update the state in the Set/Map for this child
+                const id = childCheckbox.value;
+                const name = childCheckbox.dataset.name;
+                const type = childCheckbox.dataset.type;
+                
+                if (isChecked) {
+                    selectedChapters.add(id);
+                    chapterNodeMap[id] = {name, type};
+                } else {
+                    selectedChapters.delete(id);
+                    delete chapterNodeMap[id];
+                }
+                
+                // Recursively update children of this child
+                const childDiv = childCheckbox.closest('.pl-4.mb-2');
+                if (childDiv) {
+                    setChildrenChecked(childDiv, isChecked);
+                }
+            }
+        });
+    }
+
+    /**
+     * Recursively updates parent checkbox state based on the state of all its siblings.
+     * Implements: Parent deselects when any single child is deselected.
+     */
+    function updateParentState(childCheckbox) {
+    // 1. Find the container of all siblings (the .border-l div)
+    const siblingsContainer = childCheckbox.closest('.pl-4.mb-2').parentElement;
+    console.log("siblingsContainer :",siblingsContainer);
+    if (!siblingsContainer || !siblingsContainer.classList.contains('border-l')) return;
+    
+    // 2. Find the grandparent container (which holds the parent checkbox)
+    const grandparentDiv = siblingsContainer.parentElement;
+    console.log("grandparentDiv :",grandparentDiv);
+    if (!grandparentDiv) return;
+    
+    // 3. Find the parent checkbox inside the grandparent
+    const parentLabel = grandparentDiv.querySelector('label');
+    if (!parentLabel) return;
+    const parentCheckbox = parentLabel.querySelector('.chapter-checkbox');
+    
+    // CRITICAL FIX: Check if parentCheckbox is actually a parent, not a sibling
+    if (!parentCheckbox) return;
+    
+    // Check if parent checkbox value exists among siblings
+    const allChildrenCheckboxes = siblingsContainer.querySelectorAll('label .chapter-checkbox');
+    
+    // Verify this is actually a parent, not just another sibling
+    let isActuallyParent = true;
+    allChildrenCheckboxes.forEach(childCheckbox => {
+        if (childCheckbox.value === parentCheckbox.value) {
+            // Found parent checkbox among children - this means it's not a real parent
+            isActuallyParent = false;
+        }
+    });
+    
+    if (!isActuallyParent) {
+        console.log("No real parent checkbox found, skipping parent update");
+        return; // Don't update if it's not a real parent
+    }
+    
+    console.log("parentCheckbox :",parentCheckbox, parentCheckbox.value, "parentLabel :",parentLabel);
+
+    console.log("allChildrenCheckboxes :",allChildrenCheckboxes)
+
+    // 4. Check current state of all siblings (only selectable elements)
+    let allChecked = true;
+
+    allChildrenCheckboxes.forEach(sibling => {
+        if (!sibling.checked) {
+            allChecked = false;
+        }
+    });
+
+    const currentParentCheckedState = parentCheckbox.checked;
+    let newParentCheckedState;
+
+    if (allChecked) {
+        // If all children are checked, check the parent and select it internally.
+        newParentCheckedState = true;
+    } else {
+        // If even one child is unchecked, uncheck the parent and deselect it internally.
+        newParentCheckedState = false; 
+    }
+    
+    parentCheckbox.checked = newParentCheckedState;
+
+    // 5. Update internal state if the checkbox state changed
+    if (currentParentCheckedState !== newParentCheckedState) {
+        const id = parentCheckbox.value;
+        const name = parentCheckbox.dataset.name;
+        const type = parentCheckbox.dataset.type;
+        
+        if (newParentCheckedState) {
+            selectedChapters.add(id);
+            chapterNodeMap[id] = {name, type};
+        } else {
+            selectedChapters.delete(id);
+            delete chapterNodeMap[id];
+        }
+
+        // 6. Recursively call for the next parent up the hierarchy
+        updateParentState(parentCheckbox);
+    }
+}
+
+    /**
+     * Removes a chapter/unit from the selected list (used by the X button on the tag).
+     * Triggers the deselection on the checkbox and the upward cascade.
+     */
     function removeSelected(id) {
-        selectedChapters.delete(id);
-        delete chapterNodeMap[id];
         const box = document.querySelector(`input.chapter-checkbox[value="${id}"]`);
-        if (box) box.checked = false;
-        updateSelectedItemsList();
+        
+        if (box) {
+            // Explicitly set checked to false and trigger all necessary logic
+            box.checked = false;
+            toggleChapterSelection(box);
+        } else {
+            // If element not in DOM just clean state and update UI
+            selectedChapters.delete(id);
+            delete chapterNodeMap[id];
+            updateSelectedItemsList();
+        }
     }
 
+
+    /**
+     * Toggles a chapter/unit selection (used by onchange event on the checkbox).
+     * This function handles both downward and upward cascading logic.
+     */
     function toggleChapterSelection(checkbox) {
         const id = checkbox.value;
         const name = checkbox.dataset.name;
         const type = checkbox.dataset.type;
-        if (checkbox.checked) {
+        const isChecked = checkbox.checked;
+
+        // 1. Update own state (internal map/set)
+        if (isChecked) {
             selectedChapters.add(id);
             chapterNodeMap[id] = {name, type};
         } else {
-            removeSelected(id);
+            selectedChapters.delete(id);
+            delete chapterNodeMap[id];
         }
+        
+        const currentDiv = checkbox.closest('.pl-4.mb-2'); 
+
+        // 2. Cascading Down (Select/Deselect all children)
+        if (currentDiv) {
+            setChildrenChecked(currentDiv, isChecked);
+        }
+        
+        // 3. Cascading Up (Update parent state)
+        // Only cascade up if this is not a root node
+        if (currentDiv && currentDiv.parentElement.closest('.pl-4.mb-2')) {
+            updateParentState(checkbox); 
+        }
+        
         updateSelectedItemsList();
     }
+    // ------------------------- END CASCADING LOGIC -------------------------
+
 
     // Modified: Checkboxes are now pre-checked inside buildChapterTree
     function buildChapterTree(node) {
         let html = `<div class="pl-4 mb-2">`;
         const color = getColor(node.node_type);
         const selectable = ['unit', 'chapter'].includes(node.node_type);
+        
         if (selectable) {
             // Check if this chapter is already selected
             const checked = selectedChapters.has(node.id.toString()) ? 'checked' : ''; 
             
             html += `
             <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg p-1 transition duration-100">
+                <!-- IMPORTANT: onchange is now linked to the new cascading handler -->
                 <input type="checkbox" class="chapter-checkbox form-checkbox h-5 w-5 text-${color}-600 rounded"
                     value="${node.id}" data-name="${node.name}" data-type="${node.node_type}"
                     onchange="toggleChapterSelection(this)" ${checked}>
@@ -337,6 +665,7 @@
             html += `<p class="text-sm text-gray-800 dark:text-gray-100 font-semibold mt-2 mb-1">${node.name}</p>`;
         }
         if (node.children && node.children.length > 0) {
+            // Add the border-l container for children
             html += `<div class="ml-4 border-l border-gray-200 dark:border-gray-600 pl-3 mt-1">`;
             node.children.forEach(child => {
                 html += buildChapterTree(child);
@@ -347,14 +676,15 @@
         return html;
     }
 
-    // Modified: Removed unnecessary `isInitialLoad` parameter and `selectedChapters.clear()` logic for standard use
     function loadChapterTree(subjectId) {
         chapterPlaceholder.innerHTML = 'Loading chapters...';
         chapterPlaceholder.classList.remove('hidden');
         chapterTree.classList.add('hidden');
         
-        // When changing subjects, clear selections to start fresh for the new subject
-        if (subjectId !== initialSubjectId) { 
+        // IMPORTANT: When a user manually changes the subject in the dropdown, 
+        // we must clear the selections as they belong to the old subject.
+        const currentSubjectValue = curriculumSubjectInput.value;
+        if (subjectId !== currentSubjectValue) { 
             selectedChapters.clear();
             chapterNodeMap = {};
             updateSelectedItemsList();
@@ -367,6 +697,26 @@
                     chapterTree.innerHTML = buildChapterTree(data.tree);
                     chapterTree.classList.remove('hidden');
                     chapterPlaceholder.classList.add('hidden');
+                    
+                    // After the tree is built (which pre-checks based on `selectedChapters`),
+                    // we need to perform an initial upward cascade to correct parent states.
+                    // This is only necessary if the initial subject was loaded.
+                    if (subjectId === initialSubjectId) {
+                        // Find all unit checkboxes (the highest level of selectable node)
+                        const unitCheckboxes = chapterTree.querySelectorAll('.chapter-checkbox[data-type="unit"]');
+                        unitCheckboxes.forEach(box => {
+                            // Run the upward cascade from the unit's children (if they exist) to fix the unit state.
+                            // Since we don't know which children were manually unselected, we run the cascade
+                            // for all pre-checked elements, even though it's technically triggered by a "change".
+                            // For simplicity and correctness on load, we can find any child checkbox that is pre-checked
+                            const parentDiv = box.closest('.pl-4.mb-2');
+                            const firstChildBox = parentDiv ? parentDiv.querySelector('.border-l .chapter-checkbox') : null;
+                            if(firstChildBox) {
+                                updateParentState(firstChildBox);
+                            }
+                        });
+                    }
+
                 } else {
                     chapterTree.innerHTML = '';
                     chapterPlaceholder.innerHTML = 'No chapters found for this subject.';
@@ -394,11 +744,10 @@
                     const select = document.createElement('select');
                     select.className = "w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 mt-2 focus:outline-none focus:ring-3 focus:ring-blue-500/50 focus:border-blue-600 dark:bg-gray-700 dark:text-white transition duration-150 appearance-none bg-white";
                     select.dataset.level = nextLevel;
-                    // Capitalize the node type for display
                     select.innerHTML = `<option value="">Select ${data.children[0].node_type.charAt(0).toUpperCase() + data.children[0].node_type.slice(1)}</option>`;
                     
                     data.children.forEach(child => {
-                        select.innerHTML += `<option value="${child.id}" data-type="${child.node_type}">${child.name}</option>`;
+                        select.innerHTML += `<option value="${child.id}" data-type="${child.node_type}" {% if child.id|stringformat:"s" == initial_subject_id %}selected{% endif %}>${child.name}</option>`;
                     });
 
                     select.addEventListener('change', function() {
@@ -406,7 +755,6 @@
                         const name = this.options[this.selectedIndex].text;
                         const nodeType = this.options[this.selectedIndex].dataset.type;
                         
-                        // Clear subsequent selects regardless of whether a subject is chosen
                         const currentLevel = parseInt(this.dataset.level);
                         const deeperSelects = hierarchyContainer.querySelectorAll(`select[data-level]`);
                         deeperSelects.forEach(sel => {
@@ -425,11 +773,7 @@
                             chapterPlaceholder.classList.remove('hidden');
                             curriculumSubjectInput.value = '';
                             
-                            // If user is navigating higher in the hierarchy, clear previous subject's selection 
-                            selectedChapters.clear();
-                            chapterNodeMap = {};
-                            updateSelectedItemsList();
-
+                            // Clear previous subject's selection if the user is navigating away from a subject
                             if (id) {
                                 createSelect(id, nextLevel);
                             }
@@ -438,10 +782,29 @@
 
                     div.appendChild(select);
                     hierarchyContainer.appendChild(div);
+                    
+                    // If this select contains the pre-selected subject (or a parent of it), trigger the next level load
+                    const preSelectedOption = select.querySelector(`option[value="${initialSubjectId}"]`);
+                    if (preSelectedOption && preSelectedOption.selected) {
+                        // If the subject itself is selected, the hierarchy is complete.
+                        // No need to call createSelect recursively here, loadChapterTree handles the next step.
+                    } else if (data.children.some(child => child.id.toString() === initialSubjectId || child.id.toString() === '{{ question_paper.curriculum_subject.parent.id|default:'' }}' || child.id.toString() === '{{ question_paper.curriculum_subject.parent.parent.id|default:'' }}')) {
+                        // If one of the children is part of the initial hierarchy path, select and trigger next level
+                         const initialPathId = data.children.find(child => 
+                            child.id.toString() === '{{ question_paper.curriculum_subject.parent.id|default:'' }}' || 
+                            child.id.toString() === '{{ question_paper.curriculum_subject.parent.parent.id|default:'' }}'
+                        )?.id;
+
+                        if (initialPathId) {
+                            select.value = initialPathId;
+                            createSelect(initialPathId, nextLevel);
+                        }
+                    }
                 }
             })
             .catch(() => console.error('Error loading child nodes.'));
     }
+
 
     // Event listener for the Root Node selection
     document.getElementById('root-node').addEventListener('change', function() {
@@ -464,9 +827,17 @@
 
     // Form submission handler to dynamically add hidden inputs
     questionPaperForm.addEventListener('submit', function(e) {
-        selectedChaptersHiddenInputs.innerHTML = '';
+        // 1. Final client-side validation check
+        updateMarkTotals(); 
+
+        if (submitButton.disabled) {
+            e.preventDefault();
+            console.error(criteriaErrorMessage.textContent || "Please ensure all criteria (Subject, Title, Marks) are valid before submitting.");
+            return;
+        }
         
-        // Create hidden inputs for the selected chapters (what Django expects)
+        // 2. Prepare Chapter Hidden Inputs
+        selectedChaptersHiddenInputs.innerHTML = '';
         selectedChapters.forEach(id => {
             const input = document.createElement('input');
             input.type = 'hidden';
@@ -474,17 +845,73 @@
             input.value = id;
             selectedChaptersHiddenInputs.appendChild(input);
         });
+
+        // 3. Prepare JSON Criteria for View
+        const marksPerType = {};
+        requiredMarksInputs.forEach(input => {
+            const type = input.dataset.qType;
+            const marks = parseInt(input.value) || 0;
+            if (marks > 0) {
+                marksPerType[type] = marks;
+            }
+        });
+
+        const criteria = {
+            total_paper_marks: parseInt(totalMarksInput.value) || 0,
+            difficulty_criteria: document.getElementById('difficulty_criteria').value,
+            marks_per_type: marksPerType,
+        };
+
+        selectionCriteriaJsonInput.value = JSON.stringify(criteria);
     });
 
     // --- Initialization on Page Load ---
     window.addEventListener('load', () => {
         // 1. Render the initial list of selected chapters
         updateSelectedItemsList();
-
-        // 2. If a subject is already linked (on edit page), load its chapter tree
-        if (initialSubjectId) {
-            loadChapterTree(initialSubjectId); 
+        
+        // 2. If a subject is already linked (on edit page), load the full hierarchy path
+        const rootSelect = document.getElementById('root-node');
+        if (rootSelect.value) {
+            createSelect(rootSelect.value, 0);
+            
+            // Note: loadChapterTree is now called indirectly via createSelect/change listeners
+            // to ensure the full hierarchy is rendered first.
+            if (initialSubjectId) {
+                 // Final call to ensure the chapter tree loads if the full hierarchy path is done.
+                 // This ensures the tree loads even if the createSelect path logic misses the final step.
+                 setTimeout(() => {
+                    if (!chapterTree.children.length) {
+                       loadChapterTree(initialSubjectId);
+                    }
+                 }, 500); 
+            }
         }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Default marks (you can customize these)
+        
+        // Clear all marks
+        document.getElementById('make-it-editiable').addEventListener('click', function() {
+            if (confirm('Allow change in marks type ?')) {
+                document.querySelectorAll('.required-marks-input').forEach(input => {
+                    input.readOnly = false;
+                    input.classList.remove('cursor-not-allowed');
+                });
+            }
+        });
+        
+        // Clear single field
+        document.querySelectorAll('.clear-single-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const qType = this.getAttribute('data-clear-type');
+                const input = document.querySelector(`.required-marks-input[data-q-type="${qType}"]`);
+                if (input) {
+                    input.value = '0';
+                }
+            });
+        });
     });
 </script>
 {% endblock %}

@@ -77,7 +77,7 @@
     
     <a href="{% url 'curritree:create_child_node' parent_pk=node.pk %}"
        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition shadow-md">
-      <i class="fa-solid fa-plus-circle"></i> Add {% if node.node_type == 'board' %} Class {% elif node.node_type == 'competitive' or node.node_type == 'class' %} Subject {% elif node.node_type == 'subject' %} Chapter/Unit {% elif node.node_type == 'uint' %} Chapter {% else %} {# No Add Child button for 'chapter' nodes #}{% endif %}
+      <i class="fa-solid fa-plus-circle"></i> Add {% if node.node_type == 'board' %} Class {% elif node.node_type == 'competitive' or node.node_type == 'class' %} Subject {% elif node.node_type == 'subject' %} Chapter/Unit {% elif node.node_type == 'unit' %} Chapter {% else %} {# No Add Child button for 'chapter' nodes #}{% endif %}
     </a>
 
     <a href="{% url 'curritree:curriculum_edit' pk=node.pk %}"
@@ -114,10 +114,15 @@
                   <a href="{% url 'curritree:curriculum_detail' pk=child.pk %}" class="text-lg font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
                       {{ child.name }}
                   </a>
+                  
               </div>
+              
               <span class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ child.node_type|capfirst }}
+                   {{ child.node_type|capfirst }} Marks: {{ child.marks }}
               </span>
+        
+                 
+              
           </li>
           {% endfor %}
       </ul>

@@ -88,7 +88,7 @@
         <div class="flex flex-col p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
             <span class="text-gray-500 dark:text-gray-400 font-medium">Board / Curriculum</span>
             <span class="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-1">{% for ancestor in  board_detail %}
-                Type : {{ ancestor.node_type }} , Name : {{ ancestor.name }} <br>
+              {{ ancestor.node_type }}  : {{ ancestor.name }} <br>
               {% endfor %}
             </span>
         </div>
@@ -298,14 +298,14 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
               </a>
 
               <!-- Swap Question (Alternative 2) -->
-              <a href="{% url 'quiz:paper_add_questions' paper.id %}?type={{pq.question.question_type}}" 
+              <a href="{% url 'quiz:paper_add_questions' paper.id %}?type={{pq.question.question_type}}&id={{pq.question.id}}&do=swap&modeltype={{pq.model_type}}" 
                 title="Find Similar Questions"
                 class="w-8 h-8 flex items-center justify-center text-green-500 bg-green-100 rounded-full hover:bg-green-200 transition-colors">
                 <i class="fa-solid fa-magnifying-glass text-sm"></i>
               </a>
 
               <!-- Remove Question -->
-              <a href="{% url 'quiz:paper_remove_question' paper.id pq.question.id %}" 
+              <a href="{% url 'quiz:paper_remove_question' paper.id pq.question.id pq.model_type %}" 
                 title="Remove Question"
                 class="w-8 h-8 flex items-center justify-center text-red-500 bg-red-100 rounded-full hover:bg-red-200 transition-colors">
                 <i class="fa-solid fa-trash-can text-sm"></i>
@@ -345,7 +345,7 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
 <!-- <button class="px-8 py-3 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-full font-bold text-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-xl">
 <i class="fa-solid fa-play mr-3"></i>Start Quiz
 </button> -->
-<a href="{% url 'quiz:paper_print' paper.id %}" target="_blank" class="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+<a href="{% url 'quiz:paper_print' paper.paper_uuid %}" target="_blank" class="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
 <i class="fa-solid fa-print mr-2"></i>Print Paper
 </a>
 {% endif %}
@@ -354,6 +354,11 @@ class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transitio
 <a href="{% url 'quiz:paper_delete' paper.id %}" class="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">
   <i class="fa-solid fa-trash mr-2"></i>Cancle/Delete Draft
 </a>
+
+<a href="{% url 'quiz:publish_paper' paper.id %}" class="px-6 py-3 bg-green-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+  <i class="fa-solid fa-upload mr-1"></i> Save Draft
+</a>
+
 {% endif %}
 
 

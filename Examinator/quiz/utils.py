@@ -71,8 +71,7 @@ def validate_paper_limits_and_license(organization: 'OrganizationProfile', curri
         total_used = total_used_result.get('total_used') or 0
         
         raise ValidationError(
-            f"Limit Exceeded: All active license grants covering this subject are currently full. "
-            f"Your organization has used {total_used} of its total capacity of {total_limit}."
+            f"Limit Exceeded: All active license grants covering this subject are currently full. Your organization has used {total_used} of its total capacity of {total_limit}."
         )
     
     # 🛑 NEW LOGIC: Sort candidate grants to prioritize the one expiring soonest.
